@@ -1,0 +1,5 @@
+# agent tooling
+.claude/
+.claude-flow/
+CLAUDE.md
+AGENTS.md
