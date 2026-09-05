@@ -3,3 +3,17 @@
 .claude-flow/
 CLAUDE.md
 AGENTS.md
+
+# build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# local secrets and data — never commit these
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+.tmp-*

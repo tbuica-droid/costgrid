@@ -1,0 +1,12 @@
+{
+  "name": "@costgrid/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "costgrid": "./dist/main.js" },
+  "main": "./dist/main.js",
+  "dependencies": {
+    "@costgrid/core": "0.1.0",
+    "@costgrid/db": "0.1.0"
+  }
+}

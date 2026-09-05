@@ -1,0 +1,146 @@
+# Quickstart — metering your own Anthropic usage
+
+This is the shortest path from a clean checkout to a real spend report from
+your own traffic. It costs whatever your own calls cost and nothing more:
+CostGrid adds one local network hop and no charges of its own.
+
+## 1. Install and build
+
+```bash
+npm install && npm run build
+```
+
+## 2. Add your key
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and paste your Anthropic API key into `ANTHROPIC_API_KEY`. The
+gateway holds this credential so the services calling through it never need
+it — that indirection is the point: a compromised caller can be cut off in
+CostGrid without rotating your provider key.
+
+`.env` is gitignored. Do not commit it.
+
+## 3. Create the local tenant
+
+```bash
+npx tsx packages/cli/src/main.ts init
+```
+
+This prints an API key once. With `COSTGRID_ALLOW_ANONYMOUS=true` you do not
+need it yet, but store it now — it is not recoverable.
+
+## 4. Start the gateway
+
+```bash
+set -a && source .env && set +a && npm run gateway
+```
+
+It listens on `http://127.0.0.1:8787`.
+
+## 5. Send traffic through it
+
+Any Anthropic SDK works — point its base URL at the gateway and CostGrid
+meters everything that flows through.
+
+```bash
+curl http://127.0.0.1:8787/v1/messages \
+  -H "content-type: application/json" \
+  -H "x-costgrid-agent: my-first-agent" \
+  -H "x-costgrid-department: Engineering" \
+  -d '{
+    "model": "claude-opus-5",
+    "max_tokens": 256,
+    "messages": [{"role": "user", "content": "Say hello in five words."}]
+  }'
+```
+
+In Python or TypeScript, set the base URL on the client:
+
+```python
+client = Anthropic(base_url="http://127.0.0.1:8787", api_key="unused")
+```
+
+```typescript
+const client = new Anthropic({ baseURL: "http://127.0.0.1:8787", apiKey: "unused" });
+```
+
+The SDK still needs an `api_key` argument, but the gateway ignores it and
+substitutes its own — so a placeholder is correct here, not a shortcut.
+
+### Attribution headers
+
+| Header | Meaning | Default |
+|---|---|---|
+| `x-costgrid-agent` | The cost line this call belongs to | `unattributed` |
+| `x-costgrid-department` | Budget owner grouping | `Unassigned` |
+| `x-costgrid-key` | CostGrid API key (required unless anonymous) | — |
+
+Unlabelled calls are metered, not dropped. They show up as `unattributed`,
+which is a visible cost line rather than a silent gap.
+
+## 6. Read the report
+
+```bash
+npx tsx packages/cli/src/main.ts report --days 7
+```
+
+You get total spend, run-rate, cache hit ratio, a per-model and per-agent
+breakdown, your measured substitution share, and the routing headroom implied
+by it.
+
+## 7. Turn on enforcement
+
+Start in `monitor` so you can see what a rule would do before it does it:
+
+```bash
+# Watch, don't block
+npx tsx packages/cli/src/main.ts policy budget tenant 50.00 --window month --action monitor
+
+# Warn one team at 80% of its budget
+npx tsx packages/cli/src/main.ts policy budget dept:Engineering 200.00 --action warn
+
+# Actually stop a runaway agent
+npx tsx packages/cli/src/main.ts policy budget agent:chat-bot 5.00 --window day --action block
+
+# Restrict the fleet to models you have approved
+npx tsx packages/cli/src/main.ts policy allow claude-haiku-4-5 claude-sonnet-5 --action block
+
+npx tsx packages/cli/src/main.ts policy list
+```
+
+A `block` is evaluated *before* the request is forwarded, so a blocked call
+costs nothing. `warn` forwards the call and returns an `x-costgrid-warnings`
+response header. `monitor` only records.
+
+## Routing Claude Code through it
+
+Claude Code respects `ANTHROPIC_BASE_URL`, so you can meter your own coding
+sessions:
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:8787 claude
+```
+
+Two caveats. Claude Code authenticates with an OAuth profile by default, and
+the gateway swaps in the API key from its own `.env` — so this bills your API
+account rather than your Claude subscription. And with a `block` policy active,
+a mid-session block surfaces as an API error inside Claude Code. Use `monitor`
+first.
+
+## What is measured, and what is assumed
+
+Everything in the *spend* section is measured from provider responses: token
+counts come from each call's `usage` object, and each of the five token buckets
+(input, output, 5-minute cache write, 1-hour cache write, cache read) is priced
+at its own rate.
+
+The *routing* section is a model, not a measurement. Your observed substitution
+share is real; the optimum and the headroom figure derive from the assumptions
+in `packages/core/src/routing.ts` and are only as good as those assumptions.
+
+If a call uses a model missing from the price catalog, the report says
+`UNPRICED` and tells you the total is understated. It never silently records
+that traffic as free.
