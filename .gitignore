@@ -9,9 +9,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# local secrets and data — never commit these
-.env
-.env.*
+# local secrets and data — never commit these.
+# The glob is deliberately greedy: a mistyped `cp .env.example .env<pasted-key>`
+# creates a file whose *name* is the secret, and `.env.*` would not match it.
+.env*
 !.env.example
 *.db
 *.db-wal

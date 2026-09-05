@@ -12,16 +12,27 @@ npm install && npm run build
 
 ## 2. Add your key
 
+**Never paste a key onto a command line.** It lands in your shell history, and
+a missing space turns `cp .env.example .env<key>` into a file whose *name* is
+your secret. Use the prompt below: it reads the key with echo off, so the key
+never appears on screen, in history, or in a process argument list.
+
 ```bash
-cp .env.example .env
+cp .env.example .env && printf 'Anthropic API key (input hidden): ' && read -rs KEY && echo && \
+  sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${KEY}|" .env && unset KEY && \
+  echo "Key written to .env"
 ```
 
-Open `.env` and paste your Anthropic API key into `ANTHROPIC_API_KEY`. The
-gateway holds this credential so the services calling through it never need
-it — that indirection is the point: a compromised caller can be cut off in
+Prefer an editor? `cp .env.example .env` then open `.env` and paste the key
+after `ANTHROPIC_API_KEY=`. That is equally safe — the danger is only the
+command line.
+
+The gateway holds this credential so the services calling through it never
+need it. That indirection is the point: a compromised caller can be cut off in
 CostGrid without rotating your provider key.
 
-`.env` is gitignored. Do not commit it.
+`.env` is gitignored, along with anything else starting `.env` except the
+example — including a file accidentally *named* after a key.
 
 ## 3. Create the local tenant
 
