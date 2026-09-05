@@ -116,9 +116,36 @@ of migration that causes an outage.
 Only a SHA-256 digest is persisted; the plaintext is shown once at creation. A
 database leak does not hand an attacker working credentials.
 
+### The dashboard has no sample data, on purpose
+
+`packages/gateway/web` renders only what the API returns. There is no seeded
+fallback: an empty database produces an empty state that tells you how to send
+a call, not a plausible-looking chart. The whole pitch is that the numbers are
+measured, and a dashboard that invents them when the database is empty is how a
+demo gets mistaken for a deployment.
+
+It also ships no CDN dependencies. Charts are inline SVG rather than Chart.js,
+and there is no webfont fetch or CSS framework, so the dashboard renders
+correctly inside a customer VPC with no egress.
+
+### Money crosses the wire as a string
+
+API responses carry money as decimal strings (`"12.345678"`), never JSON
+numbers. JSON's number type is a double; serialising nanodollars through one
+would reintroduce exactly the drift the bigint representation exists to
+prevent. A `…Usd` suffix means "display this, don't compute with it".
+
+### Trailing windows end at `now + 1`
+
+`TimeRange` is half-open, `[from, to)`. Every caller used to build
+`to = Date.now()` by hand, which silently excluded any call recorded in that
+same millisecond — the newest calls flickered in and out of the dashboard
+depending on how the millisecond boundary fell. `trailingWindow()` is now the
+single way to build one, and a regression test pins the boundary case.
+
 ## Testing
 
-84 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+109 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.
@@ -130,10 +157,10 @@ node scripts/e2e-smoke.mjs    # full stack against a stub provider
 
 ## Not built yet
 
-- The dashboard still reads seeded data; `index.html` is untouched and remains
-  the marketing demo.
 - Only Anthropic is proxied. OpenAI, Bedrock and Vertex need their own usage
   adapters — the `Provider` type and the tier model already anticipate this.
+- `index.html` at the repo root is untouched and remains the seeded marketing
+  demo, served by GitHub Pages. It is not the product dashboard.
 - No hosted control plane, billing, or signup. Deployment today is
   self-hosted.
 - Prices are a hand-maintained catalog verified against the published table

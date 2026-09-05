@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { toUsdString, usd } from "@costgrid/core";
-import { Analytics, CostGridRepository, openDatabase } from "@costgrid/db";
+import { Analytics, CostGridRepository, openDatabase, trailingWindow } from "@costgrid/db";
 import { formatReport } from "./report.js";
 
 const USAGE = `costgrid — LLM inference cost governance
@@ -107,9 +107,7 @@ function main(): void {
       if (!Number.isInteger(days) || days < 1 || days > 3650) {
         fail(`--days must be an integer 1..3650, got ${days}`);
       }
-      const to = Date.now();
-      const range = { from: to - days * 24 * 60 * 60 * 1000, to };
-      console.log(formatReport(analytics, tenantId, range, days));
+      console.log(formatReport(analytics, tenantId, trailingWindow(days), days));
       break;
     }
 

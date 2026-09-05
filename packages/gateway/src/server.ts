@@ -9,9 +9,11 @@ import {
   ZERO_COST,
   ZERO_USAGE,
 } from "@costgrid/core";
-import { Analytics, type CallRecord, CostGridRepository } from "@costgrid/db";
+import { Analytics, type CallRecord, CostGridRepository, trailingWindow } from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { registerApi } from "./api.js";
 import type { GatewayConfig } from "./config.js";
+import { registerDashboard } from "./dashboard.js";
 import { SseUsageCollector } from "./sse.js";
 
 const AGENT_HEADER = "x-costgrid-agent";
@@ -112,6 +114,16 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   });
 
   app.get("/health", async () => ({ status: "ok", version: "0.1.0" }));
+
+  // The dashboard API and the proxy share a process so a self-hosted deploy is
+  // one command. In a multi-tenant hosted setting these would be separate
+  // services — reporting load must never contend with the metering path.
+  registerApi(app, {
+    repository,
+    analytics,
+    tenantOf: (request) => identify(request, deps)?.tenantId,
+  });
+  registerDashboard(app);
 
   app.post("/v1/messages", async (request, reply) => {
     const startedAt = Date.now();
@@ -297,9 +309,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     const caller = identify(request, deps);
     if (!caller) return reply.code(401).send({ error: "unauthorized" });
 
-    const to = Date.now();
-    const from = to - 30 * 24 * 60 * 60 * 1000;
-    const summary = analytics.summary(caller.tenantId, { from, to });
+    const window = trailingWindow(30);
+    const { from, to } = window;
+    const summary = analytics.summary(caller.tenantId, window);
 
     return {
       window: { from, to },

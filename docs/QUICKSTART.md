@@ -92,7 +92,21 @@ substitutes its own — so a placeholder is correct here, not a shortcut.
 Unlabelled calls are metered, not dropped. They show up as `unattributed`,
 which is a visible cost line rather than a silent gap.
 
-## 6. Read the report
+## 6. Open the dashboard
+
+With the gateway running, visit **<http://127.0.0.1:8787>**.
+
+Five views: Overview (spend, cache hit ratio, per-model/agent/department
+breakdowns), Agents (one row per cost line), Routing (your measured
+substitution share against the modelled optimum), Policies (rules and the
+enforcement feed), and Pricing (the catalog).
+
+Everything on it is read from metered calls. There is no sample data — an
+empty database shows you an empty state, not a plausible chart.
+
+## 7. Read the report
+
+Same numbers, in the terminal:
 
 ```bash
 npx tsx packages/cli/src/main.ts report --days 7
@@ -102,7 +116,7 @@ You get total spend, run-rate, cache hit ratio, a per-model and per-agent
 breakdown, your measured substitution share, and the routing headroom implied
 by it.
 
-## 7. Turn on enforcement
+## 8. Turn on enforcement
 
 Start in `monitor` so you can see what a rule would do before it does it:
 
