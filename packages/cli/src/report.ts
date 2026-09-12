@@ -1,4 +1,12 @@
-import { analyzeRouting, type Nanodollars, toUsdNumber, toUsdString } from "@costgrid/core";
+import {
+  analyzeRouting,
+  CATALOG_VERIFIED_AT,
+  catalogAgeDays,
+  isCatalogStale,
+  type Nanodollars,
+  toUsdNumber,
+  toUsdString,
+} from "@costgrid/core";
 import type { Analytics, TimeRange } from "@costgrid/db";
 
 function money(value: Nanodollars): string {
@@ -53,6 +61,15 @@ export function formatReport(
   out.push(rule);
   out.push(`  COSTGRID — last ${days} day${days === 1 ? "" : "s"}`);
   out.push(rule);
+
+  if (isCatalogStale()) {
+    out.push("");
+    out.push(
+      `  ! PRICE CATALOG IS ${catalogAgeDays()} DAYS OLD (verified ${CATALOG_VERIFIED_AT}).`,
+    );
+    out.push("    Figures below may not reflect current provider rates.");
+    out.push("    Run: npm run verify-pricing");
+  }
 
   if (summary.calls === 0) {
     out.push("");

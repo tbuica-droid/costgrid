@@ -143,6 +143,32 @@ describe("SseUsageCollector", () => {
     expect(c.usage.cacheWrite1hTokens).toBe(700);
   });
 
+  it("picks up pricing modifiers from the stream", () => {
+    const c = new SseUsageCollector();
+    c.feed(
+      events(
+        JSON.stringify({
+          type: "message_start",
+          message: {
+            model: "claude-opus-5",
+            usage: { input_tokens: 10, speed: "fast", inference_geo: "us" },
+          },
+        }),
+      ),
+    );
+    c.end();
+
+    // A streamed fast-mode call bills at double; missing this halves the bill.
+    expect(c.modifiers).toEqual({ speed: "fast", inferenceGeo: "us" });
+  });
+
+  it("reports no modifiers on an ordinary stream", () => {
+    const c = new SseUsageCollector();
+    c.feed(events(MESSAGE_START));
+    c.end();
+    expect(c.modifiers).toEqual({});
+  });
+
   it("does not grow its buffer without bound on a stream with no newlines", () => {
     const c = new SseUsageCollector();
     c.feed("data: ".concat("x".repeat(2_000_000)));

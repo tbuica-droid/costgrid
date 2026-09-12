@@ -1,3 +1,4 @@
+import { CATALOG_VERIFIED_AT, catalogAgeDays, isCatalogStale } from "@costgrid/core";
 import { Analytics, CostGridRepository, openDatabase } from "@costgrid/db";
 import { loadConfig } from "./config.js";
 import { createServer } from "./server.js";
@@ -31,6 +32,15 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
   await app.listen({ port: config.port, host: config.host });
+
+  // Surfaced at boot as well as in the UI: an operator restarting the gateway
+  // is the most likely person to act on it.
+  if (isCatalogStale()) {
+    app.log.warn(
+      { verifiedAt: CATALOG_VERIFIED_AT, ageDays: catalogAgeDays() },
+      "price catalog is stale — run `npm run verify-pricing`; costs may be billed at outdated rates",
+    );
+  }
   app.log.info(
     { database: config.databasePath, anonymous: config.allowAnonymous },
     `CostGrid gateway listening — point ANTHROPIC_BASE_URL at http://${config.host}:${config.port}`,

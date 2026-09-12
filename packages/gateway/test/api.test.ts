@@ -118,11 +118,34 @@ describe("dashboard API", () => {
 
   it("prices the catalog per million tokens", async () => {
     const res = await app.inject({ method: "GET", url: "/api/models", headers: auth() });
-    const opus = res.json().find((m: { id: string }) => m.id === "claude-opus-5");
+    const { models } = res.json();
+    const opus = models.find((m: { id: string }) => m.id === "claude-opus-5");
 
     expect(opus.inputPerMTokUsd).toBe("5.00");
     expect(opus.outputPerMTokUsd).toBe("25.00");
     expect(opus.cacheReadPerMTokUsd).toBe("0.50");
+    // Fast mode is a real rate, not a footnote — it doubles the bill.
+    expect(opus.fastInputPerMTokUsd).toBe("10.00");
+    expect(opus.fastOutputPerMTokUsd).toBe("50.00");
+
+    const sonnet = models.find((m: { id: string }) => m.id === "claude-sonnet-5");
+    expect(sonnet.fastInputPerMTokUsd).toBeNull();
+  });
+
+  it("ships provenance alongside the prices", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/models", headers: auth() });
+    const { catalog } = res.json();
+
+    expect(catalog.source).toMatch(/^https:\/\//);
+    expect(catalog.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(typeof catalog.ageDays).toBe("number");
+    expect(typeof catalog.stale).toBe("boolean");
+  });
+
+  it("reports catalog staleness on the overview so the banner can render", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/overview", headers: auth() });
+    expect(typeof res.json().catalogStale).toBe("boolean");
+    expect(typeof res.json().catalogAgeDays).toBe("number");
   });
 
   // -------------------------------------------------------------- content

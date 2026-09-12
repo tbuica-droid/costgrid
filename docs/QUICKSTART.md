@@ -140,6 +140,30 @@ A `block` is evaluated *before* the request is forwarded, so a blocked call
 costs nothing. `warn` forwards the call and returns an `x-costgrid-warnings`
 response header. `monitor` only records.
 
+## Keeping prices honest
+
+```bash
+npm run verify-pricing
+```
+
+Fetches Anthropic's published pricing table and diffs every rate in the
+catalog. Exit 0 means accurate and fresh; 1 means a discrepancy or a stale
+verification date; 2 means the page could not be fetched or parsed — which is
+*inconclusive*, not a pass.
+
+If a rate has changed, update `packages/core/src/pricing.ts` and bump
+`CATALOG_VERIFIED_AT`. Past 45 days the gateway warns at startup and both the
+report and dashboard say so.
+
+## Backing up
+
+```bash
+npx tsx packages/cli/src/main.ts backup ./costgrid-backup.db
+```
+
+Use this rather than `cp`. The database runs in WAL mode, so recent calls live
+in a `-wal` sidecar until checkpointed — a plain file copy silently loses them.
+
 ## Routing Claude Code through it
 
 Claude Code respects `ANTHROPIC_BASE_URL`, so you can meter your own coding

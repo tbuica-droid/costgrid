@@ -127,6 +127,20 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_violations_tenant_time ON violations(tenant_id, occurred_at);
     `,
   },
+  {
+    version: 2,
+    name: "pricing-modifiers",
+    // Without these a bill cannot be explained: two calls with identical token
+    // counts on the same model legitimately cost different amounts when one ran
+    // in fast mode (2x input/output), was pinned to US inference (1.1x on every
+    // category), or went through the Batch API (0.5x). Recording what was in
+    // effect makes each row's cost reproducible.
+    sql: `
+      ALTER TABLE calls ADD COLUMN speed TEXT;
+      ALTER TABLE calls ADD COLUMN inference_geo TEXT;
+      ALTER TABLE calls ADD COLUMN batch INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

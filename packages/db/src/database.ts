@@ -30,6 +30,19 @@ export function openDatabase({ path, readonly = false }: OpenOptions): Db {
   return db;
 }
 
+/**
+ * Copy the database to `destination`, safely, while it is in use.
+ *
+ * Not the same as `cp`. In WAL mode recent commits live in the `-wal` sidecar
+ * until a checkpoint, so copying the main file alone silently loses the most
+ * recent writes — exactly the calls a customer is most likely to be asking
+ * about. SQLite's backup API checkpoints as it goes and produces a single
+ * consistent file.
+ */
+export async function backupDatabase(db: Db, destination: string): Promise<void> {
+  await db.backup(destination);
+}
+
 export function migrate(db: Db): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

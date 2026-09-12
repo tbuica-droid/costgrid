@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
   evaluatePolicies,
+  parseAnthropicModifiers,
   parseAnthropicUsage,
+  type PriceModifiers,
   priceUsage,
   type PolicyScope,
   type RequestContext,
@@ -246,7 +248,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     const record = (over: Partial<CallRecord>): void => {
       const usage = over.usage ?? ZERO_USAGE;
       const model = over.model ?? requestedModel;
-      const priced = priceUsage(model, usage);
+      // Fast mode doubles the rate and US-pinned inference adds 10%; both are
+      // reported back in `usage`, so pricing reads them rather than assuming.
+      const modifiers = over.modifiers ?? {};
+      const priced = priceUsage(model, usage, modifiers);
 
       const callId = over.id ?? randomUUID();
       repository.recordCall({
@@ -262,6 +267,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         usage,
         cost: priced.cost,
         priced: priced.priced,
+        modifiers,
         outcome: over.outcome ?? "ok",
         statusCode: upstream.status,
         ...over,
@@ -298,6 +304,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       // Bill the model that actually ran, which a server-side fallback can change.
       model: typeof message["model"] === "string" ? message["model"] : requestedModel,
       usage: message["usage"] !== undefined ? parseAnthropicUsage(message["usage"]) : ZERO_USAGE,
+      modifiers: parseAnthropicModifiers(message["usage"]),
       stopReason: typeof message["stop_reason"] === "string" ? message["stop_reason"] : undefined,
       outcome: "ok",
     });
@@ -387,6 +394,7 @@ async function streamThrough(
   record({
     ...(collector.model !== undefined ? { model: collector.model } : {}),
     usage: collector.usage,
+    modifiers: collector.modifiers,
     ...(collector.stopReason !== undefined ? { stopReason: collector.stopReason } : {}),
     outcome: aborted || collector.incomplete ? "error" : "ok",
     ...(aborted || collector.incomplete

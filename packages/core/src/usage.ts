@@ -1,5 +1,11 @@
 import { type Nanodollars } from "./money.js";
-import { findModelPrice, type ModelPrice } from "./pricing.js";
+import {
+  effectiveRates,
+  findModelPrice,
+  type ModelPrice,
+  NO_MODIFIERS,
+  type PriceModifiers,
+} from "./pricing.js";
 
 /**
  * Token counts for one completed call, normalised from a provider's `usage`
@@ -53,6 +59,8 @@ export interface PricedUsage {
    */
   readonly price: ModelPrice | undefined;
   readonly priced: boolean;
+  /** The modifiers applied, so a bill can be explained rather than asserted. */
+  readonly modifiers: PriceModifiers;
 }
 
 function readCount(source: Record<string, unknown>, key: string): number {
@@ -169,13 +177,19 @@ export function totalTokens(usage: TokenUsage): number {
   );
 }
 
-export function costOf(usage: TokenUsage, price: ModelPrice): CostBreakdown {
-  const input = BigInt(usage.inputTokens) * price.input;
-  const output = BigInt(usage.outputTokens) * price.output;
+export function costOf(
+  usage: TokenUsage,
+  price: ModelPrice,
+  modifiers: PriceModifiers = NO_MODIFIERS,
+): CostBreakdown {
+  const rates = effectiveRates(price, modifiers);
+
+  const input = BigInt(usage.inputTokens) * rates.input;
+  const output = BigInt(usage.outputTokens) * rates.output;
   const cacheWrite =
-    BigInt(usage.cacheWrite5mTokens) * price.cacheWrite5m +
-    BigInt(usage.cacheWrite1hTokens) * price.cacheWrite1h;
-  const cacheRead = BigInt(usage.cacheReadTokens) * price.cacheRead;
+    BigInt(usage.cacheWrite5mTokens) * rates.cacheWrite5m +
+    BigInt(usage.cacheWrite1hTokens) * rates.cacheWrite1h;
+  const cacheRead = BigInt(usage.cacheReadTokens) * rates.cacheRead;
 
   return { input, output, cacheWrite, cacheRead, total: input + output + cacheWrite + cacheRead };
 }
@@ -184,8 +198,36 @@ export function costOf(usage: TokenUsage, price: ModelPrice): CostBreakdown {
  * Price a call. An unknown model yields zero cost with `priced: false` — the
  * caller is responsible for surfacing that, never for treating it as free.
  */
-export function priceUsage(modelId: string, usage: TokenUsage): PricedUsage {
+export function priceUsage(
+  modelId: string,
+  usage: TokenUsage,
+  modifiers: PriceModifiers = NO_MODIFIERS,
+): PricedUsage {
   const price = findModelPrice(modelId);
-  if (!price) return { usage, cost: ZERO_COST, price: undefined, priced: false };
-  return { usage, cost: costOf(usage, price), price, priced: true };
+  if (!price) {
+    return { usage, cost: ZERO_COST, price: undefined, priced: false, modifiers };
+  }
+  return { usage, cost: costOf(usage, price, modifiers), price, priced: true, modifiers };
+}
+
+/**
+ * Read the pricing modifiers a provider reports back on a completed call.
+ *
+ * `usage.speed` and `usage.inference_geo` are how the API tells you what it
+ * actually charged for — a fast-mode call bills at double, a US-pinned one at
+ * 1.1x. Reading them from the response rather than inferring from the request
+ * means a server-side change of plan is billed correctly.
+ */
+export function parseAnthropicModifiers(raw: unknown): PriceModifiers {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return NO_MODIFIERS;
+  const usage = raw as Record<string, unknown>;
+
+  const modifiers: { speed?: "standard" | "fast"; inferenceGeo?: "global" | "us" } = {};
+  if (usage["speed"] === "fast" || usage["speed"] === "standard") {
+    modifiers.speed = usage["speed"];
+  }
+  if (usage["inference_geo"] === "us" || usage["inference_geo"] === "global") {
+    modifiers.inferenceGeo = usage["inference_geo"];
+  }
+  return modifiers;
 }

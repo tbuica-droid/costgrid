@@ -1,6 +1,9 @@
 import {
+  NO_MODIFIERS,
   overlayUsage,
+  parseAnthropicModifiers,
   parsePartialAnthropicUsage,
+  type PriceModifiers,
   type TokenUsage,
   ZERO_USAGE,
 } from "@costgrid/core";
@@ -25,6 +28,7 @@ export class SseUsageCollector {
   #usage: TokenUsage = ZERO_USAGE;
   #model: string | undefined;
   #stopReason: string | undefined;
+  #modifiers: PriceModifiers = NO_MODIFIERS;
   #parseErrors = 0;
   #sawMessageStart = false;
 
@@ -95,6 +99,8 @@ export class SseUsageCollector {
         if (typeof m["model"] === "string") this.#model = m["model"];
         if (m["usage"] !== undefined) {
           this.#usage = overlayUsage(this.#usage, parsePartialAnthropicUsage(m["usage"]));
+          // speed / inference_geo arrive on message_start and decide the rate.
+          this.#modifiers = { ...this.#modifiers, ...parseAnthropicModifiers(m["usage"]) };
         }
         return;
       }
@@ -102,6 +108,7 @@ export class SseUsageCollector {
       case "message_delta": {
         if (event["usage"] !== undefined) {
           this.#usage = overlayUsage(this.#usage, parsePartialAnthropicUsage(event["usage"]));
+          this.#modifiers = { ...this.#modifiers, ...parseAnthropicModifiers(event["usage"]) };
         }
         const delta = event["delta"];
         if (typeof delta === "object" && delta !== null) {
@@ -126,6 +133,10 @@ export class SseUsageCollector {
 
   get stopReason(): string | undefined {
     return this.#stopReason;
+  }
+
+  get modifiers(): PriceModifiers {
+    return this.#modifiers;
   }
 
   /**

@@ -6,6 +6,7 @@ import type {
   PolicyRule,
   PolicyScope,
   PolicyViolation,
+  PriceModifiers,
   SpendSnapshot,
   TokenUsage,
 } from "@costgrid/core";
@@ -27,6 +28,8 @@ export interface CallRecord {
   readonly usage: TokenUsage;
   readonly cost: CostBreakdown;
   readonly priced: boolean;
+  /** Pricing modifiers in effect, so the row's cost is reproducible. */
+  readonly modifiers?: PriceModifiers | undefined;
   readonly outcome: CallOutcome;
   readonly statusCode?: number | undefined;
   readonly stopReason?: string | undefined;
@@ -169,13 +172,15 @@ export class CostGridRepository {
            started_at, duration_ms, streamed,
            input_tokens, output_tokens, cache_write_5m_tokens, cache_write_1h_tokens, cache_read_tokens,
            cost_input, cost_output, cost_cache_write, cost_cache_read, cost_total, priced,
-           outcome, status_code, stop_reason, error_message
+           outcome, status_code, stop_reason, error_message,
+           speed, inference_geo, batch
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
            @inputTokens, @outputTokens, @cacheWrite5m, @cacheWrite1h, @cacheRead,
            @costInput, @costOutput, @costCacheWrite, @costCacheRead, @costTotal, @priced,
-           @outcome, @statusCode, @stopReason, @errorMessage
+           @outcome, @statusCode, @stopReason, @errorMessage,
+           @speed, @inferenceGeo, @batch
          )`,
       )
       .run({
@@ -203,6 +208,9 @@ export class CostGridRepository {
         statusCode: call.statusCode ?? null,
         stopReason: call.stopReason ?? null,
         errorMessage: call.errorMessage ?? null,
+        speed: call.modifiers?.speed ?? null,
+        inferenceGeo: call.modifiers?.inferenceGeo ?? null,
+        batch: call.modifiers?.batch === true ? 1 : 0,
       });
   }
 

@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { toUsdString, usd } from "@costgrid/core";
-import { Analytics, CostGridRepository, openDatabase, trailingWindow } from "@costgrid/db";
+import {
+  Analytics,
+  backupDatabase,
+  CostGridRepository,
+  openDatabase,
+  trailingWindow,
+} from "@costgrid/db";
 import { formatReport } from "./report.js";
 
 const USAGE = `costgrid — LLM inference cost governance
@@ -14,6 +20,7 @@ Usage:
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
   costgrid policy allow <model...>        Restrict the tenant to these models
   costgrid policy disable <policy-id>
+  costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
 Scope is "tenant", "dept:<name>" or "agent:<id>".
 
@@ -50,7 +57,7 @@ function parseAction(raw: string | undefined) {
   return value;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv[0];
   if (command === undefined || command === "--help" || command === "-h") {
@@ -98,6 +105,15 @@ function main(): void {
       } else {
         fail(`unknown key subcommand ${JSON.stringify(sub)}`);
       }
+      break;
+    }
+
+    case "backup": {
+      const destination = argv[1] ?? fail("backup needs a destination path");
+      // `cp` on a WAL database loses whatever is still in the -wal sidecar,
+      // which is always the most recent calls. This checkpoints properly.
+      await backupDatabase(db, destination);
+      console.log(`Wrote a consistent copy to ${destination}.`);
       break;
     }
 
@@ -190,4 +206,7 @@ function main(): void {
   db.close();
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+});

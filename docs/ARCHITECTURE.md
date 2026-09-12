@@ -57,6 +57,41 @@ bill at different multiples of the input rate (1x, output rate, 1.25x, 2x, and
 most common way a cost estimate goes wrong, and it goes wrong by an order of
 magnitude on cache-heavy workloads.
 
+### The price catalog carries its own provenance
+
+`CATALOG_SOURCE` and `CATALOG_VERIFIED_AT` sit next to the prices, and
+`scripts/verify-pricing.mjs` re-fetches the published table and diffs every
+rate. Past `CATALOG_STALE_AFTER_DAYS` (45) the gateway warns at boot, the CLI
+report prints a banner, and the dashboard shows one.
+
+A hand-maintained price table is a claim that decays silently — nothing breaks
+when a rate changes, the bills are just wrong — so the decay has to be visible.
+The verification script exits 2 when it cannot reach or parse the page, and
+that must not be treated as a pass: unreachable means unverified, not correct.
+
+### Three modifiers change the price without changing the model
+
+Fast mode bills Opus 5 / 4.8 at $10/$50 instead of $5/$25. `inference_geo: "us"`
+adds 10% to every category. The Batch API halves everything. Missing any of
+them misstates a bill by 2x, 10%, or 2x respectively.
+
+`speed` and `inference_geo` come back in the response `usage` object, so both
+the buffered and streaming paths read what the provider actually charged for
+rather than inferring it from the request. They are stored per call, which is
+what makes a row's cost reproducible: two calls with identical token counts on
+the same model legitimately cost different amounts.
+
+Cache rates are multiples of the *effective* input rate, so they inherit
+fast-mode pricing. Modifiers stack in published order: fast mode replaces the
+base rates, then data residency, then batch.
+
+### Rate arithmetic rounds, it does not truncate
+
+`bigint` division truncates toward zero. Applied to a 1.1x or 0.5x modifier
+that lands off a nanodollar boundary, that under-bills — by a hair, on every
+call, always in the customer's favour and always wrong. `mulDiv` rounds half
+away from zero so the error is unbiased.
+
 ### An unknown model is unpriced, never free
 
 `findModelPrice` returns `undefined` for a model not in the catalog. The call
@@ -97,6 +132,14 @@ recorded as `error`, because its partial usage should not be trusted.
 `message_delta.usage.output_tokens` is **cumulative**, not incremental, so
 usage fields are overlaid rather than summed. Getting this backwards
 over-counts output on every streamed call.
+
+### Backups need the backup API, not `cp`
+
+In WAL mode recent commits live in the `-wal` sidecar until a checkpoint, so
+copying the main file alone silently loses the most recent calls — exactly the
+ones a customer is most likely to be asking about. `costgrid backup <path>`
+uses SQLite's backup API, which checkpoints as it goes. This was found the
+hard way: a `cp` of a live database during testing came back missing a call.
 
 ### SQLite now, Postgres later
 
@@ -145,7 +188,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-109 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+138 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.
@@ -153,7 +196,12 @@ test reaches a real provider or needs an API key.
 ```bash
 npm test                      # unit + integration
 node scripts/e2e-smoke.mjs    # full stack against a stub provider
+npm run verify-pricing        # catalog vs. the live published pricing table
 ```
+
+Migrations are tested against a *populated* database built at the previous
+version, not a fresh one — an upgrade that drops a row from a customer's
+billing history is unrecoverable without a backup.
 
 ## Not built yet
 
@@ -163,6 +211,7 @@ node scripts/e2e-smoke.mjs    # full stack against a stub provider
   demo, served by GitHub Pages. It is not the product dashboard.
 - No hosted control plane, billing, or signup. Deployment today is
   self-hosted.
-- Prices are a hand-maintained catalog verified against the published table
-  dated 2026-06-24. It needs a scheduled re-verification job before this is
-  sold to anyone.
+- `verify-pricing` is not yet wired to a scheduled CI job; it has to be run
+  by hand today.
+- Batch API calls are priced correctly but not yet *detected* — the gateway
+  proxies `/v1/messages`, and batches go through a different endpoint.

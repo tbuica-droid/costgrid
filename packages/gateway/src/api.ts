@@ -1,8 +1,13 @@
 import {
   analyzeRouting,
   blendedCost,
+  CATALOG_SOURCE,
+  CATALOG_STALE_AFTER_DAYS,
+  CATALOG_VERIFIED_AT,
+  catalogAgeDays,
   costCurve,
   DEFAULT_ASSUMPTIONS,
+  isCatalogStale,
   listModelPrices,
   type Nanodollars,
   toUsdNumber,
@@ -82,6 +87,8 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
     return {
       days,
       range,
+      catalogStale: isCatalogStale(),
+      catalogAgeDays: catalogAgeDays(),
       totalCostUsd: money(summary.totalCost),
       // A 30-day projection from the observed daily average. Labelled a
       // projection because with three days of data it is barely one.
@@ -189,19 +196,34 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
     };
   });
 
-  app.get("/api/models", async () =>
-    listModelPrices().map((m) => ({
+  app.get("/api/models", async () => ({
+    // Provenance travels with the prices. A customer's finance team should be
+    // able to see when these were last checked and against what, rather than
+    // taking the figures on trust.
+    catalog: {
+      source: CATALOG_SOURCE,
+      verifiedAt: CATALOG_VERIFIED_AT,
+      ageDays: catalogAgeDays(),
+      staleAfterDays: CATALOG_STALE_AFTER_DAYS,
+      stale: isCatalogStale(),
+    },
+    models: listModelPrices().map((m) => ({
       id: m.id,
       displayName: m.displayName,
       provider: m.provider,
       tier: m.tier,
+      retired: m.retired,
       // Per *million* tokens, which is how every provider quotes them.
       inputPerMTokUsd: toUsdString(m.input * 1_000_000n, 2),
       outputPerMTokUsd: toUsdString(m.output * 1_000_000n, 2),
       cacheWrite5mPerMTokUsd: toUsdString(m.cacheWrite5m * 1_000_000n, 2),
       cacheReadPerMTokUsd: toUsdString(m.cacheRead * 1_000_000n, 2),
+      fastInputPerMTokUsd:
+        m.fastInput === undefined ? null : toUsdString(m.fastInput * 1_000_000n, 2),
+      fastOutputPerMTokUsd:
+        m.fastOutput === undefined ? null : toUsdString(m.fastOutput * 1_000_000n, 2),
     })),
-  );
+  }));
 
   app.get("/api/violations", async (request) => {
     const query = request.query as Record<string, unknown> | undefined;

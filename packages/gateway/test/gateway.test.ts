@@ -235,6 +235,44 @@ describe("gateway", () => {
     expect(summary.totalCost).toBe(0n); // errors do not count toward a budget
   });
 
+  it("bills fast mode at the premium rate the response reports", async () => {
+    boot(() =>
+      jsonResponse({
+        ...MESSAGE_RESPONSE,
+        usage: { ...MESSAGE_RESPONSE.usage, speed: "fast" },
+      }),
+    );
+
+    await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { "x-costgrid-key": apiKey },
+      payload: { model: "claude-opus-5", max_tokens: 10, speed: "fast" },
+    });
+
+    // Standard would be $0.0175; fast mode doubles both rates.
+    expect(repository.spendFor("t1", { kind: "tenant" }).month).toBe(usd("0.035"));
+  });
+
+  it("adds the data-residency premium when the response says US inference", async () => {
+    boot(() =>
+      jsonResponse({
+        ...MESSAGE_RESPONSE,
+        usage: { ...MESSAGE_RESPONSE.usage, inference_geo: "us" },
+      }),
+    );
+
+    await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { "x-costgrid-key": apiKey },
+      payload: { model: "claude-opus-5", max_tokens: 10 },
+    });
+
+    // $0.0175 x 1.1
+    expect(repository.spendFor("t1", { kind: "tenant" }).month).toBe(usd("0.01925"));
+  });
+
   // -------------------------------------------------------------- streaming
 
   it("streams bytes through verbatim while metering a copy", async () => {

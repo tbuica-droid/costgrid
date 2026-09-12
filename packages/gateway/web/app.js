@@ -60,6 +60,19 @@ function card(label, value, sub, accent = "") {
   </div>`;
 }
 
+/**
+ * Warn when the price catalog has not been re-checked recently.
+ *
+ * A stale catalog does not fail loudly — it just bills against last quarter's
+ * rates — so the warning has to be on the page carrying the numbers.
+ */
+function staleBanner(overview) {
+  if (!overview.catalogStale) return "";
+  return `<div class="banner"><strong>Price catalog is ${overview.catalogAgeDays} days old.</strong>
+    Rates below may not reflect current provider pricing. Run
+    <code>npm run verify-pricing</code> to re-check against the published table.</div>`;
+}
+
 /** Warn when part of the spend is not priced, rather than quietly under-reporting. */
 function unpricedBanner(unpricedCalls) {
   if (!unpricedCalls) return "";
@@ -213,6 +226,7 @@ async function renderOverview() {
   ].join("");
 
   return `
+    ${staleBanner(overview)}
     ${unpricedBanner(overview.unpricedCalls)}
     <h2>Overview</h2>
     <p class="section-note">Measured from the <code>usage</code> object of every call that
@@ -406,36 +420,55 @@ async function renderPolicies() {
 }
 
 async function renderPricing() {
-  const models = await api("models");
+  const { catalog, models } = await api("models");
+
   const rows = models
     .map(
-      (m) => `<tr>
-        <td><strong>${escapeHtml(m.displayName)}</strong><br />
-          <span class="kpi-sub"><code>${escapeHtml(m.id)}</code></span></td>
+      (m) => `<tr${m.retired ? ' style="opacity:0.55"' : ""}>
+        <td><strong>${escapeHtml(m.displayName)}</strong>
+          ${m.retired ? '<span class="tag" style="margin-left:6px">retired</span>' : ""}
+          <br /><span class="kpi-sub"><code>${escapeHtml(m.id)}</code></span></td>
         <td>${escapeHtml(m.tier)}</td>
         <td class="num">$${m.inputPerMTokUsd}</td>
         <td class="num">$${m.outputPerMTokUsd}</td>
         <td class="num">$${m.cacheWrite5mPerMTokUsd}</td>
         <td class="num">$${m.cacheReadPerMTokUsd}</td>
+        <td class="num">${m.fastInputPerMTokUsd ? `$${m.fastInputPerMTokUsd} / $${m.fastOutputPerMTokUsd}` : "—"}</td>
       </tr>`,
     )
     .join("");
 
+  const provenance = catalog.stale
+    ? `<div class="banner"><strong>Verified ${escapeHtml(catalog.verifiedAt)}, ${catalog.ageDays} days ago.</strong>
+         Past the ${catalog.staleAfterDays}-day freshness window — re-verify before relying on these.</div>`
+    : `<p class="section-note">Verified <strong>${escapeHtml(catalog.verifiedAt)}</strong>
+         (${catalog.ageDays} day${catalog.ageDays === 1 ? "" : "s"} ago) against
+         <a href="${escapeHtml(catalog.source)}" target="_blank" rel="noopener">the published pricing table</a>.
+         Re-checked by <code>npm run verify-pricing</code>.</p>`;
+
   return `
     <h2>Pricing catalog</h2>
+    ${provenance}
     <p class="section-note">Every model CostGrid can price, in $ per million tokens. A call on
       a model <em>not</em> in this list is still metered, but recorded as unpriced — its cost
       reads as zero and totals say so, rather than showing it as free traffic. Prices are
-      first-party Anthropic list rates; Bedrock and Vertex are partner-operated and priced
-      separately.</p>
+      first-party Anthropic list rates; Bedrock and Google Cloud are partner-operated and
+      priced separately.</p>
     <div class="card scroll-x"><table>
       <thead><tr>
         <th>Model</th><th>Tier</th>
         <th class="num">Input</th><th class="num">Output</th>
         <th class="num">Cache write</th><th class="num">Cache read</th>
+        <th class="num">Fast in / out</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`;
+    </table></div>
+    <p class="section-note" style="margin-top:18px">Three modifiers change what a call costs
+      without changing the model, and all three are metered: <strong>fast mode</strong> bills at
+      the premium rate above, <strong>US-pinned inference</strong>
+      (<code>inference_geo: "us"</code>) adds 10% to every category, and the
+      <strong>Batch API</strong> halves it. The first two are read back from each response's
+      <code>usage</code> object rather than assumed.</p>`;
 }
 
 // --------------------------------------------------------------------- shell

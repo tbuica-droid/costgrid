@@ -64,6 +64,31 @@ export function toUsdNumber(amount: Nanodollars): number {
   return Number(amount) / 1e9;
 }
 
+/**
+ * Multiply by a rational factor, rounding half away from zero.
+ *
+ * Pricing modifiers are rationals (1.1x data residency, 0.5x batch, 1.25x
+ * cache write), and `bigint` division truncates toward zero — which would
+ * under-bill by a fraction of a nanodollar on every rate that does not divide
+ * evenly, systematically and always in the customer's favour. Rounding is the
+ * honest choice, and it keeps the error unbiased.
+ */
+export function mulDiv(value: Nanodollars, numerator: bigint, denominator: bigint): Nanodollars {
+  if (denominator === 0n) throw new RangeError("division by zero");
+
+  const negative = value < 0n !== numerator < 0n !== denominator < 0n;
+  const absValue = value < 0n ? -value : value;
+  const absNum = numerator < 0n ? -numerator : numerator;
+  const absDen = denominator < 0n ? -denominator : denominator;
+
+  const scaled = absValue * absNum;
+  const quotient = scaled / absDen;
+  const remainder = scaled % absDen;
+  const rounded = remainder * 2n >= absDen ? quotient + 1n : quotient;
+
+  return negative ? -rounded : rounded;
+}
+
 export function sumNano(amounts: Iterable<Nanodollars>): Nanodollars {
   let total = 0n;
   for (const amount of amounts) total += amount;
