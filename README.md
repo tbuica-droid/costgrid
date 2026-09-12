@@ -1,63 +1,123 @@
 # CostGrid
 
-**LLM inference cost governance and unit economics.**
+**A meter and a shut-off valve for LLM API spend.**
 
-CostGrid is a dashboard and forecast model for the real cost of running AI in
-production. It started from a simple observation: per-token prices are
-collapsing, and enterprise AI bills are rising anyway. Unit price is the wrong
-thing to watch. Spend is price multiplied by volume, and volume usually wins.
+Your software calls an LLM API. CostGrid sits in front of that call: it meters
+every request against the provider's own reported token counts, attributes the
+cost to a team and an agent, enforces the budgets you set *before* the money is
+spent, and — when you ask it to — serves the call on a cheaper model instead of
+refusing it.
 
-The project has two parts. The dashboard models a single organization's agent
-fleet and shows where its spend actually goes. The forecast model projects token
-prices, routing economics, and spend to 2030 from stated assumptions.
+Deployment is one line of configuration. Point your SDK's base URL at CostGrid
+and nothing else changes:
 
-**Live dashboard:** https://tbuica-droid.github.io/costgrid
+```python
+client = Anthropic(base_url="https://costgrid.example.com", api_key="unused")
+```
+
+Start with **[docs/QUICKSTART.md](docs/QUICKSTART.md)** — clean checkout to a
+real spend report from your own traffic.
 
 ---
 
 ## What it does
 
-**Cost taxonomy.** Tokens are the visible line, not the whole bill. The
-dashboard separates the token line from governance, deployment, observability,
-and change-management costs, and rolls them into a Levelized Cost of AI (LCOAI)
-per valid inference: amortized CapEx plus total OpEx, divided by inferences that
-actually cleared policy.
+**Meters exactly.** Token counts come from each provider's `usage` object, not
+an estimate or a tokenizer guess. Five buckets are priced independently: input,
+output, 5-minute cache write, 1-hour cache write, and cache read. Money is
+integer nanodollars end to end — never a float, because a float rounds and a
+bill has to reconcile. Rates for 53 models across Anthropic and OpenAI are
+checked against the providers' published tables by `npm run verify-pricing`,
+which fails the build on a discrepancy or a stale verification date.
 
-**Routing economics.** Cheaper models are not automatically cheaper. Open-weight
-models cost far less per token but carry a misrouting risk that grows convexly
-as you push more high-stakes work onto them. The model solves for the optimal
-substitution share where the marginal token saving equals the marginal risk
-penalty, then compares it to what an organization actually routes today. That
-gap, not vendor pricing, is the controllable lever.
+**Attributes.** Two headers (`x-costgrid-agent`, `x-costgrid-department`) turn a
+provider invoice into per-team, per-feature chargeback. Unlabelled traffic is
+metered as `unattributed` — a visible cost line rather than a silent gap.
 
-**Price forecast.** Model tiers decay toward a hardware floor at different
-rates. Economy and open-weight tiers halve roughly every 1.1 years, mid-tier
-more slowly, and frontier reasoning models resist the curve almost entirely
-because of the reasoning premium. Treating "AI prices are falling" as one number
-hides that divergence.
+**Enforces before spending.** Budgets per tenant, department or agent; model
+allowlists and denylists; output-token caps. Each rule runs in `monitor`
+(record only), `warn` (allow, annotate) or `block` (refuse before forwarding, so
+the call costs nothing).
+
+**Degrades instead of breaking.** A cap with `--fallback` downgrades
+over-budget traffic to a cheaper model rather than returning 403, so the
+customer's product keeps answering. It refuses to make a substitution it cannot
+make safely — across providers, or to a model it cannot price.
+
+**Realises the saving.** A route rule sends matching traffic to a cheaper model
+and records the counterfactual, so the saving is audited rather than claimed.
+Always dry-run first: `--action monitor` changes nothing and still measures what
+it would have saved.
+
+**Reports.** A live dashboard, a terminal report, and a monthly statement —
+spend by team with movement against last month, budget status, and what routing
+saved — exportable as CSV for finance.
+
+**Imports history.** Backfill from each provider's admin API, so the dashboard
+is not empty on day one. Imported rows are kept apart from metered ones: they
+are daily provider totals with no attribution, and folding them together would
+misattribute them.
 
 ---
 
 ## Repository contents
 
-| File | What it is |
-|---|---|
-| `index.html` | The dashboard. Single self-contained file, no build step. |
-| `CostGrid_Token_Cost_Model.xlsx` | The forecast model, 2023 to 2030. |
+```
+packages/
+  core/     Pure domain: money, pricing catalog, usage parsing, policy. No I/O.
+  db/       SQLite schema, repositories, read-side analytics, statements.
+  gateway/  The proxy: auth, enforcement, metering, dashboard, control plane.
+  cli/      Operator surface: keys, policies, reports, statements, backups.
+docs/       QUICKSTART (self-hosted), HOSTING (as a service), ARCHITECTURE.
+scripts/    Pricing verification and an end-to-end smoke test.
+index.html  The original research dashboard, with illustrative figures.
+CostGrid_Token_Cost_Model.xlsx   The forecast model, 2023 to 2030.
+```
 
-**Running the dashboard.** Open `index.html` in any browser, or use the live
-link above. It pulls Tailwind and Chart.js from CDNs, so it needs a network
-connection to render.
+```bash
+npm install && npm run build && npm test
+```
+
+**Live research dashboard:** https://tbuica-droid.github.io/costgrid
+
+---
+
+## The model behind it
+
+CostGrid started from an observation: per-token prices are collapsing and
+enterprise AI bills are rising anyway. Unit price is the wrong thing to watch —
+spend is price multiplied by volume, and volume usually wins. `index.html` and
+the spreadsheet are that research, and the routing economics in
+`packages/core/src/routing.ts` come straight from it.
+
+**Cost taxonomy.** Tokens are the visible line, not the whole bill. The model
+separates the token line from governance, deployment, observability and
+change-management costs, and rolls them into a Levelized Cost of AI per *valid*
+inference: amortized CapEx plus total OpEx, divided by inferences that actually
+cleared policy.
+
+**Routing economics.** Cheaper models are not automatically cheaper.
+Open-weight models cost far less per token but carry a misrouting risk that
+grows convexly as more high-stakes work is pushed onto them. The model solves
+for the substitution share where the marginal token saving equals the marginal
+risk penalty, then compares it to what an organisation actually routes today.
+The dashboard's Routing tab measures your real share against that optimum; the
+gap is the controllable lever.
+
+**Price forecast.** Model tiers decay toward a hardware floor at different
+rates. Economy and open-weight tiers halve roughly every 1.1 years, mid-tier
+more slowly, and frontier reasoning models resist the curve almost entirely
+because of the reasoning premium. Treating "AI prices are falling" as one
+number hides that divergence.
 
 **Reading the model.** Two sheets. `Assumptions` holds every input, with blue
 text marking cells meant to be changed and a source note beside each hardcoded
-number. `Model` is entirely formulas driven by those assumptions, so changing an
-input propagates through prices, routing, volume, spend, and the EBITDA and exit
-modules. Six modules: price decay, routing, volume, spend, seat pricing, and
-EBITDA impact.
+number. `Model` is entirely formulas driven by those assumptions. Six modules:
+price decay, routing, volume, spend, seat pricing, and EBITDA impact.
 
-The figures in the dashboard describe an illustrative organization, not a real
-one. They are there to make the model concrete.
+The figures in `index.html` describe an illustrative organisation, not a real
+one. Every figure in the *product* dashboard is measured from traffic, and an
+empty database shows an empty state rather than a plausible chart.
 
 ---
 
@@ -81,8 +141,10 @@ curve is pinned to EY's cost-per-interaction figures for 2023 and 2026.
 electricity-and-GPU cost benchmarks, so no tier can decline past what inference
 physically costs to serve.
 
-Cost estimates are exactly that. For authoritative numbers, read usage and
-pricing from your provider's API responses at runtime.
+These are estimates, and the distinction matters: everything in the *model* is
+projected from stated assumptions, while everything the gateway reports is read
+from provider responses at runtime. The two are never mixed — the dashboard
+labels the modelled figures as modelled.
 
 ---
 

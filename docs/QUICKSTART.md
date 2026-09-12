@@ -117,10 +117,10 @@ which is a visible cost line rather than a silent gap.
 
 With the gateway running, visit **<http://127.0.0.1:8787>**.
 
-Five views: Overview (spend, cache hit ratio, per-model/agent/department
-breakdowns), Agents (one row per cost line), Routing (your measured
-substitution share against the modelled optimum), Policies (rules and the
-enforcement feed), and Pricing (the catalog).
+Six views: Overview (spend, cache hit ratio, per-model/agent/department
+breakdowns), Statement (a calendar month, with CSV export), Agents (one row per
+cost line), Routing (your measured substitution share against the modelled
+optimum), Policies (rules and the enforcement feed), and Pricing (the catalog).
 
 Everything on it is read from metered calls. There is no sample data — an
 empty database shows you an empty state, not a plausible chart.
@@ -227,6 +227,41 @@ a call that a block rule already refused.
 
 **Always start with `--action monitor`.** Routing is the only feature here that
 changes what your code asked for.
+
+## 10. The monthly statement
+
+The report above is a trailing window — useful for watching, wrong for
+reconciling. Finance works in calendar months, because that is how the provider
+invoices, so the statement is its own command:
+
+```bash
+npx tsx packages/cli/src/main.ts statement                     # this month, so far
+npx tsx packages/cli/src/main.ts statement --month 2026-08     # a closed month
+npx tsx packages/cli/src/main.ts statement --month 2026-08 --format csv --out august.csv
+```
+
+It gives the month's total and how it moved against the month before, spend by
+department, agent and model with each line's share and movement, budget status
+(a monthly cap against the month; a daily cap against its *worst day*, plus how
+many days went over), and what auto-routing actually saved.
+
+While the month is still running it says so, and projects a month-end figure
+from the run rate — labelled a projection, never mixed into the total.
+
+`--format csv` is the spreadsheet finance will actually open: two tables, spend
+line items and budget status. Costs carry six decimals rather than two, because
+rounding a $0.004 agent to `0.00` would stop the rows summing to the total.
+`--format json` keeps money as exact decimal strings for anything downstream.
+
+The same statement is the **Statement** tab in the dashboard, with a month
+picker and a *Download CSV* button, served from `/api/statement` and
+`/api/statement.csv?month=YYYY-MM`.
+
+Anything the numbers do not cover is stated on the statement rather than left
+out: unpriced calls, calls refused by policy (which cost nothing, and whose
+counterfactual cost is genuinely unmeasurable because they never ran), upstream
+failures, and imported provider history — which is reported beside the totals,
+never added to them, because those rows have no team attribution.
 
 ## Keeping prices honest
 

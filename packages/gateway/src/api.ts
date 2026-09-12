@@ -17,8 +17,12 @@ import {
 } from "@costgrid/core";
 import {
   type Analytics,
+  buildStatement,
   type CostGridRepository,
   type ImportsRepository,
+  monthOf,
+  type StatementLine,
+  statementToCsv,
   type TimeRange,
   trailingWindow,
 } from "@costgrid/db";
@@ -176,6 +180,89 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
         outputTokens: m.outputTokens,
       })),
     };
+  });
+
+  /**
+   * The monthly statement: a closed calendar month, comparable against the one
+   * before it.
+   *
+   * Deliberately not another trailing window. Finance reconciles against a
+   * provider invoice, which is issued per calendar month, and "the last 30
+   * days" is never that number.
+   */
+  const statementFor = (request: FastifyRequest) => {
+    const raw = (request.query as Record<string, unknown> | undefined)?.["month"];
+    const month = raw === undefined ? monthOf() : String(raw);
+    try {
+      return buildStatement({ analytics, repository, imports, tenantId: tenant(request), month });
+    } catch (error) {
+      throw Object.assign(new Error(error instanceof Error ? error.message : "invalid month"), {
+        statusCode: 400,
+      });
+    }
+  };
+
+  const statementLine = (line: StatementLine) => ({
+    key: line.key,
+    calls: line.calls,
+    costUsd: money(line.cost),
+    share: line.share,
+    previousCostUsd: money(line.previousCost),
+    change: line.change ?? null,
+  });
+
+  app.get("/api/statement", async (request) => {
+    const statement = statementFor(request);
+    return {
+      month: statement.month,
+      generatedAt: statement.generatedAt,
+      partial: statement.partial,
+      daysElapsed: statement.daysElapsed,
+      daysInMonth: statement.daysInMonth,
+      totalUsd: money(statement.total),
+      previousTotalUsd: money(statement.previousTotal),
+      change: statement.change ?? null,
+      projectedUsd: statement.projected === undefined ? null : money(statement.projected),
+      calls: statement.calls,
+      blockedCalls: statement.blockedCalls,
+      erroredCalls: statement.erroredCalls,
+      unpricedCalls: statement.unpricedCalls,
+      cacheHitRatio: statement.cacheHitRatio,
+      byDepartment: statement.byDepartment.map(statementLine),
+      byAgent: statement.byAgent.map(statementLine),
+      byModel: statement.byModel.map(statementLine),
+      routing: {
+        routedCalls: statement.routing.routedCalls,
+        realisedSavingUsd: money(statement.routing.realisedSaving),
+      },
+      budgets: statement.budgets.map((b) => ({
+        policyId: b.policyId,
+        policyName: b.policyName,
+        scope: b.scope,
+        window: b.window,
+        action: b.action,
+        limitUsd: money(b.limit),
+        actualUsd: money(b.actual),
+        used: b.used ?? null,
+        breachedDays: b.breachedDays ?? null,
+        fallbackModel: b.fallbackModel ?? null,
+      })),
+      imported:
+        statement.imported === undefined
+          ? null
+          : {
+              requests: statement.imported.requests,
+              costUsd: money(statement.imported.reportedCost ?? statement.imported.catalogCost),
+            },
+    };
+  });
+
+  app.get("/api/statement.csv", async (request, reply) => {
+    const statement = statementFor(request);
+    return reply
+      .header("content-type", "text/csv; charset=utf-8")
+      .header("content-disposition", `attachment; filename="costgrid-${statement.month}.csv"`)
+      .send(statementToCsv(statement));
   });
 
   app.get("/api/spend/daily", async (request) => {

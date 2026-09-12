@@ -1,13 +1,19 @@
 #!/usr/bin/env node
+import { writeFileSync } from "node:fs";
 import { findModelPrice, toUsdString, usd } from "@costgrid/core";
 import {
   Analytics,
   backupDatabase,
+  buildStatement,
   CostGridRepository,
+  ImportsRepository,
+  monthOf,
   openDatabase,
+  statementToCsv,
   trailingWindow,
 } from "@costgrid/db";
 import { formatReport } from "./report.js";
+import { formatStatement } from "./statement.js";
 
 const USAGE = `costgrid — LLM inference cost governance
 
@@ -16,6 +22,10 @@ Usage:
   costgrid key create <agent-name>        Mint an API key (shown once)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
+  costgrid statement [--month YYYY-MM] [--format text|csv|json] [--out FILE]
+                                          Monthly statement for finance: spend by team,
+                                          movement against last month, budget status and
+                                          what routing saved. Defaults to this month.
   costgrid policy list                    Show configured policies
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
                               [--fallback <model>]
@@ -133,6 +143,48 @@ async function main(): Promise<void> {
         fail(`--days must be an integer 1..3650, got ${days}`);
       }
       console.log(formatReport(analytics, tenantId, trailingWindow(days), days));
+      break;
+    }
+
+    case "statement": {
+      requireTenant();
+      const month = flag(argv, "month") ?? monthOf();
+      const format = flag(argv, "format") ?? "text";
+      if (format !== "text" && format !== "csv" && format !== "json") {
+        fail(`--format must be text, csv or json, got ${format}`);
+      }
+
+      let statement;
+      try {
+        statement = buildStatement({
+          analytics,
+          repository,
+          imports: new ImportsRepository(db),
+          tenantId,
+          month,
+        });
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
+
+      const rendered =
+        format === "csv"
+          ? statementToCsv(statement)
+          : format === "json"
+            ? // Money is bigint nanodollars, which JSON cannot hold. Serialising
+              // it as a decimal string keeps the exact value; a float would not.
+              JSON.stringify(statement, (_key, value) =>
+                typeof value === "bigint" ? toUsdString(value, 9) : value,
+              )
+            : formatStatement(statement);
+
+      const out = flag(argv, "out");
+      if (out === undefined) {
+        console.log(rendered);
+      } else {
+        writeFileSync(out, rendered.endsWith("\n") ? rendered : `${rendered}\n`);
+        console.log(`Wrote ${format} statement for ${statement.month} to ${out}.`);
+      }
       break;
     }
 

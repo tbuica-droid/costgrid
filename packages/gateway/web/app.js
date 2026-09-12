@@ -10,7 +10,9 @@
  * exact arithmetic already happened server-side in integer nanodollars.
  */
 
-const state = { view: "overview", days: 30 };
+// `month` is null for "the current one", resolved server-side so the browser's
+// clock cannot disagree with the meter's about which month a call belongs to.
+const state = { view: "overview", days: 30, month: null };
 
 // ------------------------------------------------------------------ helpers
 
@@ -641,10 +643,177 @@ async function renderPricing() {
       context size.</p>`;
 }
 
+async function renderStatement() {
+  const query = state.month ? `statement?month=${encodeURIComponent(state.month)}` : "statement";
+  const s = await api(query);
+  state.month = s.month;
+
+  const MONTHS = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  const label = (month) => {
+    const [year, index] = month.split("-");
+    return `${MONTHS[Number(index) - 1]} ${year}`;
+  };
+
+  // Twelve months back from the one being shown, so a customer can walk
+  // backwards through their own history without editing a URL.
+  const options = [];
+  const [shownYear, shownIndex] = s.month.split("-").map(Number);
+  for (let back = 0; back < 12; back += 1) {
+    const date = new Date(Date.UTC(shownYear, shownIndex - 1 - back, 1));
+    const value = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+    options.push(
+      `<option value="${value}"${value === s.month ? " selected" : ""}>${label(value)}</option>`,
+    );
+  }
+
+  /** A movement against last month, or an honest blank when there is no basis. */
+  const delta = (change) => {
+    if (change === null) return '<span class="kpi-sub">new</span>';
+    const rendered = `${change > 0 ? "+" : ""}${(change * 100).toFixed(0)}%`;
+    return `<span class="${change > 0 ? "accent-rust" : "accent-green"}">${rendered}</span>`;
+  };
+
+  const lines = (rows, heading) => `
+    <div class="rail">${heading}</div>
+    <table style="margin-top:12px">
+      <thead><tr>
+        <th>${heading}</th><th class="num">Cost</th><th class="num">Share</th>
+        <th class="num">vs last month</th><th class="num">Calls</th>
+      </tr></thead>
+      <tbody>${
+        rows.length
+          ? rows
+              .map(
+                (r) => `<tr>
+                  <td>${escapeHtml(r.key)}</td>
+                  <td class="num">${money(r.costUsd)}</td>
+                  <td class="num">${pct(r.share, 1)}</td>
+                  <td class="num">${delta(r.change)}</td>
+                  <td class="num">${count(r.calls)}</td>
+                </tr>`,
+              )
+              .join("")
+          : '<tr><td colspan="5">(nothing recorded)</td></tr>'
+      }</tbody>
+    </table>`;
+
+  const budgetRows = s.budgets
+    .map(
+      (b) => `<tr>
+        <td>${escapeHtml(b.policyName)}</td>
+        <td>${escapeHtml(b.scope)}</td>
+        <td>${b.window === "day" ? "per day" : "per month"}</td>
+        <td class="num">${money(b.limitUsd)}</td>
+        <td class="num">${money(b.actualUsd)}</td>
+        <td class="num ${b.used !== null && b.used > 1 ? "accent-rust" : ""}">${
+          b.used === null ? "—" : pct(b.used, 0)
+        }</td>
+        <td class="num">${b.breachedDays ? `<span class="accent-rust">${b.breachedDays}</span>` : "—"}</td>
+        <td>${b.fallbackModel ? escapeHtml(b.fallbackModel) : "—"}</td>
+      </tr>`,
+    )
+    .join("");
+
+  // Everything the totals do not cover, said out loud rather than omitted.
+  const notes = [];
+  if (s.unpricedCalls) {
+    notes.push(`${count(s.unpricedCalls)} call(s) used a model missing from the price catalog
+      and count as $0, so the total is understated.`);
+  }
+  if (s.blockedCalls) {
+    notes.push(`${count(s.blockedCalls)} call(s) were refused by policy. They cost nothing, and
+      what they would have cost cannot be measured because they never ran.`);
+  }
+  if (s.erroredCalls) {
+    notes.push(`${count(s.erroredCalls)} call(s) failed upstream and are not billed here.`);
+  }
+  if (s.imported) {
+    notes.push(`${money(s.imported.costUsd)} of provider-reported history was imported for this
+      month. It is shown on the Overview tab, not added here: those rows are daily provider
+      totals with no team attribution.`);
+  }
+
+  const kpis = [
+    card("Total spend", money(s.totalUsd),
+      s.change === null
+        ? "no comparable month before this"
+        : `${money(s.previousTotalUsd)} last month · ${s.change > 0 ? "+" : ""}${(
+            s.change * 100
+          ).toFixed(0)}%`),
+    card("Calls", count(s.calls), `${pct(s.cacheHitRatio)} of readable tokens served from cache`),
+    s.projectedUsd
+      ? card("Projected", money(s.projectedUsd),
+          `at the run rate of the first ${s.daysElapsed.toFixed(1)} day(s)`, "accent-gold")
+      : card("Period", `${s.daysInMonth} days`, "closed and final"),
+    card("Saved by routing", money(s.routing.realisedSavingUsd),
+      `${count(s.routing.routedCalls)} call(s) served by a cheaper model`, "accent-green"),
+  ].join("");
+
+  return `
+    <h2>Statement</h2>
+    <p class="section-note">A closed calendar month in UTC, comparable against the one before
+      it — not a trailing window. This is the view that reconciles against a provider
+      invoice, and the CSV is the same numbers for a spreadsheet.</p>
+
+    <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <select id="statement-month" style="font-family:var(--mono);font-size:12px;padding:6px 8px;
+        border:1px solid var(--rule);background:transparent">${options.join("")}</select>
+      <a href="/api/statement.csv?month=${encodeURIComponent(s.month)}"
+         style="font-family:var(--mono);font-size:12px;padding:6px 10px;
+                border:1px solid var(--rule);text-decoration:none">Download CSV</a>
+      ${
+        s.partial
+          ? `<span class="kpi-sub">Month to date — ${s.daysElapsed.toFixed(1)} of
+             ${s.daysInMonth} days. Figures are not final.</span>`
+          : ""
+      }
+    </div>
+
+    <div class="grid cols-4" style="margin-top:18px">${kpis}</div>
+
+    <div class="card" style="margin-top:18px">${lines(s.byDepartment, "Department")}</div>
+    <div class="grid cols-2" style="margin-top:18px">
+      <div class="card">${lines(s.byAgent, "Agent")}</div>
+      <div class="card">${lines(s.byModel, "Model")}</div>
+    </div>
+
+    ${
+      s.budgets.length
+        ? `<div class="card scroll-x" style="margin-top:18px">
+            <div class="rail">Budgets</div>
+            <table style="margin-top:12px">
+              <thead><tr>
+                <th>Policy</th><th>Scope</th><th>Window</th>
+                <th class="num">Limit</th><th class="num">Actual</th><th class="num">Used</th>
+                <th class="num">Days over</th><th>Falls back to</th>
+              </tr></thead>
+              <tbody>${budgetRows}</tbody>
+            </table>
+            <p class="section-note" style="margin-top:12px">A daily cap is judged against the
+              worst single day of the month, not the month total — the two say nothing about
+              each other.</p>
+          </div>`
+        : ""
+    }
+
+    ${
+      notes.length
+        ? `<div class="card" style="margin-top:18px">
+            <div class="rail">Notes</div>
+            <ul class="kpi-sub" style="margin:12px 0 0 18px;line-height:1.7">
+              ${notes.map((n) => `<li>${n}</li>`).join("")}
+            </ul>
+          </div>`
+        : ""
+    }`;
+}
+
 // --------------------------------------------------------------------- shell
 
 const VIEWS = {
   overview: renderOverview,
+  statement: renderStatement,
   agents: renderAgents,
   routing: renderRouting,
   policies: renderPolicies,
@@ -655,8 +824,14 @@ async function render() {
   const main = document.getElementById("main");
   try {
     main.innerHTML = await VIEWS[state.view]();
+    // The statement is a calendar month, so saying "last 30 days" under it
+    // would contradict the numbers directly above.
+    const scope =
+      state.view === "statement"
+        ? (state.month ?? "current month")
+        : `last ${state.days} day${state.days === 1 ? "" : "s"}`;
     document.getElementById("footer-note").textContent =
-      `${state.view} · last ${state.days} day${state.days === 1 ? "" : "s"} · updated ${new Date().toLocaleTimeString()}`;
+      `${state.view} · ${scope} · updated ${new Date().toLocaleTimeString()}`;
   } catch (error) {
     main.innerHTML = `<div class="banner"><strong>Could not load.</strong>
       ${escapeHtml(error.message)}</div>`;
@@ -676,6 +851,14 @@ document.getElementById("nav").addEventListener("click", (event) => {
 
 document.getElementById("range").addEventListener("change", (event) => {
   state.days = Number(event.target.value);
+  render();
+});
+
+// The statement's month picker is re-rendered with the view, so it is
+// delegated too.
+document.getElementById("main").addEventListener("change", (event) => {
+  if (event.target.id !== "statement-month") return;
+  state.month = event.target.value;
   render();
 });
 

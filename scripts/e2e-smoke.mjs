@@ -246,7 +246,31 @@ check("block reason", (await res.json()).error.type, "costgrid_policy_blocked");
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "ticket-classifier" });
 check("allowlisted model still passes", res.status, 200);
 
-console.log("\n8. CLI report\n");
+console.log("\n8. monthly statement, in every format it exports");
+const statementText = await cli(["statement"]);
+check("statement names this month", /CostGrid statement — /.test(statementText), true);
+check("statement is marked month to date", /Month to date/.test(statementText), true);
+
+const statementCsv = await cli(["statement", "--format", "csv"]);
+const csvLines = statementCsv.trim().split("\n");
+check("csv starts with the month header", csvLines[0].startsWith("CostGrid statement,"), true);
+check("csv carries the line-item header", csvLines.includes(
+  "section,item,calls,cost_usd,share_pct,previous_cost_usd,change_pct",
+), true);
+check("csv totals the department rows to the total", (() => {
+  const cell = (line) => Number(line.split(",")[3]);
+  const total = cell(csvLines.find((l) => l.startsWith("total,")));
+  const departments = csvLines
+    .filter((l) => l.startsWith("department,"))
+    .reduce((sum, l) => sum + cell(l), 0);
+  return Math.abs(total - departments) < 1e-6;
+})(), true);
+
+const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
+// Money must survive as an exact decimal string, never a float.
+check("json money is a string", typeof statementJson.total, "string");
+
+console.log("\n9. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

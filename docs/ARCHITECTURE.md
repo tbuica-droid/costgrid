@@ -32,12 +32,14 @@ caller's response.
 packages/
   core/                 Pure domain. No I/O, no framework, no database.
   db/                   Schema, repositories, and read-side analytics.
+    statement.ts        Calendar-month statements, and their CSV export.
   gateway/              The proxy: auth, enforcement, metering, passthrough.
     providers/          One adapter per upstream; the handler is generic.
     console.ts          Hosted control plane: accounts, credentials, billing.
     importers/          Historical backfill from each provider's admin API.
     ratelimit.ts        Per-tenant fixed-window cap.
-  cli/                  Operator surface: keys, policies, reports, backups.
+  cli/                  Operator surface: keys, policies, reports, statements,
+                        backups.
 ```
 
 `core` has no dependencies at all, which is what makes the money and routing
@@ -240,6 +242,21 @@ blame their own code first. Four guards, enforced rather than advised:
   cannot chain a request through several models, and a refused call is not
   going anywhere to be rerouted.
 
+### A budget can degrade instead of refusing
+
+A hard cap protects the bill by breaking the customer's product, which is why
+most teams never switch one on. A budget rule with a `fallbackModel` downgrades
+over-budget traffic to a cheaper model instead of returning 403, reusing the
+same substitution guards as routing.
+
+When no downgrade is possible — most often because the traffic is *already* on
+the fallback model — the rule's own action applies again, so a `block` cap is
+still a cap. `warn` never refuses under any circumstance, and the trade is that
+spend keeps accruing at the cheaper rate. Both rows are documented rather than
+discovered in production. A budget fallback outranks a standing route rule (it
+is the emergency measure); a separate block rule outranks both, because a
+refused call is not going anywhere to be downgraded.
+
 ### Realised savings are separated from projected ones
 
 `realisedSaving` covers calls actually rerouted; `potentialSaving` covers
@@ -343,6 +360,24 @@ numbers. JSON's number type is a double; serialising nanodollars through one
 would reintroduce exactly the drift the bigint representation exists to
 prevent. A `…Usd` suffix means "display this, don't compute with it".
 
+### A statement is a calendar month, not a trailing window
+
+Every other view in CostGrid is "the last N days". The statement is the one
+place that is not, because it exists to be reconciled against a provider
+invoice — and invoices are issued per calendar month, in UTC. "The last 30
+days" is never that number, and a finance team that discovers the difference
+after filing has lost trust in every figure on the page.
+
+Two consequences fall out of that. A month still running is labelled as
+month-to-date and carries a projection derived from the run rate, kept as its
+own field so it cannot be mistaken for a measurement. And a *daily* budget is
+judged against the worst single day of the month rather than the month total,
+because a $50/day cap and $1,200 of monthly spend say nothing about each other.
+
+CSV is the export format because finance works in spreadsheets. Costs carry six
+decimals rather than two: rounding a $0.004 agent to `0.00` would break the
+invariant that the line items sum to the total, which the smoke test checks.
+
 ### Trailing windows end at `now + 1`
 
 `TimeRange` is half-open, `[from, to)`. Every caller used to build
@@ -353,7 +388,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-261 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+304 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

@@ -225,6 +225,53 @@ describe("dashboard API", () => {
     expect(res.statusCode).toBe(400);
   });
 
+  // ------------------------------------------------------------ statement
+
+  describe("statement", () => {
+    it("defaults to the current month and serialises money as strings", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/statement", headers: auth() });
+      expect(res.statusCode).toBe(200);
+
+      const body = res.json();
+      expect(body.month).toMatch(/^\d{4}-\d{2}$/);
+      // Money never crosses the wire as a JSON number.
+      expect(typeof body.totalUsd).toBe("string");
+      expect(typeof body.previousTotalUsd).toBe("string");
+      expect(body.partial).toBe(true);
+    });
+
+    it("serves a named month as a CSV download", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/statement.csv?month=2026-01",
+        headers: auth(),
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["content-type"]).toMatch(/text\/csv/);
+      expect(res.headers["content-disposition"]).toBe(
+        'attachment; filename="costgrid-2026-01.csv"',
+      );
+      expect(res.body.split("\n")[0]).toBe("CostGrid statement,2026-01");
+    });
+
+    it("rejects a month it cannot parse rather than inventing one", async () => {
+      for (const month of ["2026-13", "last-month", "2026"]) {
+        const res = await app.inject({
+          method: "GET",
+          url: `/api/statement?month=${month}`,
+          headers: auth(),
+        });
+        expect(res.statusCode).toBe(400);
+      }
+    });
+
+    it("needs authentication like every other read", async () => {
+      expect((await app.inject({ method: "GET", url: "/api/statement" })).statusCode).toBe(401);
+      expect((await app.inject({ method: "GET", url: "/api/statement.csv" })).statusCode).toBe(401);
+    });
+  });
+
   // ------------------------------------------------------------- policies
 
   it("creates a budget policy from a decimal-string limit", async () => {

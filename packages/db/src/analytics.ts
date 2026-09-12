@@ -1,4 +1,4 @@
-import type { Nanodollars } from "@costgrid/core";
+import type { Nanodollars, PolicyScope } from "@costgrid/core";
 import { findModelPrice } from "@costgrid/core";
 import type { Db } from "./database.js";
 
@@ -391,6 +391,47 @@ export class Analytics {
       saving: r["saving"] as bigint,
       cost: r["cost"] as bigint,
     }));
+  }
+
+  /**
+   * Spend inside one window, narrowed to a policy's scope and broken out by
+   * UTC day.
+   *
+   * Written for the monthly statement's budget table, where a daily cap has to
+   * be judged against the worst day of the month rather than the month total —
+   * a $50/day cap and $1,200 of monthly spend say nothing about each other.
+   */
+  spendInRange(
+    tenantId: string,
+    range: TimeRange,
+    scope: PolicyScope,
+  ): { total: Nanodollars; days: { day: string; cost: Nanodollars }[] } {
+    let filter = "";
+    const scopeParams: unknown[] = [];
+    if (scope.kind === "agent") {
+      filter = " AND agent_id = ?";
+      scopeParams.push(scope.agentId);
+    } else if (scope.kind === "department") {
+      filter = " AND department = ?";
+      scopeParams.push(scope.department);
+    }
+
+    const rows = this.#db
+      .prepare(
+        `SELECT
+           strftime('%Y-%m-%d', started_at / 1000, 'unixepoch') AS day,
+           COALESCE(SUM(cost_total), 0)                          AS cost
+         FROM calls
+         WHERE tenant_id = ? AND outcome = 'ok'
+           AND started_at >= ? AND started_at < ?${filter}
+         GROUP BY day
+         ORDER BY day`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to, ...scopeParams) as { day: string; cost: bigint }[];
+
+    const days = rows.map((r) => ({ day: r.day, cost: r.cost }));
+    return { total: days.reduce((sum, d) => sum + d.cost, 0n), days };
   }
 
   recentViolations(tenantId: string, limit = 50) {
