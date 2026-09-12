@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300..800;1,400&family=Fragment+Mono:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #f5f2e9; }
+  body { -webkit-font-smoothing: antialiased; }
+  a { color: #0f1411; text-decoration-color: rgba(157,123,31,0.6); text-underline-offset: 3px; }
+  a:hover { color: #9d7b1f; }
+  ::selection { background: #9d7b1f; color: #f5f2e9; }
+  input[type="range"] { accent-color: #0f1411; }
+</style>
+</helmet>
+<div style="background:#f5f2e9;color:#0f1411;font-family:'Libre Franklin',Helvetica,sans-serif;min-width:0">
+
+  <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 clamp(20px,3.5vw,56px);height:58px;background:rgba(245,242,233,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(15,20,17,0.16)">
+    <div style="display:flex;align-items:baseline;gap:14px;min-width:0">
+      <span style="font-size:17px;font-weight:700;letter-spacing:-0.02em">CostGrid</span>
+      <span style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);white-space:nowrap">Agentic FinOps &amp; AI governance</span>
+    </div>
+    <nav style="display:flex;align-items:center;gap:clamp(14px,2vw,30px);font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em">
+      <a href="#thesis" style="text-decoration:none;color:rgba(15,20,17,0.62)" style-hover="color:#0f1411">Thesis</a>
+      <a href="#dial" style="text-decoration:none;color:rgba(15,20,17,0.62)" style-hover="color:#0f1411">The dial</a>
+      <a href="#stack" style="text-decoration:none;color:rgba(15,20,17,0.62)" style-hover="color:#0f1411">Stack</a>
+      <a href="#forecast" style="text-decoration:none;color:rgba(15,20,17,0.62)" style-hover="color:#0f1411">Forecast</a>
+      <a href="https://tbuica-droid.github.io/costgrid" style="display:inline-flex;align-items:center;gap:8px;background:#0f1411;color:#f5f2e9;padding:8px 14px;text-decoration:none" style-hover="background:#9d7b1f;color:#f5f2e9">Open dashboard <span style="font-family:'Libre Franklin',sans-serif">&#8594;</span></a>
+    </nav>
+  </header>
+
+  <section style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,0.65fr);border-bottom:1px solid rgba(15,20,17,0.16)">
+    <div style="padding:clamp(38px,5vw,74px) clamp(20px,3.5vw,56px) clamp(34px,4vw,58px);border-right:1px solid rgba(15,20,17,0.16)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9d7b1f;margin-bottom:clamp(20px,3vw,34px)">LLM inference cost governance &amp; unit economics</div>
+      <h1 style="margin:0;font-size:clamp(36px,5.1vw,78px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;text-wrap:balance;max-width:16ch">Per-token prices are collapsing.</h1>
+      <h1 style="margin:0.12em 0 0;font-size:clamp(36px,5.1vw,78px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;color:#a8452a;text-wrap:balance;max-width:20ch">Your AI bill is going up anyway.</h1>
+      <p style="margin:clamp(24px,3vw,38px) 0 0;max-width:56ch;font-size:clamp(16px,1.25vw,19px);line-height:1.5;color:rgba(15,20,17,0.72);text-wrap:pretty">Unit price is the wrong thing to watch. Spend is price multiplied by volume, and volume usually wins. CostGrid is a dashboard and forecast model for the real cost of running AI in production &mdash; the token line, the governance line, and the routing decision that sits between them.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:clamp(26px,3vw,40px)">
+        <a href="https://tbuica-droid.github.io/costgrid" style="display:inline-flex;align-items:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:14px 22px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" style-hover="background:#9d7b1f">OPEN THE LIVE DASHBOARD &#8594;</a>
+        <a href="https://github.com/tbuica-droid/costgrid/raw/main/CostGrid_Token_Cost_Model.xlsx" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(15,20,17,0.3);color:#0f1411;padding:14px 22px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" style-hover="border-color:#0f1411;background:rgba(15,20,17,0.04)">DOWNLOAD THE MODEL &middot; XLSX</a>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:flex-end;padding:clamp(28px,3vw,44px) clamp(20px,3vw,40px);background:rgba(15,20,17,0.035)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.5);padding-bottom:18px;border-bottom:1px solid rgba(15,20,17,0.16)">Enterprise GenAI spend</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:20px 0 6px">
+        <span style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.55)">2026</span>
+        <span style="font-size:clamp(30px,3.4vw,44px);font-weight:500;letter-spacing:-0.03em">$69.1<span style="font-size:0.5em;font-weight:500">B</span></span>
+      </div>
+      <div style="height:6px;background:rgba(15,20,17,0.16);width:33%"></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:26px 0 6px">
+        <span style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.55)">2030</span>
+        <span style="font-size:clamp(30px,3.4vw,44px);font-weight:500;letter-spacing:-0.03em;color:#a8452a">$207.3<span style="font-size:0.5em;font-weight:500">B</span></span>
+      </div>
+      <div style="height:6px;background:#a8452a;width:100%"></div>
+      <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.6)">Prices fall roughly 10&times; a year. Spend triples. Falling prices don&rsquo;t shrink the bill &mdash; they grow it.</p>
+    </div>
+  </section>
+
+  <section style="background:#0f1411;color:#f5f2e9;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+    <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">21.8%</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of head-to-head pairs, the cheaper-listed model costs more &mdash; by up to 28&times;</div>
+    </div>
+    <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">1 in 5</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">firms has mature agent governance &mdash; Deloitte</div>
+    </div>
+    <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">97%</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of AI security incidents lacked access controls &mdash; IBM</div>
+    </div>
+    <div style="padding:22px clamp(20px,2.5vw,32px)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">Aug 2026</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">EU AI Act fines begin</div>
+    </div>
+  </section>
+
+  <section id="thesis" style="border-bottom:1px solid rgba(15,20,17,0.16)">
+    <div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:0">
+      <div style="padding:clamp(30px,3.5vw,52px) 20px clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">01 &mdash; Why now</div>
+      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px) clamp(30px,3.5vw,52px) 0;border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+        <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:34ch;text-wrap:balance">Tokens are the visible line, not the whole bill.</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:clamp(24px,3vw,44px);margin-top:clamp(28px,3vw,44px)">
+          <div>
+            <div style="height:2px;background:#0f1411;width:34px;margin-bottom:16px"></div>
+            <h3 style="margin:0 0 10px;font-size:16px;font-weight:600;letter-spacing:-0.01em">Cost taxonomy</h3>
+            <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">The token line is separated from governance, deployment, observability and change-management cost, then rolled into a levelized cost per <em>valid</em> inference.</p>
+          </div>
+          <div>
+            <div style="height:2px;background:#9d7b1f;width:34px;margin-bottom:16px"></div>
+            <h3 style="margin:0 0 10px;font-size:16px;font-weight:600;letter-spacing:-0.01em">Routing economics</h3>
+            <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">Cheaper models are not automatically cheaper. Open weights cost far less per token but carry misrouting risk that grows convexly as you push high-stakes work onto them.</p>
+          </div>
+          <div>
+            <div style="height:2px;background:#a8452a;width:34px;margin-bottom:16px"></div>
+            <h3 style="margin:0 0 10px;font-size:16px;font-weight:600;letter-spacing:-0.01em">Price forecast</h3>
+            <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">Tiers decay toward a hardware floor at different rates. Economy and open-weight halve every ~1.1 years; frontier reasoning resists the curve almost entirely.</p>
+          </div>
+        </div>
+        <div style="margin-top:clamp(30px,3.5vw,48px);border-top:1px solid rgba(15,20,17,0.16);padding-top:22px;display:flex;flex-wrap:wrap;align-items:baseline;gap:16px">
+          <span style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.45)">LCOAI =</span>
+          <span style="font-family:'Fragment Mono',monospace;font-size:clamp(13px,1.15vw,16px);line-height:1.5">(amortized CapEx + total OpEx) &divide; inferences that cleared policy</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="dial" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
+    <div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr)">
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">02 &mdash; The dial</div>
+      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+        <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:36ch;text-wrap:balance">Stop forecasting vendor prices. Forecast your routing.</h2>
+        <p style="margin:18px 0 0;max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7);text-wrap:pretty">Substitution share is the percentage of traffic routed from frontier models down to the open-weight floor. It is the one input an organization fully controls. Move it.</p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(26px,3vw,48px);margin-top:clamp(30px,3.5vw,46px);align-items:start">
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(15,20,17,0.16);padding-bottom:12px">
+              <span style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Substitution share</span>
+              <span style="font-family:'Fragment Mono',monospace;font-size:30px;letter-spacing:-0.02em;color:#0f1411">{{ shareLabel }}</span>
+            </div>
+            <input type="range" min="0" max="99" step="1" value="{{ share }}" onChange="{{ onShare }}" onInput="{{ onShare }}" style="width:100%;margin:22px 0 6px;height:22px" />
+            <div style="display:flex;justify-content:space-between;font-family:'Fragment Mono',monospace;font-size:10.5px;color:rgba(15,20,17,0.5)">
+              <span>0%</span>
+              <span>99%</span>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:18px">
+              <button type="button" onClick="{{ setToday }}" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid rgba(15,20,17,0.3);background:transparent;color:#0f1411;cursor:pointer" style-hover="background:#0f1411;color:#f5f2e9;border-color:#0f1411">TODAY &middot; 15%</button>
+              <button type="button" onClick="{{ setOptimum }}" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid #9d7b1f;background:transparent;color:#9d7b1f;cursor:pointer" style-hover="background:#9d7b1f;color:#f5f2e9">OPTIMUM &middot; 83%</button>
+            </div>
+
+            <div style="margin-top:26px;border-top:1px solid rgba(15,20,17,0.16)">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
+                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Blended cost / M tokens</span>
+                <span style="font-family:'Fragment Mono',monospace;font-size:19px">{{ blended }}</span>
+              </div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
+                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Monthly token spend</span>
+                <span style="font-family:'Fragment Mono',monospace;font-size:19px">{{ monthly }}</span>
+              </div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;padding:16px 0">
+                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">vs. routing 15% today</span>
+                <span style="font-family:'Fragment Mono',monospace;font-size:19px;color:#a8452a">{{ delta }}</span>
+              </div>
+            </div>
+            <p style="margin:6px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.65;color:rgba(15,20,17,0.55)">{{ verdict }}</p>
+          </div>
+
+          <div>
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);margin-bottom:14px">Blended cost curve &middot; $/Mtok</div>
+            <svg viewBox="0 0 600 288" style="width:100%;height:auto;display:block;overflow:visible">
+              <line x1="0" y1="20" x2="600" y2="20" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
+              <line x1="0" y1="130" x2="600" y2="130" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
+              <line x1="0" y1="240" x2="600" y2="240" stroke="rgba(15,20,17,0.28)" stroke-width="1"></line>
+              <text x="0" y="14" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$11.00</text>
+              <text x="0" y="124" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$6.75</text>
+              <text x="0" y="256" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$2.50</text>
+              <line x1="90" y1="20" x2="90" y2="240" stroke="rgba(15,20,17,0.22)" stroke-width="1" stroke-dasharray="3 4"></line>
+              <line x1="498" y1="20" x2="498" y2="240" stroke="#9d7b1f" stroke-width="1" stroke-dasharray="3 4"></line>
+              <text x="94" y="34" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.55)">today 15%</text>
+              <text x="494" y="34" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="#9d7b1f">optimum 83%</text>
+              <path d="M0,45.9 L6,48.4 L12,50.9 L18,53.4 L24,55.9 L30,58.4 L36,60.9 L42,63.4 L48,65.9 L54,68.4 L60,70.9 L66,73.4 L72,75.9 L78,78.4 L84,80.8 L90,83.3 L96,85.8 L102,88.3 L108,90.8 L114,93.3 L120,95.8 L126,98.3 L132,100.8 L138,103.3 L144,105.8 L150,108.3 L156,110.8 L162,113.3 L168,115.8 L174,118.3 L180,120.8 L186,123.3 L192,125.8 L198,128.3 L204,130.8 L210,133.3 L216,135.8 L222,138.3 L228,140.7 L234,143.2 L240,145.7 L246,148.2 L252,150.7 L258,153.1 L264,155.6 L270,158.1 L276,160.5 L282,163 L288,165.4 L294,167.9 L300,170.3 L306,172.7 L312,175.1 L318,177.5 L324,179.9 L330,182.3 L336,184.6 L342,187 L348,189.3 L354,191.6 L360,193.8 L366,196 L372,198.2 L378,200.4 L384,202.5 L390,204.6 L396,206.6 L402,208.6 L408,210.5 L414,212.3 L420,214.1 L426,215.8 L432,217.4 L438,218.9 L444,220.4 L450,221.7 L456,222.9 L462,224 L468,224.9 L474,225.7 L480,226.4 L486,226.9 L492,227.2 L498,227.3 L504,227.2 L510,226.8 L516,226.2 L522,225.4 L528,224.3 L534,222.9 L540,221.1 L546,219.1 L552,216.6 L558,213.8 L564,210.5 L570,206.8 L576,202.6 L582,198 L588,192.8 L594,187" fill="none" stroke="#0f1411" stroke-width="2"></path>
+              <line x1="{{ markerX }}" y1="{{ markerY }}" x2="{{ markerX }}" y2="240" stroke="#a8452a" stroke-width="1"></line>
+              <circle cx="{{ markerX }}" cy="{{ markerY }}" r="5.5" fill="#a8452a"></circle>
+              <text x="0" y="278" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 0%</text>
+              <text x="600" y="278" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 99%</text>
+            </svg>
+            <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">Cost falls as routing shifts to the open floor, then the s<sup>8</sup> misrouting-risk penalty bends it back up past ~90%. The optimum is where the marginal token saving equals the marginal risk penalty &mdash; not wherever the cheapest vendor sits.</p>
+          </div>
+        </div>
+
+        <div style="margin-top:clamp(30px,3.5vw,48px);border-top:1px solid rgba(15,20,17,0.16);display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+          <div style="padding:20px clamp(16px,2vw,26px) 20px 0;border-right:1px solid rgba(15,20,17,0.1)">
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.45);margin-bottom:8px">Commodity work</div>
+            <div style="font-size:14.5px;line-height:1.5">Ticket classification<br /><span style="color:rgba(15,20,17,0.55)">frontier &#8594;</span> <strong style="font-weight:600">open floor</strong></div>
+          </div>
+          <div style="padding:20px clamp(16px,2vw,26px);border-right:1px solid rgba(15,20,17,0.1)">
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.45);margin-bottom:8px">Bounded risk</div>
+            <div style="font-size:14.5px;line-height:1.5">Contract summarization<br /><span style="color:rgba(15,20,17,0.55)">open pro,</span> <strong style="font-weight:600">mid-tier fallback</strong></div>
+          </div>
+          <div style="padding:20px 0 20px clamp(16px,2vw,26px)">
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:#a8452a;margin-bottom:8px">Accountable core</div>
+            <div style="font-size:14.5px;line-height:1.5">M&amp;A diligence analysis<br /><strong style="font-weight:600">stays frontier</strong> <span style="color:rgba(15,20,17,0.55)">&mdash; trust is scarce</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack" style="border-bottom:1px solid rgba(15,20,17,0.16)">
+    <div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr)">
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">03 &mdash; Where value accrues</div>
+      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+        <h2 style="margin:0 0 clamp(26px,3vw,40px);font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">Value never accrues where prices converge.</h2>
+        <div style="border-top:1px solid rgba(15,20,17,0.16)">
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,30px) 0;border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(157,123,31,0.09)">
+            <div style="padding-left:clamp(12px,1.5vw,22px)">
+              <div style="font-size:clamp(18px,1.8vw,24px);font-weight:600;letter-spacing:-0.02em">Trust &amp; accountability</div>
+              <p style="margin:7px 0 0;max-width:62ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Governance, security, sovereignty, the accountable boundary. Scarce, sticky, and where margin and exit value accrue.</p>
+            </div>
+            <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:#9d7b1f;padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">margin &#8593;</div>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,30px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
+            <div style="padding-left:clamp(12px,1.5vw,22px)">
+              <div style="font-size:clamp(18px,1.8vw,24px);font-weight:600;letter-spacing:-0.02em">Orchestration &amp; routing</div>
+              <p style="margin:7px 0 0;max-width:62ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Where substitution share lives: model-tier-to-task, evals, output caps, fallback. The lever you control.</p>
+            </div>
+            <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">the dial</div>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,30px) 0;border-bottom:1px solid rgba(15,20,17,0.16);opacity:0.62">
+            <div style="padding-left:clamp(12px,1.5vw,22px)">
+              <div style="font-size:clamp(18px,1.8vw,24px);font-weight:600;letter-spacing:-0.02em">Capability &mdash; models &amp; tokens</div>
+              <p style="margin:7px 0 0;max-width:62ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Deflating toward the cost of electricity. Commoditizing, with no durable margin.</p>
+            </div>
+            <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:#a8452a;padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">price &#8595;</div>
+          </div>
+        </div>
+        <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.55)">CostGrid operates the top two layers.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="forecast" style="border-bottom:1px solid rgba(15,20,17,0.16)">
+    <div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr)">
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">04 &mdash; Forecast</div>
+      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+        <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">2026 &#8594; 2030, bifurcation scenario</h2>
+        <p style="margin:16px 0 clamp(26px,3vw,36px);max-width:58ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7);text-wrap:pretty">Six modules driven entirely from an assumptions sheet: price decay, routing, volume, spend, seat pricing, EBITDA impact. Change an input and it propagates through to the exit bridge.</p>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-family:'Fragment Mono',monospace;font-size:13px;min-width:520px">
+            <thead>
+              <tr style="border-top:1px solid rgba(15,20,17,0.28);border-bottom:1px solid rgba(15,20,17,0.28)">
+                <th style="text-align:left;padding:12px 14px 12px 0;font-weight:400;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Metric</th>
+                <th style="text-align:right;padding:12px 14px;font-weight:400;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">2026</th>
+                <th style="text-align:right;padding:12px 0 12px 14px;font-weight:400;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">2030</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid rgba(15,20,17,0.1)">
+                <td style="padding:14px 14px 14px 0">Frontier blended $/Mtok</td>
+                <td style="text-align:right;padding:14px">$10.00</td>
+                <td style="text-align:right;padding:14px 0 14px 14px">$7.20</td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(15,20,17,0.1)">
+                <td style="padding:14px 14px 14px 0">Open-weight floor $/Mtok</td>
+                <td style="text-align:right;padding:14px">$0.35</td>
+                <td style="text-align:right;padding:14px 0 14px 14px">$0.10</td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(15,20,17,0.1)">
+                <td style="padding:14px 14px 14px 0">Frontier / open gap</td>
+                <td style="text-align:right;padding:14px">28.6&times;</td>
+                <td style="text-align:right;padding:14px 0 14px 14px;color:#9d7b1f">~70&times;</td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(15,20,17,0.1)">
+                <td style="padding:14px 14px 14px 0">Risk-adjusted optimal share</td>
+                <td style="text-align:right;padding:14px">83%</td>
+                <td style="text-align:right;padding:14px 0 14px 14px">90%</td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(15,20,17,0.28)">
+                <td style="padding:14px 14px 14px 0">Enterprise GenAI spend</td>
+                <td style="text-align:right;padding:14px">$69.1B</td>
+                <td style="text-align:right;padding:14px 0 14px 14px;color:#a8452a">$207.3B</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin:20px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.55);max-width:70ch">Illustrative organization, mid-2026 snapshot. Prices and model versions move monthly &mdash; re-verify against official pricing pages before external use.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom:1px solid rgba(15,20,17,0.16);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-right:1px solid rgba(15,20,17,0.16)">
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45);margin-bottom:20px">05 &mdash; Inside the dashboard</div>
+      <h2 style="margin:0 0 24px;font-size:clamp(22px,2.2vw,32px);font-weight:600;letter-spacing:-0.025em;line-height:1.15;max-width:26ch;text-wrap:balance">One self-contained file. No build step.</h2>
+      <div style="border-top:1px solid rgba(15,20,17,0.16)">
+        <div style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid rgba(15,20,17,0.1);font-size:14.5px"><span style="font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(15,20,17,0.4);padding-top:3px;flex:none">01</span><span>Agent cost explorer &mdash; 14 agents, cost-of-pass and useful-token ratio per row</span></div>
+        <div style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid rgba(15,20,17,0.1);font-size:14.5px"><span style="font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(15,20,17,0.4);padding-top:3px;flex:none">02</span><span>Substitution-share control with live blended-cost curve</span></div>
+        <div style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid rgba(15,20,17,0.1);font-size:14.5px"><span style="font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(15,20,17,0.4);padding-top:3px;flex:none">03</span><span>Live enforcement feed &mdash; monitor / warn / block per agent</span></div>
+        <div style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid rgba(15,20,17,0.1);font-size:14.5px"><span style="font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(15,20,17,0.4);padding-top:3px;flex:none">04</span><span>Pricing reference with project-verified anchors</span></div>
+        <div style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid rgba(15,20,17,0.16);font-size:14.5px"><span style="font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(15,20,17,0.4);padding-top:3px;flex:none">05</span><span>Exportable executive summary and EBITDA &amp; exit bridge</span></div>
+      </div>
+      <a href="https://tbuica-droid.github.io/costgrid" style="display:inline-flex;align-items:center;gap:10px;margin-top:26px;background:#0f1411;color:#f5f2e9;padding:13px 20px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12px;letter-spacing:0.04em" style-hover="background:#9d7b1f">OPEN THE DASHBOARD &#8594;</a>
+    </div>
+    <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);display:flex;flex-direction:column;justify-content:center">
+      <div style="aspect-ratio:16/10;border:1px solid rgba(15,20,17,0.28);background-image:repeating-linear-gradient(135deg,rgba(15,20,17,0.055) 0 2px,transparent 2px 9px);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px">
+        <div style="font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.7;color:rgba(15,20,17,0.55)">[ dashboard screenshot ]<br />drop a 1600&times;1000 capture here</div>
+      </div>
+    </div>
+  </section>
+
+  <sc-if value="{{ showReferences }}" hint-placeholder-val="{{ true }}">
+    <section style="border-bottom:1px solid rgba(15,20,17,0.16)">
+      <div style="display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr)">
+        <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">06 &mdash; Method</div>
+        <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+          <h2 style="margin:0 0 clamp(24px,2.6vw,34px);font-size:clamp(22px,2.2vw,32px);font-weight:600;letter-spacing:-0.025em;line-height:1.15;max-width:34ch;text-wrap:balance">Three choices worth stating plainly, since they drive most of the output.</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:clamp(24px,3vw,40px)">
+            <div style="border-top:1px solid rgba(15,20,17,0.28);padding-top:16px">
+              <div style="font-family:'Fragment Mono',monospace;font-size:13px;margin-bottom:10px">k &middot; f &middot; s<sup>N</sup>, N = 8</div>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">The risk penalty on misrouted work. A high exponent encodes the assumption that routing errors are cheap at the margin and very expensive in the tail.</p>
+            </div>
+            <div style="border-top:1px solid rgba(15,20,17,0.28);padding-top:16px">
+              <div style="font-family:'Fragment Mono',monospace;font-size:13px;margin-bottom:10px">logistic volume curve</div>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">Tokens per interaction follow a curve with a ceiling, not a growth rate. The shift to multi-step agentic orchestration is a pattern change, not a compounding trend.</p>
+            </div>
+            <div style="border-top:1px solid rgba(15,20,17,0.28);padding-top:16px">
+              <div style="font-family:'Fragment Mono',monospace;font-size:13px;margin-bottom:10px">hardware floor &gt; 0</div>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68);text-wrap:pretty">Prices decay toward electricity-and-GPU benchmarks, not toward zero. No tier declines past what inference physically costs to serve.</p>
+            </div>
+          </div>
+          <div style="margin-top:clamp(28px,3vw,40px);display:flex;flex-wrap:wrap;gap:10px 22px;font-family:'Fragment Mono',monospace;font-size:11.5px">
+            <span style="color:rgba(15,20,17,0.45);letter-spacing:0.1em;text-transform:uppercase">Grounded in</span>
+            <span>NIST AI RMF</span>
+            <span style="color:rgba(15,20,17,0.3)">/</span>
+            <span>EY &mdash; The Total Cost of Agents</span>
+            <span style="color:rgba(15,20,17,0.3)">/</span>
+            <span>Stanford HAI AI Index 2026</span>
+            <span style="color:rgba(15,20,17,0.3)">/</span>
+            <span>Citadel Securities</span>
+            <span style="color:rgba(15,20,17,0.3)">/</span>
+            <a href="https://github.com/tbuica-droid/costgrid#references">12 papers &#8594;</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <section style="background:#0f1411;color:#f5f2e9">
+    <div style="padding:clamp(46px,6vw,92px) clamp(20px,3.5vw,56px)">
+      <p style="margin:0;max-width:26ch;font-size:clamp(26px,3.4vw,50px);font-weight:500;letter-spacing:-0.03em;line-height:1.08;text-wrap:balance">Tokens are cheap. Trust is not. Govern the substitution.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:clamp(30px,3.5vw,46px)">
+        <a href="https://tbuica-droid.github.io/costgrid" style="display:inline-flex;align-items:center;gap:10px;background:#f5f2e9;color:#0f1411;padding:15px 24px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" style-hover="background:#c9a13d;color:#0f1411">OPEN THE LIVE DASHBOARD &#8594;</a>
+        <a href="https://github.com/tbuica-droid/costgrid" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(245,242,233,0.4);color:#f5f2e9;padding:15px 24px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" style-hover="border-color:#f5f2e9;background:rgba(245,242,233,0.08)">VIEW THE REPOSITORY</a>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(245,242,233,0.16);padding:20px clamp(20px,3.5vw,56px);display:flex;flex-wrap:wrap;gap:12px 28px;align-items:baseline;justify-content:space-between;font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(245,242,233,0.55)">
+      <span>CostGrid &mdash; built by Tomas Buica</span>
+      <span>MIT licensed &middot; figures illustrative, not a real organization</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;defaultShare&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;min&quot;:0,&quot;max&quot;:99,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;},&quot;tokensPerMonth&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:12000,&quot;min&quot;:1000,&quot;max&quot;:60000,&quot;step&quot;:1000,&quot;unit&quot;:&quot;Mtok/mo&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;},&quot;showReferences&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { s: props.defaultShare ?? 15 };
+  }
+  cost(s) { return 10 - 9.65 * s + 4.446 * Math.pow(s, 8); }
+  money(v) { return "$" + Math.round(v).toLocaleString("en-US"); }
+  renderVals() {
+    const s = this.state.s;
+    const f = s / 100;
+    const c = this.cost(f);
+    const base = this.cost(0.15);
+    const mtok = this.props.tokensPerMonth ?? 12000;
+    const monthly = c * mtok;
+    const diff = (base - c) * mtok;
+    const pct = ((base - c) / base) * 100;
+    const y = Math.max(6, Math.min(240, 240 - ((c - 2.5) / 8.5) * 220));
+    let verdict;
+    if (s < 12) verdict = "Frontier-default routing. Every commodity request is paying the accountability premium.";
+    else if (s < 40) verdict = "Where most organizations sit. The saving is available and untaken.";
+    else if (s <= 90) verdict = "Inside the risk-adjusted band. Marginal token saving still exceeds marginal risk.";
+    else verdict = "Past the optimum. The s\u2078 misrouting penalty now costs more than the tokens saved.";
+    return {
+      share: s,
+      shareLabel: s + "%",
+      blended: "$" + c.toFixed(2),
+      monthly: this.money(monthly) + " / mo",
+      delta: diff >= 0
+        ? "\u2212" + this.money(diff) + "  (" + pct.toFixed(0) + "%)"
+        : "+" + this.money(-diff) + "  (" + Math.abs(pct).toFixed(0) + "%)",
+      verdict: verdict,
+      markerX: +(f * 600).toFixed(1),
+      markerY: +y.toFixed(1),
+      showReferences: this.props.showReferences ?? true,
+      onShare: (e) => this.setState({ s: Number(e.target.value) }),
+      setToday: () => this.setState({ s: 15 }),
+      setOptimum: () => this.setState({ s: 83 })
+    };
+  }
+}
+</script>
+</body>
+</html>
