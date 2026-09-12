@@ -9,9 +9,10 @@ const CONFIG: GatewayConfig = {
   port: 0,
   host: "127.0.0.1",
   databasePath: ":memory:",
-  anthropicApiKey: "sk-ant-test-not-a-real-key",
-  anthropicBaseUrl: "https://api.anthropic.com",
+  providerKeys: { anthropic: "sk-ant-test-not-a-real-key" },
+  providerBaseUrls: {},
   upstreamTimeoutMs: 5_000,
+  injectUsageRequest: true,
   allowAnonymous: false,
   logLevel: "silent",
 };
@@ -183,7 +184,7 @@ describe("gateway", () => {
     expect(sent["anthropic-beta"]).toBe("fast-mode-2026-02-01");
     expect(sent["anthropic-version"]).toBe("2023-06-01");
     // The gateway substitutes its own provider credential.
-    expect(sent["x-api-key"]).toBe(CONFIG.anthropicApiKey);
+    expect(sent["x-api-key"]).toBe(CONFIG.providerKeys.anthropic);
   });
 
   it("bills the model that actually ran, not the one requested", async () => {

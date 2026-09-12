@@ -1,4 +1,4 @@
-# Quickstart — metering your own Anthropic usage
+# Quickstart — metering your own LLM usage
 
 This is the shortest path from a clean checkout to a real spend report from
 your own traffic. It costs whatever your own calls cost and nothing more:
@@ -26,6 +26,17 @@ cp .env.example .env && printf 'Anthropic API key (input hidden): ' && read -rs 
 Prefer an editor? `cp .env.example .env` then open `.env` and paste the key
 after `ANTHROPIC_API_KEY=`. That is equally safe — the danger is only the
 command line.
+
+**OpenAI too?** Add `OPENAI_API_KEY=` on its own line the same way. Each
+provider gets its own route, and a provider with no key serves none:
+
+| Provider | Route on the gateway |
+|---|---|
+| Anthropic | `POST /v1/messages` |
+| OpenAI | `POST /v1/chat/completions` |
+
+Spend from both lands in one tenant view, and a budget policy applies across
+them — a cap blown on OpenAI blocks the next Anthropic call.
 
 The gateway holds this credential so the services calling through it never
 need it. That indirection is the point: a compromised caller can be cut off in
@@ -76,6 +87,12 @@ client = Anthropic(base_url="http://127.0.0.1:8787", api_key="unused")
 
 ```typescript
 const client = new Anthropic({ baseURL: "http://127.0.0.1:8787", apiKey: "unused" });
+```
+
+OpenAI clients point at the same host:
+
+```python
+client = OpenAI(base_url="http://127.0.0.1:8787/v1", api_key="unused")
 ```
 
 The SDK still needs an `api_key` argument, but the gateway ignores it and
@@ -146,13 +163,13 @@ response header. `monitor` only records.
 npm run verify-pricing
 ```
 
-Fetches Anthropic's published pricing table and diffs every rate in the
-catalog. Exit 0 means accurate and fresh; 1 means a discrepancy or a stale
-verification date; 2 means the page could not be fetched or parsed — which is
-*inconclusive*, not a pass.
+Fetches each provider's published pricing table and diffs every rate in the
+catalog — 53 models across Anthropic and OpenAI. Exit 0 means accurate and
+fresh; 1 means a discrepancy or a stale verification date; 2 means a page could
+not be fetched or parsed — which is *inconclusive*, not a pass.
 
-If a rate has changed, update `packages/core/src/pricing.ts` and bump
-`CATALOG_VERIFIED_AT`. Past 45 days the gateway warns at startup and both the
+If a rate has changed, update `packages/core/src/pricing.ts` and bump that
+provider's `verifiedAt` in `CATALOG_PROVENANCE`. Past 45 days the gateway warns at startup and both the
 report and dashboard say so.
 
 ## Backing up
@@ -179,12 +196,23 @@ account rather than your Claude subscription. And with a `block` policy active,
 a mid-session block surfaces as an API error inside Claude Code. Use `monitor`
 first.
 
+## A note on OpenAI streaming
+
+OpenAI omits token usage from a streamed response unless the request asks for
+it. CostGrid adds `stream_options: {include_usage: true}` when you have not set
+`stream_options` yourself — without it a streamed call cannot be metered at all.
+
+That adds one trailing chunk with an empty `choices` array. Official SDKs
+handle it; a hand-rolled parser that assumes `choices[0]` exists might not. Set
+`COSTGRID_OPENAI_INJECT_USAGE=false` to leave requests untouched, and accept
+that streamed OpenAI calls then show as unpriced.
+
 ## What is measured, and what is assumed
 
 Everything in the *spend* section is measured from provider responses: token
-counts come from each call's `usage` object, and each of the five token buckets
-(input, output, 5-minute cache write, 1-hour cache write, cache read) is priced
-at its own rate.
+counts come from each call's `usage` object, and each token bucket is priced at
+its own rate. The two providers report differently — Anthropic's input count
+excludes cached tokens, OpenAI's includes them — and each has its own parser.
 
 The *routing* section is a model, not a measurement. Your observed substitution
 share is real; the optimum and the headroom figure derive from the assumptions

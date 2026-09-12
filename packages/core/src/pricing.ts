@@ -1,6 +1,6 @@
 import { mulDiv, type Nanodollars, usd } from "./money.js";
 
-export type Provider = "anthropic";
+export type Provider = "anthropic" | "openai";
 
 /**
  * Tiers are CostGrid's own classification, not a vendor concept. The routing
@@ -17,10 +17,34 @@ export type Tier = "frontier" | "mid" | "small" | "open";
  * finance team can audit, and lets the product warn when it is going stale
  * rather than quietly billing against last quarter's rates.
  */
-export const CATALOG_SOURCE = "https://platform.claude.com/docs/en/about-claude/pricing";
+export interface CatalogProvenance {
+  readonly provider: Provider;
+  readonly source: string;
+  /** UTC date this provider's prices were last checked against `source`. */
+  readonly verifiedAt: string;
+}
 
-/** UTC date the catalog was last checked against `CATALOG_SOURCE`. */
-export const CATALOG_VERIFIED_AT = "2026-09-11";
+export const CATALOG_PROVENANCE: readonly CatalogProvenance[] = [
+  {
+    provider: "anthropic",
+    source: "https://platform.claude.com/docs/en/about-claude/pricing",
+    verifiedAt: "2026-09-11",
+  },
+  {
+    provider: "openai",
+    source: "https://developers.openai.com/api/docs/pricing",
+    verifiedAt: "2026-09-11",
+  },
+];
+
+/** The oldest verification date across providers — the catalog is only as fresh as its stalest half. */
+export const CATALOG_VERIFIED_AT = CATALOG_PROVENANCE.reduce(
+  (oldest, p) => (p.verifiedAt < oldest ? p.verifiedAt : oldest),
+  CATALOG_PROVENANCE[0]!.verifiedAt,
+);
+
+/** Kept for callers that predate multi-provider; prefer CATALOG_PROVENANCE. */
+export const CATALOG_SOURCE = CATALOG_PROVENANCE[0]!.source;
 
 /**
  * Past this age the catalog is treated as stale and every surface says so.
@@ -57,6 +81,13 @@ export interface ModelPrice {
   readonly fastInput?: Nanodollars;
   readonly fastOutput?: Nanodollars;
   /**
+   * Rates that apply once a request's context exceeds `thresholdTokens`.
+   *
+   * OpenAI's newest models bill roughly double above 272K context. Ignoring
+   * this understates every large-context call by half.
+   */
+  readonly longContext?: LongContextRates;
+  /**
    * Retired from the first-party API. Still priced, because historical calls
    * need pricing and some retired models remain served on partner platforms.
    */
@@ -79,6 +110,15 @@ export interface PriceModifiers {
 }
 
 export const NO_MODIFIERS: PriceModifiers = {};
+
+export interface LongContextRates {
+  readonly thresholdTokens: number;
+  readonly input: Nanodollars;
+  readonly output: Nanodollars;
+  readonly cacheWrite5m: Nanodollars;
+  readonly cacheWrite1h: Nanodollars;
+  readonly cacheRead: Nanodollars;
+}
 
 /** The four rates a call is billed against, after modifiers. */
 export interface EffectiveRates {
@@ -117,10 +157,25 @@ interface CatalogEntry {
   output: string;
   /** Overrides the default 0.10x-input cache read rate. */
   cacheRead?: string;
+  /** Explicit cache-write rate, where the provider publishes one. */
+  cacheWrite?: string;
   /** Fast-mode input/output, where the model supports `speed: "fast"`. */
   fast?: { input: string; output: string };
+  /** Rates above the long-context threshold, where the provider has two tiers. */
+  long?: { input: string; output: string; cacheRead?: string; cacheWrite?: string };
   retired?: true;
 }
+
+/**
+ * Context size above which OpenAI's long-context rates apply.
+ *
+ * Published as "(<272K context length)" on the rows that annotate it. The
+ * gpt-6 and gpt-5.6 families publish long-context columns without restating
+ * the threshold; 272K is assumed for them, which is the only figure OpenAI
+ * documents. If that assumption is wrong the error is bounded — it shifts
+ * where the 2x step happens, not whether large calls are billed at 2x.
+ */
+const OPENAI_LONG_CONTEXT_THRESHOLD = 272_000;
 
 /**
  * First-party Anthropic API list prices, in $ per million tokens.
@@ -252,6 +307,106 @@ const ANTHROPIC_CATALOG: Record<string, CatalogEntry> = {
   },
 };
 
+/**
+ * OpenAI API list prices, in $ per million tokens.
+ *
+ * Two structural differences from Anthropic, both of which change the maths:
+ *
+ *   1. Cache reads have a *published per-model rate* rather than a fixed
+ *      multiple of input. gpt-4o reads at 0.5x, gpt-5 at 0.1x, o3-mini at
+ *      0.5x — assuming one multiplier would misprice most of the table.
+ *   2. There is no separate cache-*write* charge. Writes bill at the ordinary
+ *      input rate, so cacheWrite5m/1h are set equal to input rather than
+ *      marked up.
+ *
+ * Models with no published cached rate (the -pro tier) do not support caching;
+ * their cacheRead is set to the input rate so a stray cached token cannot be
+ * billed at a discount we have not verified.
+ */
+const OPENAI_CATALOG: Record<string, CatalogEntry> = {
+  // --- Current generation. These publish a separate cache-write rate and a
+  // --- long-context tier; earlier families do neither.
+  "gpt-6-astra": {
+    displayName: "GPT-6 Astra", tier: "frontier",
+    input: "10.00", output: "50.00", cacheRead: "1.00", cacheWrite: "12.50",
+    long: { input: "20.00", output: "75.00", cacheRead: "2.00", cacheWrite: "25.00" },
+  },
+  "gpt-5.6-sol": {
+    displayName: "GPT-5.6 Sol", tier: "frontier",
+    input: "4.00", output: "20.00", cacheRead: "0.40", cacheWrite: "5.00",
+    long: { input: "8.00", output: "30.00", cacheRead: "0.80", cacheWrite: "10.00" },
+  },
+  "gpt-5.6-terra": {
+    displayName: "GPT-5.6 Terra", tier: "mid",
+    input: "2.00", output: "12.00", cacheRead: "0.20", cacheWrite: "2.50",
+    long: { input: "4.00", output: "18.00", cacheRead: "0.40", cacheWrite: "5.00" },
+  },
+  "gpt-5.6-luna": {
+    displayName: "GPT-5.6 Luna", tier: "small",
+    input: "0.20", output: "1.20", cacheRead: "0.02", cacheWrite: "0.25",
+    long: { input: "0.40", output: "1.80", cacheRead: "0.04", cacheWrite: "0.50" },
+  },
+
+  "gpt-5.5": {
+    displayName: "GPT-5.5", tier: "frontier",
+    input: "5.00", output: "30.00", cacheRead: "0.50",
+    long: { input: "10.00", output: "45.00", cacheRead: "1.00" },
+  },
+  "gpt-5.5-pro": {
+    displayName: "GPT-5.5 pro", tier: "frontier",
+    input: "30.00", output: "180.00",
+    long: { input: "60.00", output: "270.00" },
+  },
+  "gpt-5.4": {
+    displayName: "GPT-5.4", tier: "mid",
+    input: "2.50", output: "15.00", cacheRead: "0.25",
+    long: { input: "5.00", output: "22.50", cacheRead: "0.50" },
+  },
+  "gpt-5.4-mini": { displayName: "GPT-5.4 mini", tier: "small", input: "0.75", output: "4.50", cacheRead: "0.075" },
+  "gpt-5.4-nano": { displayName: "GPT-5.4 nano", tier: "small", input: "0.20", output: "1.25", cacheRead: "0.02" },
+  "gpt-5.4-pro": {
+    displayName: "GPT-5.4 pro", tier: "frontier",
+    input: "30.00", output: "180.00",
+    long: { input: "60.00", output: "270.00" },
+  },
+
+  "gpt-5.2": { displayName: "GPT-5.2", tier: "mid", input: "1.75", output: "14.00", cacheRead: "0.175" },
+  "gpt-5.2-pro": { displayName: "GPT-5.2 pro", tier: "frontier", input: "21.00", output: "168.00" },
+  "gpt-5.1": { displayName: "GPT-5.1", tier: "mid", input: "1.25", output: "10.00", cacheRead: "0.125" },
+
+  "gpt-5": { displayName: "GPT-5", tier: "mid", input: "1.25", output: "10.00", cacheRead: "0.125" },
+  "gpt-5-mini": { displayName: "GPT-5 mini", tier: "small", input: "0.25", output: "2.00", cacheRead: "0.025" },
+  "gpt-5-nano": { displayName: "GPT-5 nano", tier: "small", input: "0.05", output: "0.40", cacheRead: "0.005" },
+  "gpt-5-pro": { displayName: "GPT-5 pro", tier: "frontier", input: "15.00", output: "120.00" },
+
+  "gpt-4.1": { displayName: "GPT-4.1", tier: "mid", input: "2.00", output: "8.00", cacheRead: "0.50" },
+  "gpt-4.1-mini": { displayName: "GPT-4.1 mini", tier: "small", input: "0.40", output: "1.60", cacheRead: "0.10" },
+  "gpt-4.1-nano": { displayName: "GPT-4.1 nano", tier: "small", input: "0.10", output: "0.40", cacheRead: "0.025" },
+
+  "gpt-4o": { displayName: "GPT-4o", tier: "mid", input: "2.50", output: "10.00", cacheRead: "1.25" },
+  // Priced differently from the gpt-4o alias, so it is listed explicitly —
+  // an exact id match beats the longest-prefix fallback.
+  "gpt-4o-2024-05-13": { displayName: "GPT-4o (2024-05-13)", tier: "mid", input: "5.00", output: "15.00" },
+  "gpt-4o-mini": { displayName: "GPT-4o mini", tier: "small", input: "0.15", output: "0.60", cacheRead: "0.075" },
+
+  "o1": { displayName: "o1", tier: "frontier", input: "15.00", output: "60.00", cacheRead: "7.50" },
+  "o1-pro": { displayName: "o1-pro", tier: "frontier", input: "150.00", output: "600.00" },
+  "o3": { displayName: "o3", tier: "mid", input: "2.00", output: "8.00", cacheRead: "0.50" },
+  "o3-pro": { displayName: "o3-pro", tier: "frontier", input: "20.00", output: "80.00" },
+  "o3-mini": { displayName: "o3-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.55" },
+  "o4-mini": { displayName: "o4-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.275" },
+
+  // --- Legacy, still served. Catalogued so their calls price rather than
+  // --- landing in the unpriced bucket.
+  "gpt-4-turbo-2024-04-09": { displayName: "GPT-4 Turbo", tier: "mid", input: "10.00", output: "30.00", retired: true },
+  "gpt-4-0613": { displayName: "GPT-4 (0613)", tier: "mid", input: "30.00", output: "60.00", retired: true },
+  "gpt-3.5-turbo": { displayName: "GPT-3.5 Turbo", tier: "small", input: "0.50", output: "1.50", retired: true },
+  "gpt-3.5-turbo-1106": { displayName: "GPT-3.5 Turbo (1106)", tier: "small", input: "1.00", output: "2.00", retired: true },
+  "gpt-3.5-turbo-instruct": { displayName: "GPT-3.5 Turbo Instruct", tier: "small", input: "1.50", output: "2.00", retired: true },
+  "davinci-002": { displayName: "davinci-002", tier: "small", input: "2.00", output: "2.00", retired: true },
+  "babbage-002": { displayName: "babbage-002", tier: "small", input: "0.40", output: "0.40", retired: true },
+};
+
 function build(catalog: Record<string, CatalogEntry>, provider: Provider): Map<string, ModelPrice> {
   const priced = new Map<string, ModelPrice>();
   for (const [id, entry] of Object.entries(catalog)) {
@@ -263,9 +418,51 @@ function build(catalog: Record<string, CatalogEntry>, provider: Provider): Map<s
       tier: entry.tier,
       input,
       output: perMTok(entry.output),
-      cacheWrite5m: mulDiv(input, 5n, 4n),
-      cacheWrite1h: input * 2n,
-      cacheRead: entry.cacheRead === undefined ? mulDiv(input, 1n, 10n) : perMTok(entry.cacheRead),
+      // Anthropic derives cache writes from input (1.25x / 2x). OpenAI's
+      // newest models publish an explicit write rate; older ones bill a write
+      // as an ordinary input token.
+      cacheWrite5m:
+        entry.cacheWrite !== undefined
+          ? perMTok(entry.cacheWrite)
+          : provider === "anthropic"
+            ? mulDiv(input, 5n, 4n)
+            : input,
+      cacheWrite1h:
+        entry.cacheWrite !== undefined
+          ? perMTok(entry.cacheWrite)
+          : provider === "anthropic"
+            ? input * 2n
+            : input,
+      // A model with no published cached rate does not support caching; its
+      // read rate is the input rate, so a stray cached token cannot be given
+      // a discount we have not verified.
+      cacheRead:
+        entry.cacheRead !== undefined
+          ? perMTok(entry.cacheRead)
+          : provider === "anthropic"
+            ? mulDiv(input, 1n, 10n)
+            : input,
+      ...(entry.long
+        ? {
+            longContext: {
+              thresholdTokens: OPENAI_LONG_CONTEXT_THRESHOLD,
+              input: perMTok(entry.long.input),
+              output: perMTok(entry.long.output),
+              cacheWrite5m:
+                entry.long.cacheWrite !== undefined
+                  ? perMTok(entry.long.cacheWrite)
+                  : perMTok(entry.long.input),
+              cacheWrite1h:
+                entry.long.cacheWrite !== undefined
+                  ? perMTok(entry.long.cacheWrite)
+                  : perMTok(entry.long.input),
+              cacheRead:
+                entry.long.cacheRead !== undefined
+                  ? perMTok(entry.long.cacheRead)
+                  : perMTok(entry.long.input),
+            },
+          }
+        : {}),
       ...(entry.fast
         ? { fastInput: perMTok(entry.fast.input), fastOutput: perMTok(entry.fast.output) }
         : {}),
@@ -275,11 +472,15 @@ function build(catalog: Record<string, CatalogEntry>, provider: Provider): Map<s
   return priced;
 }
 
-const PRICES = build(ANTHROPIC_CATALOG, "anthropic");
+const PRICES = new Map<string, ModelPrice>([
+  ...build(ANTHROPIC_CATALOG, "anthropic"),
+  ...build(OPENAI_CATALOG, "openai"),
+]);
 
 /** Every model CostGrid can price, in catalog order. */
-export function listModelPrices(): ModelPrice[] {
-  return [...PRICES.values()];
+export function listModelPrices(provider?: Provider): ModelPrice[] {
+  const all = [...PRICES.values()];
+  return provider === undefined ? all : all.filter((m) => m.provider === provider);
 }
 
 /**
@@ -315,23 +516,43 @@ export function findModelPrice(modelId: string): ModelPrice | undefined {
 export function effectiveRates(
   price: ModelPrice,
   modifiers: PriceModifiers = NO_MODIFIERS,
+  contextTokens = 0,
 ): EffectiveRates {
+  // A request past the long-context threshold bills at the higher tier across
+  // every category. Checked first, because it replaces the base rates the
+  // rest of this function derives from.
+  if (price.longContext !== undefined && contextTokens > price.longContext.thresholdTokens) {
+    return scaleRates(price.longContext, modifiers);
+  }
   // Fast mode is only defined for models that support it; asking for it on
   // any other model bills at standard rates, which is what the API does.
   const fast = modifiers.speed === "fast" && price.fastInput !== undefined;
   const input = fast ? price.fastInput! : price.input;
   const output = fast ? price.fastOutput! : price.output;
 
-  // Cache rates are multiples of the *effective* input rate, so they inherit
-  // fast-mode pricing rather than staying at the standard-rate multiple.
-  const isReducedCacheRead = price.cacheRead * 10n !== price.input;
-  let rates: EffectiveRates = {
-    input,
-    output,
-    cacheWrite5m: mulDiv(input, 5n, 4n),
-    cacheWrite1h: input * 2n,
-    cacheRead: isReducedCacheRead ? mulDiv(input, 1n, 40n) : mulDiv(input, 1n, 10n),
-  };
+  // Cache rates are multiples of the *effective* input rate, so on Anthropic
+  // they inherit fast-mode pricing rather than staying at the standard-rate
+  // multiple. OpenAI publishes a per-model cache rate and has no fast mode, so
+  // its rates are carried through as catalogued.
+  let rates: EffectiveRates;
+  if (price.provider === "anthropic") {
+    const isReducedCacheRead = price.cacheRead * 10n !== price.input;
+    rates = {
+      input,
+      output,
+      cacheWrite5m: mulDiv(input, 5n, 4n),
+      cacheWrite1h: input * 2n,
+      cacheRead: isReducedCacheRead ? mulDiv(input, 1n, 40n) : mulDiv(input, 1n, 10n),
+    };
+  } else {
+    rates = {
+      input,
+      output,
+      cacheWrite5m: price.cacheWrite5m,
+      cacheWrite1h: price.cacheWrite1h,
+      cacheRead: price.cacheRead,
+    };
+  }
 
   const scale = (numerator: bigint, denominator: bigint): EffectiveRates => ({
     input: mulDiv(rates.input, numerator, denominator),
@@ -344,5 +565,27 @@ export function effectiveRates(
   if (modifiers.inferenceGeo === "us") rates = scale(11n, 10n);
   if (modifiers.batch === true) rates = scale(1n, 2n);
 
+  return rates;
+}
+
+/** Apply the provider-independent modifiers to an already-chosen rate set. */
+function scaleRates(base: EffectiveRates, modifiers: PriceModifiers): EffectiveRates {
+  const factor = (numerator: bigint, denominator: bigint, rates: EffectiveRates): EffectiveRates => ({
+    input: mulDiv(rates.input, numerator, denominator),
+    output: mulDiv(rates.output, numerator, denominator),
+    cacheWrite5m: mulDiv(rates.cacheWrite5m, numerator, denominator),
+    cacheWrite1h: mulDiv(rates.cacheWrite1h, numerator, denominator),
+    cacheRead: mulDiv(rates.cacheRead, numerator, denominator),
+  });
+
+  let rates: EffectiveRates = {
+    input: base.input,
+    output: base.output,
+    cacheWrite5m: base.cacheWrite5m,
+    cacheWrite1h: base.cacheWrite1h,
+    cacheRead: base.cacheRead,
+  };
+  if (modifiers.inferenceGeo === "us") rates = factor(11n, 10n, rates);
+  if (modifiers.batch === true) rates = factor(1n, 2n, rates);
   return rates;
 }

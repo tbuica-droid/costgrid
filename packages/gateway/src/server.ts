@@ -1,11 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
   evaluatePolicies,
-  parseAnthropicModifiers,
-  parseAnthropicUsage,
-  type PriceModifiers,
-  priceUsage,
   type PolicyScope,
+  priceUsage,
   type RequestContext,
   toUsdString,
   ZERO_COST,
@@ -16,30 +13,17 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { registerApi } from "./api.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
-import { SseUsageCollector } from "./sse.js";
+import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 
 const AGENT_HEADER = "x-costgrid-agent";
 const DEPARTMENT_HEADER = "x-costgrid-department";
 const KEY_HEADER = "x-costgrid-key";
 
-/** Response headers worth passing back; everything else is hop-by-hop or ours to set. */
-const FORWARDED_RESPONSE_HEADERS = [
-  "content-type",
-  "request-id",
-  "anthropic-ratelimit-requests-limit",
-  "anthropic-ratelimit-requests-remaining",
-  "anthropic-ratelimit-requests-reset",
-  "anthropic-ratelimit-tokens-limit",
-  "anthropic-ratelimit-tokens-remaining",
-  "anthropic-ratelimit-tokens-reset",
-  "retry-after",
-];
-
 export interface ServerDeps {
   readonly config: GatewayConfig;
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
-  /** Overridable for tests, which must never reach the real provider. */
+  /** Overridable for tests, which must never reach a real provider. */
   readonly fetchImpl?: typeof fetch;
 }
 
@@ -87,23 +71,6 @@ function identify(request: FastifyRequest, deps: ServerDeps): Caller | undefined
   };
 }
 
-function readMaxTokens(body: unknown): number {
-  if (typeof body !== "object" || body === null) return 0;
-  const value = (body as Record<string, unknown>)["max_tokens"];
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function readModel(body: unknown): string {
-  if (typeof body !== "object" || body === null) return "unknown";
-  const value = (body as Record<string, unknown>)["model"];
-  return typeof value === "string" && value !== "" ? value : "unknown";
-}
-
-function isStreaming(body: unknown): boolean {
-  if (typeof body !== "object" || body === null) return false;
-  return (body as Record<string, unknown>)["stream"] === true;
-}
-
 export function createServer(deps: ServerDeps): FastifyInstance {
   const { config, repository, analytics } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
@@ -115,7 +82,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     bodyLimit: 64 * 1024 * 1024,
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.1.0" }));
+  app.get("/health", async () => ({
+    status: "ok",
+    version: "0.1.0",
+    providers: ADAPTERS.filter((a) => config.providerKeys[a.id] !== undefined).map((a) => ({
+      id: a.id,
+      path: a.path,
+    })),
+  }));
 
   // The dashboard API and the proxy share a process so a self-hosted deploy is
   // one command. In a multi-tenant hosted setting these would be separate
@@ -127,201 +101,222 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   });
   registerDashboard(app);
 
-  app.post("/v1/messages", async (request, reply) => {
-    const startedAt = Date.now();
-    const caller = identify(request, deps);
+  /**
+   * The proxy, once per provider.
+   *
+   * Everything provider-specific is reached through `adapter`, so this handler
+   * does not know or care which upstream it is talking to. A provider with no
+   * configured credential is not registered at all: the caller gets a clean
+   * 404 rather than an upstream auth error they cannot act on.
+   */
+  function proxyHandler(adapter: ProviderAdapter, apiKey: string) {
+    return async (request: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
+      const startedAt = Date.now();
+      const caller = identify(request, deps);
 
-    if (!caller) {
-      return reply.code(401).send({
-        type: "error",
-        error: { type: "authentication_error", message: "Invalid or missing CostGrid API key." },
-      });
-    }
-
-    const body = request.body;
-    const requestedModel = readModel(body);
-    const streaming = isStreaming(body);
-
-    const context: RequestContext = {
-      agentId: caller.agentId,
-      department: caller.department,
-      model: requestedModel,
-      maxOutputTokens: readMaxTokens(body),
-    };
-
-    repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
-
-    // --- Enforcement, before a single token is spent -----------------------
-    const policies = repository.listPolicies(caller.tenantId);
-    const decision = evaluatePolicies(policies, context, (scope: PolicyScope) =>
-      repository.spendFor(caller.tenantId, scope, startedAt),
-    );
-
-    if (!decision.allowed) {
-      const callId = randomUUID();
-      const blocked = decision.blockedBy!;
-
-      repository.recordCall({
-        id: callId,
-        tenantId: caller.tenantId,
-        agentId: caller.agentId,
-        department: caller.department,
-        provider: "anthropic",
-        model: requestedModel,
-        startedAt,
-        durationMs: Date.now() - startedAt,
-        streamed: streaming,
-        usage: ZERO_USAGE,
-        cost: ZERO_COST,
-        priced: true,
-        outcome: "blocked",
-        statusCode: 403,
-        errorMessage: blocked.reason,
-      });
-      repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
-
-      return reply.code(403).send({
-        type: "error",
-        error: {
-          type: "costgrid_policy_blocked",
-          message: `Blocked by CostGrid policy "${blocked.policyName}": ${blocked.reason}`,
-          policy_id: blocked.policyId,
-        },
-      });
-    }
-
-    // --- Forward upstream ---------------------------------------------------
-    const upstreamUrl = new URL("/v1/messages", config.anthropicBaseUrl);
-    const upstreamHeaders: Record<string, string> = {
-      "content-type": "application/json",
-      "x-api-key": config.anthropicApiKey,
-      "anthropic-version": headerValue(request, "anthropic-version") ?? "2023-06-01",
-    };
-    // Beta flags are semantically part of the request; dropping one silently
-    // changes behaviour, so it is forwarded verbatim.
-    const beta = headerValue(request, "anthropic-beta");
-    if (beta !== undefined) upstreamHeaders["anthropic-beta"] = beta;
-
-    const abort = AbortSignal.timeout(config.upstreamTimeoutMs);
-    let upstream: Response;
-    try {
-      upstream = await doFetch(upstreamUrl, {
-        method: "POST",
-        headers: upstreamHeaders,
-        body: JSON.stringify(body),
-        signal: abort,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      repository.recordCall({
-        id: randomUUID(),
-        tenantId: caller.tenantId,
-        agentId: caller.agentId,
-        department: caller.department,
-        provider: "anthropic",
-        model: requestedModel,
-        startedAt,
-        durationMs: Date.now() - startedAt,
-        streamed: streaming,
-        usage: ZERO_USAGE,
-        cost: ZERO_COST,
-        priced: true,
-        outcome: "error",
-        errorMessage: message,
-      });
-      return reply.code(502).send({
-        type: "error",
-        error: { type: "upstream_unreachable", message },
-      });
-    }
-
-    for (const name of FORWARDED_RESPONSE_HEADERS) {
-      const value = upstream.headers.get(name);
-      if (value !== null) reply.header(name, value);
-    }
-    // Advertise which violations fired without blocking, so a caller can
-    // surface a budget warning to its own operator.
-    if (decision.violations.length > 0) {
-      reply.header("x-costgrid-warnings", decision.violations.map((v) => v.reason).join("; "));
-    }
-
-    const record = (over: Partial<CallRecord>): void => {
-      const usage = over.usage ?? ZERO_USAGE;
-      const model = over.model ?? requestedModel;
-      // Fast mode doubles the rate and US-pinned inference adds 10%; both are
-      // reported back in `usage`, so pricing reads them rather than assuming.
-      const modifiers = over.modifiers ?? {};
-      const priced = priceUsage(model, usage, modifiers);
-
-      const callId = over.id ?? randomUUID();
-      repository.recordCall({
-        id: callId,
-        tenantId: caller.tenantId,
-        agentId: caller.agentId,
-        department: caller.department,
-        provider: "anthropic",
-        model,
-        startedAt,
-        durationMs: Date.now() - startedAt,
-        streamed: streaming,
-        usage,
-        cost: priced.cost,
-        priced: priced.priced,
-        modifiers,
-        outcome: over.outcome ?? "ok",
-        statusCode: upstream.status,
-        ...over,
-      } as CallRecord);
-
-      if (decision.violations.length > 0) {
-        repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
+      if (!caller) {
+        return reply.code(401).send({
+          type: "error",
+          error: { type: "authentication_error", message: "Invalid or missing CostGrid API key." },
+        });
       }
-    };
 
-    if (streaming && upstream.ok && upstream.body) {
-      return streamThrough(reply, upstream, record, app.log);
-    }
+      const requestedModel = adapter.modelOf(request.body);
+      const streaming = adapter.isStreaming(request.body);
 
-    // --- Buffered response --------------------------------------------------
-    const text = await upstream.text();
-    let payload: unknown;
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = { type: "error", error: { type: "upstream_invalid_json", message: text.slice(0, 500) } };
-    }
+      const context: RequestContext = {
+        agentId: caller.agentId,
+        department: caller.department,
+        model: requestedModel,
+        maxOutputTokens: adapter.maxOutputTokensOf(request.body),
+      };
 
-    if (!upstream.ok) {
+      repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
+
+      // --- Enforcement, before a single token is spent ---------------------
+      const policies = repository.listPolicies(caller.tenantId);
+      const decision = evaluatePolicies(policies, context, (scope: PolicyScope) =>
+        repository.spendFor(caller.tenantId, scope, startedAt),
+      );
+
+      const baseRecord = {
+        tenantId: caller.tenantId,
+        agentId: caller.agentId,
+        department: caller.department,
+        provider: adapter.id,
+        startedAt,
+        streamed: streaming,
+      };
+
+      if (!decision.allowed) {
+        const callId = randomUUID();
+        const blocked = decision.blockedBy!;
+
+        repository.recordCall({
+          ...baseRecord,
+          id: callId,
+          model: requestedModel,
+          durationMs: Date.now() - startedAt,
+          usage: ZERO_USAGE,
+          cost: ZERO_COST,
+          priced: true,
+          outcome: "blocked",
+          statusCode: 403,
+          errorMessage: blocked.reason,
+        });
+        repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
+
+        return reply.code(403).send({
+          type: "error",
+          error: {
+            type: "costgrid_policy_blocked",
+            message: `Blocked by CostGrid policy "${blocked.policyName}": ${blocked.reason}`,
+            policy_id: blocked.policyId,
+          },
+        });
+      }
+
+      // --- Forward upstream -------------------------------------------------
+      const baseUrl = config.providerBaseUrls[adapter.id] ?? adapter.defaultBaseUrl;
+      const upstreamHeaders: Record<string, string> = {
+        "content-type": "application/json",
+        ...adapter.authHeaders(apiKey),
+      };
+      for (const name of adapter.forwardedRequestHeaders) {
+        const value = headerValue(request, name);
+        if (value !== undefined) upstreamHeaders[name] = value;
+      }
+      if (adapter.id === "anthropic" && upstreamHeaders["anthropic-version"] === undefined) {
+        upstreamHeaders["anthropic-version"] = "2023-06-01";
+      }
+
+      // OpenAI omits usage from streams unless asked; without this every
+      // streamed call would meter as zero.
+      const prepared = config.injectUsageRequest
+        ? adapter.prepareBody(request.body)
+        : { body: request.body, injectedUsageRequest: false };
+
+      let upstream: Response;
+      try {
+        upstream = await doFetch(new URL(adapter.path, baseUrl), {
+          method: "POST",
+          headers: upstreamHeaders,
+          body: JSON.stringify(prepared.body),
+          signal: AbortSignal.timeout(config.upstreamTimeoutMs),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        repository.recordCall({
+          ...baseRecord,
+          id: randomUUID(),
+          model: requestedModel,
+          durationMs: Date.now() - startedAt,
+          usage: ZERO_USAGE,
+          cost: ZERO_COST,
+          priced: true,
+          outcome: "error",
+          errorMessage: message,
+        });
+        return reply.code(502).send({
+          type: "error",
+          error: { type: "upstream_unreachable", message },
+        });
+      }
+
+      for (const name of adapter.forwardedResponseHeaders) {
+        const value = upstream.headers.get(name);
+        if (value !== null) reply.header(name, value);
+      }
+      // Advertise which violations fired without blocking, so a caller can
+      // surface a budget warning to its own operator.
+      if (decision.violations.length > 0) {
+        reply.header("x-costgrid-warnings", decision.violations.map((v) => v.reason).join("; "));
+      }
+
+      const record = (over: Partial<CallRecord>): void => {
+        const usage = over.usage ?? ZERO_USAGE;
+        const model = over.model ?? requestedModel;
+        const modifiers = over.modifiers ?? {};
+        const computed = priceUsage(model, usage, modifiers);
+
+        // `priced: false` means the cost could not be established — either the
+        // model is uncatalogued, or the provider reported no usage. Both must
+        // surface as unpriced rather than as free traffic.
+        const priced = over.priced === false ? false : computed.priced;
+
+        const callId = over.id ?? randomUUID();
+        repository.recordCall({
+          ...baseRecord,
+          ...over,
+          id: callId,
+          model,
+          durationMs: Date.now() - startedAt,
+          usage,
+          cost: computed.cost,
+          priced,
+          modifiers,
+          outcome: over.outcome ?? "ok",
+          statusCode: over.statusCode ?? upstream.status,
+        } as CallRecord);
+
+        if (decision.violations.length > 0) {
+          repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
+        }
+      };
+
+      if (streaming && upstream.ok && upstream.body) {
+        return streamThrough(adapter, reply, upstream, record, app.log);
+      }
+
+      // --- Buffered response ------------------------------------------------
+      const text = await upstream.text();
+      let payload: unknown;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = {
+          type: "error",
+          error: { type: "upstream_invalid_json", message: text.slice(0, 500) },
+        };
+      }
+
+      if (!upstream.ok) {
+        record({ outcome: "error", errorMessage: `upstream ${upstream.status}` });
+        return reply.code(upstream.status).send(payload);
+      }
+
+      const parsed = adapter.parseBufferedResponse(payload);
       record({
-        outcome: "error",
-        errorMessage: `upstream ${upstream.status}`,
+        // Bill the model that actually ran, which a server-side fallback can change.
+        ...(parsed.model !== undefined ? { model: parsed.model } : {}),
+        usage: parsed.usage ?? ZERO_USAGE,
+        modifiers: parsed.modifiers,
+        ...(parsed.stopReason !== undefined ? { stopReason: parsed.stopReason } : {}),
+        ...(parsed.usage === undefined
+          ? { priced: false, errorMessage: "response carried no usage; cost not established" }
+          : {}),
+        outcome: "ok",
       });
+
       return reply.code(upstream.status).send(payload);
-    }
+    };
+  }
 
-    const message = payload as Record<string, unknown>;
-    record({
-      // Bill the model that actually ran, which a server-side fallback can change.
-      model: typeof message["model"] === "string" ? message["model"] : requestedModel,
-      usage: message["usage"] !== undefined ? parseAnthropicUsage(message["usage"]) : ZERO_USAGE,
-      modifiers: parseAnthropicModifiers(message["usage"]),
-      stopReason: typeof message["stop_reason"] === "string" ? message["stop_reason"] : undefined,
-      outcome: "ok",
-    });
-
-    return reply.code(upstream.status).send(payload);
-  });
+  for (const adapter of ADAPTERS) {
+    const apiKey = config.providerKeys[adapter.id];
+    if (apiKey === undefined) continue;
+    app.post(adapter.path, proxyHandler(adapter, apiKey));
+  }
 
   app.get("/v1/costgrid/summary", async (request, reply) => {
     const caller = identify(request, deps);
     if (!caller) return reply.code(401).send({ error: "unauthorized" });
 
     const window = trailingWindow(30);
-    const { from, to } = window;
     const summary = analytics.summary(caller.tenantId, window);
 
     return {
-      window: { from, to },
+      window,
       totalCostUsd: toUsdString(summary.totalCost, 6),
       calls: summary.calls,
       blockedCalls: summary.blockedCalls,
@@ -329,14 +324,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       unpricedCalls: summary.unpricedCalls,
       cacheHitRatio: Number(summary.cacheHitRatio.toFixed(4)),
       substitutionShare: Number(
-        analytics.substitutionShare(caller.tenantId, { from, to }).toFixed(4),
+        analytics.substitutionShare(caller.tenantId, window).toFixed(4),
       ),
-      byModel: analytics.spendByModel(caller.tenantId, { from, to }).map((row) => ({
+      byModel: analytics.spendByModel(caller.tenantId, window).map((row) => ({
         model: row.key,
         costUsd: toUsdString(row.cost, 6),
         calls: row.calls,
       })),
-      byAgent: analytics.spendByAgent(caller.tenantId, { from, to }).map((row) => ({
+      byAgent: analytics.spendByAgent(caller.tenantId, window).map((row) => ({
         agent: row.key,
         costUsd: toUsdString(row.cost, 6),
         calls: row.calls,
@@ -348,19 +343,24 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 }
 
 /**
- * Pipe an SSE response to the caller while metering a copy of it.
+ * Pipe a streaming response to the caller while metering a copy of it.
  *
  * The client's bytes are written first on every chunk; metering happens after.
  * If the collector ever throws, the caller's stream is unaffected — losing a
  * usage record is recoverable, corrupting a response is not.
+ *
+ * A stream that ends without trustworthy usage is recorded with `priced: false`
+ * rather than as zero cost, so it appears as an unpriced call instead of
+ * quietly dragging reported spend down.
  */
 async function streamThrough(
+  adapter: ProviderAdapter,
   reply: FastifyReply,
   upstream: Response,
   record: (over: Partial<CallRecord>) => void,
   log: FastifyInstance["log"],
 ): Promise<void> {
-  const collector = new SseUsageCollector();
+  const collector: StreamUsageCollector = adapter.createStreamCollector();
   const decoder = new TextDecoder();
 
   reply.raw.writeHead(upstream.status, {
@@ -391,14 +391,17 @@ async function streamThrough(
     reply.raw.end();
   }
 
+  const untrustworthy = aborted || collector.incomplete;
+  const reason = aborted
+    ? "stream interrupted; usage is partial"
+    : collector.incompleteReason;
+
   record({
     ...(collector.model !== undefined ? { model: collector.model } : {}),
     usage: collector.usage,
     modifiers: collector.modifiers,
     ...(collector.stopReason !== undefined ? { stopReason: collector.stopReason } : {}),
-    outcome: aborted || collector.incomplete ? "error" : "ok",
-    ...(aborted || collector.incomplete
-      ? { errorMessage: "stream ended before completion; usage is partial" }
-      : {}),
+    outcome: untrustworthy ? "error" : "ok",
+    ...(untrustworthy ? { priced: false, errorMessage: reason } : {}),
   });
 }

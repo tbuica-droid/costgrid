@@ -33,7 +33,7 @@ describe("pricing catalog", () => {
 
   it("returns undefined for a model it does not know", () => {
     expect(findModelPrice("claude-opus-9")).toBeUndefined();
-    expect(findModelPrice("gpt-5.5")).toBeUndefined();
+    expect(findModelPrice("a-model-nobody-has-shipped")).toBeUndefined();
   });
 
   it("refuses a price too fine to represent per token", () => {

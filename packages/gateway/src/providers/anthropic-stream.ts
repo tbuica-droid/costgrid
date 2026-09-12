@@ -7,6 +7,7 @@ import {
   type TokenUsage,
   ZERO_USAGE,
 } from "@costgrid/core";
+import type { StreamUsageCollector } from "./types.js";
 
 /**
  * Extracts usage and model from an Anthropic SSE stream as it passes through.
@@ -23,7 +24,7 @@ import {
  *   2. `message_delta.usage.output_tokens` is cumulative, not incremental.
  *      Fields are therefore overlaid, never summed.
  */
-export class SseUsageCollector {
+export class AnthropicStreamCollector implements StreamUsageCollector {
   #buffer = "";
   #usage: TokenUsage = ZERO_USAGE;
   #model: string | undefined;
@@ -146,6 +147,10 @@ export class SseUsageCollector {
    */
   get incomplete(): boolean {
     return !this.#sawMessageStart;
+  }
+
+  get incompleteReason(): string | undefined {
+    return this.#sawMessageStart ? undefined : "stream ended before message_start; usage is partial";
   }
 
   get parseErrors(): number {

@@ -9,9 +9,10 @@ const CONFIG: GatewayConfig = {
   port: 0,
   host: "127.0.0.1",
   databasePath: ":memory:",
-  anthropicApiKey: "sk-ant-test-not-a-real-key",
-  anthropicBaseUrl: "https://api.anthropic.com",
+  providerKeys: { anthropic: "sk-ant-test-not-a-real-key" },
+  providerBaseUrls: {},
   upstreamTimeoutMs: 5_000,
+  injectUsageRequest: true,
   allowAnonymous: false,
   logLevel: "silent",
 };
@@ -123,7 +124,8 @@ describe("dashboard API", () => {
 
     expect(opus.inputPerMTokUsd).toBe("5.00");
     expect(opus.outputPerMTokUsd).toBe("25.00");
-    expect(opus.cacheReadPerMTokUsd).toBe("0.50");
+    // Three decimals, because OpenAI publishes rates as fine as $0.005/MTok.
+    expect(opus.cacheReadPerMTokUsd).toBe("0.500");
     // Fast mode is a real rate, not a footnote — it doubles the bill.
     expect(opus.fastInputPerMTokUsd).toBe("10.00");
     expect(opus.fastOutputPerMTokUsd).toBe("50.00");
@@ -132,14 +134,36 @@ describe("dashboard API", () => {
     expect(sonnet.fastInputPerMTokUsd).toBeNull();
   });
 
-  it("ships provenance alongside the prices", async () => {
+  it("ships per-provider provenance alongside the prices", async () => {
     const res = await app.inject({ method: "GET", url: "/api/models", headers: auth() });
-    const { catalog } = res.json();
+    const { catalog, models } = res.json();
 
-    expect(catalog.source).toMatch(/^https:\/\//);
-    expect(catalog.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(typeof catalog.ageDays).toBe("number");
+    expect(catalog.providers.map((p: { provider: string }) => p.provider).sort()).toEqual([
+      "anthropic",
+      "openai",
+    ]);
+    for (const entry of catalog.providers) {
+      expect(entry.source).toMatch(/^https:\/\//);
+      expect(entry.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+    // The catalog as a whole is only as fresh as its stalest provider.
+    expect(catalog.verifiedAt).toBe(
+      catalog.providers.map((p: { verifiedAt: string }) => p.verifiedAt).sort()[0],
+    );
     expect(typeof catalog.stale).toBe("boolean");
+
+    // Both providers' models are listed, each tagged with its own provider.
+    const providers = new Set(models.map((m: { provider: string }) => m.provider));
+    expect([...providers].sort()).toEqual(["anthropic", "openai"]);
+  });
+
+  it("exposes the OpenAI long-context tier", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/models", headers: auth() });
+    const astra = res.json().models.find((m: { id: string }) => m.id === "gpt-6-astra");
+
+    expect(astra.inputPerMTokUsd).toBe("10.00");
+    expect(astra.longContextInputPerMTokUsd).toBe("20.00");
+    expect(astra.longContextThresholdTokens).toBe(272_000);
   });
 
   it("reports catalog staleness on the overview so the banner can render", async () => {

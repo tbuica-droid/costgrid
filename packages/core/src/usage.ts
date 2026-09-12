@@ -113,6 +113,63 @@ export function parseAnthropicUsage(raw: unknown): TokenUsage {
 }
 
 /**
+ * Normalise an OpenAI `usage` object, from either Chat Completions or Responses.
+ *
+ * The load-bearing difference from Anthropic: **OpenAI's prompt/input token
+ * count is the total and *includes* cached tokens**, whereas Anthropic reports
+ * them as disjoint buckets. Copying the Anthropic parser would bill every
+ * cached token twice — once at the full input rate and once at the cache rate.
+ * Uncached input is therefore `prompt_tokens - cached_tokens - cache_write_tokens`.
+ *
+ * Reasoning tokens (`completion_tokens_details.reasoning_tokens`) are already
+ * included in `completion_tokens` and bill at the output rate, so they are not
+ * added again — they are visible in the response but not a separate charge.
+ */
+export function parseOpenAiUsage(raw: unknown): TokenUsage {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new TypeError(`usage is not an object: ${JSON.stringify(raw)}`);
+  }
+  const usage = raw as Record<string, unknown>;
+
+  // Chat Completions says prompt/completion; Responses says input/output.
+  const promptTotal =
+    usage["prompt_tokens"] != null
+      ? readCount(usage, "prompt_tokens")
+      : readCount(usage, "input_tokens");
+  const outputTokens =
+    usage["completion_tokens"] != null
+      ? readCount(usage, "completion_tokens")
+      : readCount(usage, "output_tokens");
+
+  const details = (usage["prompt_tokens_details"] ?? usage["input_tokens_details"]) as unknown;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
+  if (typeof details === "object" && details !== null && !Array.isArray(details)) {
+    const d = details as Record<string, unknown>;
+    cacheReadTokens = readCount(d, "cached_tokens");
+    cacheWriteTokens = readCount(d, "cache_write_tokens");
+  }
+
+  const uncachedInput = promptTotal - cacheReadTokens - cacheWriteTokens;
+  if (uncachedInput < 0) {
+    throw new RangeError(
+      `usage reports ${cacheReadTokens + cacheWriteTokens} cached tokens but only ` +
+        `${promptTotal} prompt tokens — the totals are inconsistent`,
+    );
+  }
+
+  return {
+    inputTokens: uncachedInput,
+    outputTokens,
+    // OpenAI does not price 5m/1h cache writes separately; a write is an
+    // ordinary input token, and the catalog rates reflect that.
+    cacheWrite5mTokens: cacheWriteTokens,
+    cacheWrite1hTokens: 0,
+    cacheReadTokens,
+  };
+}
+
+/**
  * Parse a usage object that may report only some fields, as streaming events do.
  *
  * Absent keys come back absent rather than zero. That distinction matters:
@@ -182,7 +239,11 @@ export function costOf(
   price: ModelPrice,
   modifiers: PriceModifiers = NO_MODIFIERS,
 ): CostBreakdown {
-  const rates = effectiveRates(price, modifiers);
+  // Context size decides the long-context tier: every input token the model
+  // had to read, cached or not.
+  const contextTokens =
+    usage.inputTokens + usage.cacheReadTokens + usage.cacheWrite5mTokens + usage.cacheWrite1hTokens;
+  const rates = effectiveRates(price, modifiers, contextTokens);
 
   const input = BigInt(usage.inputTokens) * rates.input;
   const output = BigInt(usage.outputTokens) * rates.output;

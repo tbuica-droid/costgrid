@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SseUsageCollector } from "../src/sse.js";
+import { AnthropicStreamCollector } from "../src/providers/anthropic-stream.js";
 
 const MESSAGE_START = JSON.stringify({
   type: "message_start",
@@ -14,9 +14,9 @@ function events(...lines: string[]): string {
   return lines.map((l) => `event: x\ndata: ${l}\n\n`).join("");
 }
 
-describe("SseUsageCollector", () => {
+describe("AnthropicStreamCollector", () => {
   it("takes input and cache counts from message_start", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(events(MESSAGE_START));
     c.end();
 
@@ -26,7 +26,7 @@ describe("SseUsageCollector", () => {
   });
 
   it("replaces output_tokens from message_delta rather than summing them", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(
       events(
         MESSAGE_START,
@@ -55,7 +55,7 @@ describe("SseUsageCollector", () => {
     );
 
     // Feed one character at a time — the worst case for a line-based parser.
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     for (const char of whole) c.feed(char);
     c.end();
 
@@ -65,14 +65,14 @@ describe("SseUsageCollector", () => {
   });
 
   it("handles CRLF line endings", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(`event: message_start\r\ndata: ${MESSAGE_START}\r\n\r\n`);
     c.end();
     expect(c.usage.inputTokens).toBe(1200);
   });
 
   it("records the model the provider actually served", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(
       events(
         JSON.stringify({
@@ -87,7 +87,7 @@ describe("SseUsageCollector", () => {
   });
 
   it("ignores [DONE] sentinels, comments and unrelated events", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(
       `: keep-alive\n` +
         events(
@@ -104,7 +104,7 @@ describe("SseUsageCollector", () => {
   });
 
   it("counts malformed payloads instead of throwing", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed("data: {not json\n\n");
     c.feed(events(MESSAGE_START));
     c.end();
@@ -115,14 +115,14 @@ describe("SseUsageCollector", () => {
   });
 
   it("flags a stream that never produced a message_start as untrustworthy", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(events(JSON.stringify({ type: "message_delta", usage: { output_tokens: 10 } })));
     c.end();
     expect(c.incomplete).toBe(true);
   });
 
   it("reads the split 5m/1h cache_creation shape", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(
       events(
         JSON.stringify({
@@ -144,7 +144,7 @@ describe("SseUsageCollector", () => {
   });
 
   it("picks up pricing modifiers from the stream", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(
       events(
         JSON.stringify({
@@ -163,14 +163,14 @@ describe("SseUsageCollector", () => {
   });
 
   it("reports no modifiers on an ordinary stream", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed(events(MESSAGE_START));
     c.end();
     expect(c.modifiers).toEqual({});
   });
 
   it("does not grow its buffer without bound on a stream with no newlines", () => {
-    const c = new SseUsageCollector();
+    const c = new AnthropicStreamCollector();
     c.feed("data: ".concat("x".repeat(2_000_000)));
     c.end();
     expect(c.parseErrors).toBeGreaterThan(0);

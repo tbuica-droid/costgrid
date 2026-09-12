@@ -422,53 +422,81 @@ async function renderPolicies() {
 async function renderPricing() {
   const { catalog, models } = await api("models");
 
-  const rows = models
-    .map(
-      (m) => `<tr${m.retired ? ' style="opacity:0.55"' : ""}>
-        <td><strong>${escapeHtml(m.displayName)}</strong>
-          ${m.retired ? '<span class="tag" style="margin-left:6px">retired</span>' : ""}
-          <br /><span class="kpi-sub"><code>${escapeHtml(m.id)}</code></span></td>
-        <td>${escapeHtml(m.tier)}</td>
-        <td class="num">$${m.inputPerMTokUsd}</td>
-        <td class="num">$${m.outputPerMTokUsd}</td>
-        <td class="num">$${m.cacheWrite5mPerMTokUsd}</td>
-        <td class="num">$${m.cacheReadPerMTokUsd}</td>
-        <td class="num">${m.fastInputPerMTokUsd ? `$${m.fastInputPerMTokUsd} / $${m.fastOutputPerMTokUsd}` : "—"}</td>
-      </tr>`,
-    )
-    .join("");
+  const byProvider = new Map();
+  for (const model of models) {
+    if (!byProvider.has(model.provider)) byProvider.set(model.provider, []);
+    byProvider.get(model.provider).push(model);
+  }
 
-  const provenance = catalog.stale
-    ? `<div class="banner"><strong>Verified ${escapeHtml(catalog.verifiedAt)}, ${catalog.ageDays} days ago.</strong>
-         Past the ${catalog.staleAfterDays}-day freshness window — re-verify before relying on these.</div>`
-    : `<p class="section-note">Verified <strong>${escapeHtml(catalog.verifiedAt)}</strong>
-         (${catalog.ageDays} day${catalog.ageDays === 1 ? "" : "s"} ago) against
-         <a href="${escapeHtml(catalog.source)}" target="_blank" rel="noopener">the published pricing table</a>.
-         Re-checked by <code>npm run verify-pricing</code>.</p>`;
+  const provenanceFor = (provider) =>
+    catalog.providers.find((p) => p.provider === provider);
+
+  const tableFor = (provider, rows) => {
+    const source = provenanceFor(provider);
+    const body = rows
+      .map(
+        (m) => `<tr${m.retired ? ' style="opacity:0.55"' : ""}>
+          <td><strong>${escapeHtml(m.displayName)}</strong>
+            ${m.retired ? '<span class="tag" style="margin-left:6px">retired</span>' : ""}
+            <br /><span class="kpi-sub"><code>${escapeHtml(m.id)}</code></span></td>
+          <td>${escapeHtml(m.tier)}</td>
+          <td class="num">$${m.inputPerMTokUsd}</td>
+          <td class="num">$${m.outputPerMTokUsd}</td>
+          <td class="num">$${m.cacheWrite5mPerMTokUsd}</td>
+          <td class="num">$${m.cacheReadPerMTokUsd}</td>
+          <td class="num">${
+            m.longContextInputPerMTokUsd
+              ? `$${m.longContextInputPerMTokUsd} <span class="kpi-sub">&gt;${Math.round(
+                  m.longContextThresholdTokens / 1000,
+                )}K</span>`
+              : m.fastInputPerMTokUsd
+                ? `$${m.fastInputPerMTokUsd} <span class="kpi-sub">fast</span>`
+                : "—"
+          }</td>
+        </tr>`,
+      )
+      .join("");
+
+    return `
+      <h2 style="margin-top:26px">${escapeHtml(provider)}</h2>
+      <p class="section-note">${
+        source
+          ? `Verified <strong>${escapeHtml(source.verifiedAt)}</strong> against
+             <a href="${escapeHtml(source.source)}" target="_blank" rel="noopener">the published table</a>.`
+          : "No provenance recorded."
+      }</p>
+      <div class="card scroll-x"><table>
+        <thead><tr>
+          <th>Model</th><th>Tier</th>
+          <th class="num">Input</th><th class="num">Output</th>
+          <th class="num">Cache write</th><th class="num">Cache read</th>
+          <th class="num">Premium tier</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>`;
+  };
+
+  const stale = catalog.stale
+    ? `<div class="banner"><strong>Catalog is ${catalog.ageDays} days old.</strong>
+         Past the ${catalog.staleAfterDays}-day freshness window — run
+         <code>npm run verify-pricing</code> before relying on these rates.</div>`
+    : "";
 
   return `
     <h2>Pricing catalog</h2>
-    ${provenance}
+    ${stale}
     <p class="section-note">Every model CostGrid can price, in $ per million tokens. A call on
-      a model <em>not</em> in this list is still metered, but recorded as unpriced — its cost
-      reads as zero and totals say so, rather than showing it as free traffic. Prices are
-      first-party Anthropic list rates; Bedrock and Google Cloud are partner-operated and
-      priced separately.</p>
-    <div class="card scroll-x"><table>
-      <thead><tr>
-        <th>Model</th><th>Tier</th>
-        <th class="num">Input</th><th class="num">Output</th>
-        <th class="num">Cache write</th><th class="num">Cache read</th>
-        <th class="num">Fast in / out</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-    <p class="section-note" style="margin-top:18px">Three modifiers change what a call costs
-      without changing the model, and all three are metered: <strong>fast mode</strong> bills at
-      the premium rate above, <strong>US-pinned inference</strong>
-      (<code>inference_geo: "us"</code>) adds 10% to every category, and the
-      <strong>Batch API</strong> halves it. The first two are read back from each response's
-      <code>usage</code> object rather than assumed.</p>`;
+      a model <em>not</em> listed is still metered, but recorded as unpriced — its cost reads as
+      zero and totals say so, rather than showing it as free traffic. These are first-party API
+      list rates; Bedrock and Google Cloud are partner-operated and priced separately.</p>
+    ${[...byProvider.entries()].map(([provider, rows]) => tableFor(provider, rows)).join("")}
+    <p class="section-note" style="margin-top:22px">Several things change what a call costs
+      without changing the model, and all are metered: <strong>fast mode</strong> and
+      <strong>long context</strong> bill at the premium rate above, <strong>US-pinned
+      inference</strong> (<code>inference_geo: "us"</code>) adds 10%, and the <strong>Batch
+      API</strong> halves it. Fast mode and inference geography are read back from each
+      response's <code>usage</code>; the long-context tier is decided by the call's own
+      context size.</p>`;
 }
 
 // --------------------------------------------------------------------- shell

@@ -26,6 +26,25 @@ const stub = createServer((req, res) => {
     const request = JSON.parse(body || "{}");
     const model = request.model ?? "claude-opus-5";
 
+    // OpenAI shape, on its own path.
+    if (req.url === "/v1/chat/completions") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          id: "chatcmpl-1",
+          object: "chat.completion",
+          model,
+          choices: [{ index: 0, message: { role: "assistant", content: "hi" }, finish_reason: "stop" }],
+          usage: {
+            prompt_tokens: 4000,
+            completion_tokens: 900,
+            prompt_tokens_details: { cached_tokens: 3000 },
+          },
+        }),
+      );
+      return;
+    }
+
     if (request.stream) {
       res.writeHead(200, { "content-type": "text/event-stream" });
       const send = (o) => res.write(`event: ${o.type}\ndata: ${JSON.stringify(o)}\n\n`);
@@ -68,6 +87,8 @@ const gateway = spawn("node", ["--import", "tsx", "packages/gateway/src/main.ts"
     ...process.env,
     ANTHROPIC_API_KEY: "sk-ant-stub-key-for-local-smoke-test",
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${STUB_PORT}`,
+    OPENAI_API_KEY: "sk-openai-stub-key-for-local-smoke-test",
+    OPENAI_BASE_URL: `http://127.0.0.1:${STUB_PORT}`,
     COSTGRID_DB: DB,
     COSTGRID_PORT: String(GATEWAY_PORT),
     COSTGRID_ALLOW_ANONYMOUS: "true",
@@ -89,8 +110,8 @@ for (let i = 0; ; i++) {
 }
 console.log("gateway up");
 
-const call = (payload, headers = {}) =>
-  fetch(`${base}/v1/messages`, {
+const call = (payload, headers = {}, path = "/v1/messages") =>
+  fetch(`${base}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(payload),
@@ -125,7 +146,16 @@ await call(
   { "x-costgrid-agent": "ticket-classifier", "x-costgrid-department": "Support" },
 );
 
-console.log("\n4. enforcement: block the expensive model");
+console.log("\n4. openai on its own route, with OpenAI's cached-token semantics");
+res = await call(
+  { model: "gpt-5", max_completion_tokens: 512 },
+  { "x-costgrid-agent": "summariser", "x-costgrid-department": "Marketing" },
+  "/v1/chat/completions",
+);
+check("status", res.status, 200);
+check("openai model echoed", (await res.json()).model, "gpt-5");
+
+console.log("\n5. enforcement: block the expensive model");
 const cli = (args) =>
   new Promise((resolve) => {
     const p = spawn("node", ["--import", "tsx", "packages/cli/src/main.ts", ...args], {
@@ -145,7 +175,7 @@ check("block reason", (await res.json()).error.type, "costgrid_policy_blocked");
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "ticket-classifier" });
 check("allowlisted model still passes", res.status, 200);
 
-console.log("\n5. CLI report\n");
+console.log("\n6. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

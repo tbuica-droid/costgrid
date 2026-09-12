@@ -1,7 +1,7 @@
 import {
   analyzeRouting,
   blendedCost,
-  CATALOG_SOURCE,
+  CATALOG_PROVENANCE,
   CATALOG_STALE_AFTER_DAYS,
   CATALOG_VERIFIED_AT,
   catalogAgeDays,
@@ -201,7 +201,9 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
     // able to see when these were last checked and against what, rather than
     // taking the figures on trust.
     catalog: {
-      source: CATALOG_SOURCE,
+      // Each provider is verified against its own page on its own date; the
+      // catalog as a whole is only as fresh as its stalest half.
+      providers: CATALOG_PROVENANCE,
       verifiedAt: CATALOG_VERIFIED_AT,
       ageDays: catalogAgeDays(),
       staleAfterDays: CATALOG_STALE_AFTER_DAYS,
@@ -216,8 +218,13 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       // Per *million* tokens, which is how every provider quotes them.
       inputPerMTokUsd: toUsdString(m.input * 1_000_000n, 2),
       outputPerMTokUsd: toUsdString(m.output * 1_000_000n, 2),
-      cacheWrite5mPerMTokUsd: toUsdString(m.cacheWrite5m * 1_000_000n, 2),
-      cacheReadPerMTokUsd: toUsdString(m.cacheRead * 1_000_000n, 2),
+      cacheWrite5mPerMTokUsd: toUsdString(m.cacheWrite5m * 1_000_000n, 3),
+      cacheReadPerMTokUsd: toUsdString(m.cacheRead * 1_000_000n, 3),
+      longContextInputPerMTokUsd:
+        m.longContext === undefined
+          ? null
+          : toUsdString(m.longContext.input * 1_000_000n, 2),
+      longContextThresholdTokens: m.longContext?.thresholdTokens ?? null,
       fastInputPerMTokUsd:
         m.fastInput === undefined ? null : toUsdString(m.fastInput * 1_000_000n, 2),
       fastOutputPerMTokUsd:

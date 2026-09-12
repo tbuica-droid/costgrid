@@ -30,10 +30,11 @@ caller's response.
 
 ```
 packages/
-  core/      Pure domain. No I/O, no framework, no database.
-  db/        Schema, repositories, and read-side analytics.
-  gateway/   The proxy: auth, enforcement, metering, passthrough.
-  cli/       Operator surface: keys, policies, reports.
+  core/                 Pure domain. No I/O, no framework, no database.
+  db/                   Schema, repositories, and read-side analytics.
+  gateway/              The proxy: auth, enforcement, metering, passthrough.
+    providers/          One adapter per upstream; the handler is generic.
+  cli/                  Operator surface: keys, policies, reports, backups.
 ```
 
 `core` has no dependencies at all, which is what makes the money and routing
@@ -57,12 +58,65 @@ bill at different multiples of the input rate (1x, output rate, 1.25x, 2x, and
 most common way a cost estimate goes wrong, and it goes wrong by an order of
 magnitude on cache-heavy workloads.
 
+### Providers are adapters, and the proxy handler is generic
+
+`ProviderAdapter` owns everything upstream-specific: the route, auth scheme,
+forwarded headers, where usage hides in a response, and how that provider's
+stream reports totals. The handler in `server.ts` never branches on which
+provider it is talking to, which is what keeps the third one cheap. A provider
+with no configured credential is not registered at all — a caller gets a clean
+404 rather than an upstream auth error they cannot act on.
+
+### The two providers count tokens differently, and it matters
+
+Anthropic's `input_tokens` **excludes** cached tokens; the buckets are
+disjoint. OpenAI's `prompt_tokens` **includes** them; it is a total. Reusing
+one parser for the other bills every cached token twice. Uncached input on
+OpenAI is therefore `prompt_tokens - cached_tokens - cache_write_tokens`, and
+a response whose cached count exceeds its total is rejected rather than
+silently producing a negative.
+
+Cache pricing differs structurally too. Anthropic derives writes from input
+(1.25x for 5 minutes, 2x for an hour) and reads at 0.1x. OpenAI publishes a
+per-model cached rate — gpt-4o reads at 0.5x, gpt-5 at 0.1x — and only its
+newest generation charges for writes at all. Assuming a single multiplier
+misprices most of the table.
+
+OpenAI's newest models also have a **long-context tier**: roughly double above
+272K context. That is selected from the call's own input size, so a large
+request is not billed at half price.
+
+### OpenAI streams carry no usage unless you ask
+
+A streamed Chat Completion reports nothing unless the request set
+`stream_options.include_usage`. Left alone, every streamed OpenAI call would
+meter as free. The adapter adds it — but only when the caller did not specify
+`stream_options` themselves, because someone who set it deliberately has made
+a decision we should not override.
+
+The cost is one extra trailing chunk with an empty `choices` array. That is
+documented OpenAI behaviour and the official SDKs handle it, but a hand-rolled
+parser assuming `choices[0]` could trip; `COSTGRID_OPENAI_INJECT_USAGE=false`
+opts out.
+
+When usage does not arrive, the call is recorded `priced: false` — visible as
+an unpriced call — rather than as zero cost. That distinction is deliberate:
+the failure mode of a metering product must be a visible gap, not a quiet
+under-count.
+
 ### The price catalog carries its own provenance
 
-`CATALOG_SOURCE` and `CATALOG_VERIFIED_AT` sit next to the prices, and
-`scripts/verify-pricing.mjs` re-fetches the published table and diffs every
-rate. Past `CATALOG_STALE_AFTER_DAYS` (45) the gateway warns at boot, the CLI
-report prints a banner, and the dashboard shows one.
+Each provider records its own source URL and verification date in
+`CATALOG_PROVENANCE`, and `scripts/verify-pricing.mjs` re-fetches both
+published tables and diffs every rate. The catalog as a whole is only as fresh
+as its stalest provider. Past `CATALOG_STALE_AFTER_DAYS` (45) the gateway warns
+at boot, the CLI report prints a banner, and the dashboard shows one.
+
+The verifier reads only each page's standard-pricing section. Both pages carry
+batch, flex and fine-tuning tables with the same column shape, and parsing the
+whole document lets a later table silently overwrite the rates actually billed
+— which is how a verifier ends up confidently reporting the wrong discrepancy.
+It caught exactly that during development.
 
 A hand-maintained price table is a claim that decays silently — nothing breaks
 when a rate changes, the bills are just wrong — so the decay has to be visible.
@@ -188,7 +242,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-138 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+167 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.
@@ -205,8 +259,11 @@ billing history is unrecoverable without a backup.
 
 ## Not built yet
 
-- Only Anthropic is proxied. OpenAI, Bedrock and Vertex need their own usage
-  adapters — the `Provider` type and the tier model already anticipate this.
+- Bedrock and Google Cloud are not proxied. Both are partner-operated with
+  separate pricing and their own auth (SigV4, GCP ADC), so each needs an
+  adapter and its own catalog.
+- OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
+  `/v1/chat/completions` is exposed.
 - `index.html` at the repo root is untouched and remains the seeded marketing
   demo, served by GitHub Pages. It is not the product dashboard.
 - No hosted control plane, billing, or signup. Deployment today is

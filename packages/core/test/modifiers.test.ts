@@ -82,8 +82,10 @@ describe("catalog coverage", () => {
     expect(retired.input).toBe(15_000n);
   });
 
-  it("derives cache rates from the published multipliers", () => {
-    for (const model of listModelPrices()) {
+  it("derives Anthropic cache rates from the published multipliers", () => {
+    // Anthropic charges a premium to write to cache. OpenAI does not bill
+    // writes separately, so this rule is provider-specific.
+    for (const model of listModelPrices("anthropic")) {
       expect(model.cacheWrite5m, model.id).toBe(mulDiv(model.input, 5n, 4n));
       expect(model.cacheWrite1h, model.id).toBe(model.input * 2n);
     }
@@ -91,6 +93,46 @@ describe("catalog coverage", () => {
     expect(sonnet.cacheRead).toBe(200n); // $0.20/MTok
     // …and the documented 0.025x exception.
     expect(fable.cacheRead).toBe(250n); // $0.25/MTok on a $10 input rate
+  });
+
+  it("uses each OpenAI model's published cache-write rate, or the input rate", () => {
+    // The gpt-6 / gpt-5.6 generation publishes an explicit write rate above
+    // input; earlier models bill a write as an ordinary input token.
+    const astra = findModelPrice("gpt-6-astra")!;
+    expect(astra.input).toBe(10_000n);
+    expect(astra.cacheWrite5m).toBe(12_500n); // $12.50/MTok, published
+
+    const gpt5 = findModelPrice("gpt-5")!;
+    expect(gpt5.cacheWrite5m).toBe(gpt5.input); // no separate write charge
+
+    // No model should have a 1h rate that differs, since OpenAI has no 1h tier.
+    for (const model of listModelPrices("openai")) {
+      expect(model.cacheWrite1h, model.id).toBe(model.cacheWrite5m);
+    }
+  });
+
+  it("bills a long-context call at the higher tier", () => {
+    const astra = findModelPrice("gpt-6-astra")!;
+    expect(astra.longContext?.thresholdTokens).toBe(272_000);
+
+    const short = effectiveRates(astra, {}, 100_000);
+    const long = effectiveRates(astra, {}, 300_000);
+
+    expect(short.input).toBe(10_000n); // $10/MTok
+    expect(long.input).toBe(20_000n); // $20/MTok above 272K
+    expect(long.output).toBe(75_000n); // $75/MTok, not simply 2x the short rate
+  });
+
+  it("stacks modifiers on top of long-context rates", () => {
+    const astra = findModelPrice("gpt-6-astra")!;
+    // $20 -> x1.1 = $22 -> x0.5 = $11
+    expect(effectiveRates(astra, { inferenceGeo: "us", batch: true }, 300_000).input).toBe(11_000n);
+  });
+
+  it("leaves models without a long-context tier on one rate", () => {
+    const gpt5 = findModelPrice("gpt-5")!;
+    expect(gpt5.longContext).toBeUndefined();
+    expect(effectiveRates(gpt5, {}, 1_000_000)).toEqual(effectiveRates(gpt5, {}, 1));
   });
 });
 
