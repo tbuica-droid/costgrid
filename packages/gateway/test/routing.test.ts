@@ -325,4 +325,137 @@ describe("auto-routing", () => {
     expect(sentModels).toEqual(["claude-haiku-4-5"]);
     expect(analytics.routingSavings("t1", window()).realisedSaving).toBe(usd("24.00"));
   });
+
+  // --------------------------------------------------------- soft fallback
+
+  describe("soft fallback", () => {
+    const addBudget = (
+      usdLimit: string,
+      fallbackModel: string | undefined,
+      action: "monitor" | "warn" | "block" = "block",
+    ) =>
+      repository.createPolicy("t1", {
+        name: "monthly cap",
+        scope: { kind: "tenant" },
+        rule: {
+          kind: "budget",
+          window: "month",
+          limit: usd(usdLimit),
+          ...(fallbackModel ? { fallbackModel } : {}),
+        },
+        action,
+        enabled: true,
+      });
+
+    /** Burn $30 of the budget on one Opus call, leaving the tenant over a $10 cap. */
+    const burn = async () => {
+      await send("claude-opus-5");
+      expect(analytics.summary("t1", window()).totalCost).toBe(usd("30.00"));
+      sentModels = [];
+    };
+
+    it("keeps answering on a cheaper model instead of returning 403", async () => {
+      addBudget("10.00", "claude-haiku-4-5");
+      await burn();
+
+      const res = await send("claude-opus-5");
+
+      expect(res.statusCode).toBe(200);
+      expect(sentModels).toEqual(["claude-haiku-4-5"]);
+      expect(res.headers["x-costgrid-fallback"]).toBe("claude-opus-5->claude-haiku-4-5");
+      expect(res.headers["x-costgrid-warnings"]).toMatch(/over budget: downgraded/);
+
+      // $30 already spent, plus $6 for the downgraded call.
+      expect(analytics.summary("t1", window()).totalCost).toBe(usd("36.00"));
+      expect(analytics.routingSavings("t1", window()).realisedSaving).toBe(usd("24.00"));
+    });
+
+    it("without a fallback, the same cap still refuses the call", async () => {
+      addBudget("10.00", undefined);
+      await burn();
+
+      const res = await send("claude-opus-5");
+
+      expect(res.statusCode).toBe(403);
+      expect(sentModels).toEqual([]);
+    });
+
+    it("leaves traffic alone while the budget still has room", async () => {
+      addBudget("1000.00", "claude-haiku-4-5");
+
+      const res = await send("claude-opus-5");
+      expect(sentModels).toEqual(["claude-opus-5"]);
+      expect(res.headers["x-costgrid-fallback"]).toBeUndefined();
+    });
+
+    it("monitor records the downgrade without making it", async () => {
+      addBudget("10.00", "claude-haiku-4-5", "monitor");
+      await burn();
+
+      const res = await send("claude-opus-5");
+
+      expect(sentModels).toEqual(["claude-opus-5"]);
+      expect(res.headers["x-costgrid-fallback"]).toMatch(/^dry-run:/);
+      const savings = analytics.routingSavings("t1", window());
+      expect(savings.routedCalls).toBe(0);
+      expect(savings.dryRunCalls).toBe(1);
+      expect(savings.potentialSaving).toBe(usd("24.00"));
+    });
+
+    it("blocks once the traffic is already on the fallback model", async () => {
+      // Nothing cheaper is left to give, so a hard cap is a hard cap again.
+      addBudget("10.00", "claude-haiku-4-5");
+      await burn();
+
+      const res = await send("claude-haiku-4-5");
+      expect(res.statusCode).toBe(403);
+      expect(sentModels).toEqual([]);
+    });
+
+    it("a warn-action cap never blocks, even with nowhere to downgrade to", async () => {
+      addBudget("10.00", "claude-haiku-4-5", "warn");
+      await burn();
+
+      const res = await send("claude-haiku-4-5");
+      expect(res.statusCode).toBe(200);
+      expect(sentModels).toEqual(["claude-haiku-4-5"]);
+    });
+
+    it("survives a policy name a header cannot hold", async () => {
+      // Node throws on non-latin-1 header values. A customer naming a policy
+      // "Q3 cap — Engineering" must not turn every call into a 500.
+      repository.createPolicy("t1", {
+        name: "Q3 cap \u2014 Engineering \u2192 Haiku",
+        scope: { kind: "tenant" },
+        rule: {
+          kind: "budget",
+          window: "month",
+          limit: usd("10.00"),
+          fallbackModel: "claude-haiku-4-5",
+        },
+        action: "warn",
+        enabled: true,
+      });
+      await burn();
+
+      const res = await send("claude-opus-5");
+      expect(res.statusCode).toBe(200);
+      expect(sentModels).toEqual(["claude-haiku-4-5"]);
+      // The name reaches the caller through the route reason, transliterated.
+      expect(res.headers["x-costgrid-warnings"]).toContain("Q3 cap ? Engineering ? Haiku");
+    });
+
+    it("outranks a standing route rule", async () => {
+      addRoute({ toModel: "claude-sonnet-5" });
+      addBudget("10.00", "claude-haiku-4-5");
+
+      // The first call is under budget, so the standing rule applies.
+      await send("claude-opus-5");
+      expect(sentModels).toEqual(["claude-sonnet-5"]);
+
+      // Sonnet cost $12, which blows the $10 cap; now the fallback takes over.
+      await send("claude-opus-5");
+      expect(sentModels).toEqual(["claude-sonnet-5", "claude-haiku-4-5"]);
+    });
+  });
 });

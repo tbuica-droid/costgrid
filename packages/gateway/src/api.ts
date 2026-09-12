@@ -7,6 +7,7 @@ import {
   catalogAgeDays,
   costCurve,
   DEFAULT_ASSUMPTIONS,
+  findModelPrice,
   isCatalogStale,
   listModelPrices,
   type Nanodollars,
@@ -347,7 +348,12 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       enabled: p.enabled,
       rule:
         p.rule.kind === "budget"
-          ? { kind: p.rule.kind, window: p.rule.window, limitUsd: money(p.rule.limit) }
+          ? {
+              kind: p.rule.kind,
+              window: p.rule.window,
+              limitUsd: money(p.rule.limit),
+              ...(p.rule.fallbackModel ? { fallbackModel: p.rule.fallbackModel } : {}),
+            }
           : p.rule,
     })),
   );
@@ -421,6 +427,16 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
       if (threshold !== undefined && (typeof threshold !== "number" || threshold <= 0 || threshold > 1)) {
         return { error: "threshold must be a number in (0, 1]" };
       }
+      const fallbackModel = rawRule["fallbackModel"];
+      if (fallbackModel !== undefined) {
+        if (typeof fallbackModel !== "string") return { error: "fallbackModel must be a model id" };
+        // Rejected here rather than at request time: a typo would otherwise sit
+        // dormant until the budget fired, and the rule would silently revert to
+        // refusing calls.
+        if (!findModelPrice(fallbackModel)) {
+          return { error: `fallbackModel ${fallbackModel} is not in the price catalog` };
+        }
+      }
       return {
         policy: {
           name,
@@ -432,6 +448,7 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
             window,
             limit: usd(rawRule["limitUsd"]),
             ...(typeof threshold === "number" ? { threshold } : {}),
+            ...(typeof fallbackModel === "string" ? { fallbackModel } : {}),
           },
         },
       };

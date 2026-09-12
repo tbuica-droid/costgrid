@@ -482,9 +482,20 @@ async function renderPolicies() {
   const [policies, violations] = await Promise.all([api("policies"), api("violations?limit=25")]);
 
   const describe = (rule) => {
-    if (rule.kind === "budget") return `budget ${money(rule.limitUsd)} per ${rule.window}`;
+    if (rule.kind === "budget") {
+      const cap = `budget ${money(rule.limitUsd)} per ${rule.window}`;
+      // A cap that downgrades reads very differently from one that refuses,
+      // and the difference is the whole reason a customer switched it on.
+      return rule.fallbackModel
+        ? `${cap}, then fall back to ${escapeHtml(rule.fallbackModel)}`
+        : cap;
+    }
     if (rule.kind === "max-output-tokens") return `max_tokens ≤ ${count(rule.limit)}`;
-    return `${rule.kind}: ${rule.models.map(escapeHtml).join(", ")}`;
+    if (rule.kind === "route") {
+      const from = rule.from?.length ? rule.from.map(escapeHtml).join(", ") : "any model";
+      return `route ${from} → ${escapeHtml(rule.toModel)}`;
+    }
+    return `${rule.kind}: ${(rule.models ?? []).map(escapeHtml).join(", ")}`;
   };
 
   const scopeOf = (scope) =>

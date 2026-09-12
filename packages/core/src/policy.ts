@@ -30,6 +30,24 @@ export type PolicyRule =
        * so a `warn` rule can give warning before a `block` rule bites.
        */
       readonly threshold?: number;
+      /**
+       * Soft fallback: when set, traffic over this budget is downgraded to
+       * this model instead of being refused.
+       *
+       * A hard cap protects the bill by breaking the customer's product, which
+       * is why most teams never turn one on. A fallback keeps the product
+       * answering on a cheaper model, so the cap becomes something they are
+       * willing to set. It changes what `block` means for this rule: an
+       * over-budget call is downgraded rather than refused, and only falls
+       * back to refusal when the substitution cannot be made safely (see
+       * `substitutionAllowed`) — for instance when the traffic is already on
+       * the fallback model and there is nothing cheaper left to give.
+       *
+       * Use `--action warn` for a rule that will never block under any
+       * circumstance, at the cost of the cap no longer being a true ceiling:
+       * spend keeps accruing at the cheaper model's rate.
+       */
+      readonly fallbackModel?: string;
     }
   | { readonly kind: "model-allowlist"; readonly models: readonly string[] }
   | { readonly kind: "model-denylist"; readonly models: readonly string[] }
@@ -127,6 +145,13 @@ export interface RouteDecision {
   readonly fromModel: string;
   readonly toModel: string;
   readonly applied: boolean;
+  /**
+   * True when this substitution came from a budget rule's soft fallback rather
+   * than from a standing `route` rule. Callers are told which, because "your
+   * request was downgraded because you are over budget" and "your traffic is
+   * routed here by policy" need different responses from a human.
+   */
+  readonly fallback: boolean;
   readonly reason: string;
 }
 
@@ -207,16 +232,30 @@ function evaluateRule(
 }
 
 /**
- * Decide whether a route rule applies to this request.
+ * Is substituting `toModel` for `fromModel` safe to do?
  *
- * Returns `undefined` when it does not match, or when applying it would be
- * unsafe. Unsafe means: the target is the same model (a no-op), the target is
- * not in the price catalog (we could not price the result), or the target
- * belongs to a different provider.
+ * False when the target is the same model (a no-op), when it is not in the
+ * price catalog, or when it belongs to a different provider.
  *
  * The cross-provider check is not a nicety. An Anthropic request body is not a
  * valid OpenAI one, so rewriting `model` across providers would send a
- * malformed request upstream and break the caller's feature outright.
+ * malformed request upstream and break the caller's feature outright. Refusing
+ * an unpriceable target matters just as much: the customer would see their
+ * traffic move and their reported spend go to zero.
+ */
+export function substitutionAllowed(fromModel: string, toModel: string): boolean {
+  if (toModel === fromModel) return false;
+  const target = findModelPrice(toModel);
+  if (!target) return false;
+  const source = findModelPrice(fromModel);
+  return !source || source.provider === target.provider;
+}
+
+/**
+ * Decide whether a route rule applies to this request.
+ *
+ * Returns `undefined` when it does not match, or when applying it would be
+ * unsafe.
  */
 function evaluateRoute(
   policy: Policy,
@@ -226,17 +265,7 @@ function evaluateRoute(
   if (rule.from !== undefined && rule.from.length > 0 && !rule.from.includes(context.model)) {
     return undefined;
   }
-  if (rule.toModel === context.model) return undefined;
-
-  const source = findModelPrice(context.model);
-  const target = findModelPrice(rule.toModel);
-
-  if (!target) {
-    // Refusing beats routing to something we cannot price: the customer would
-    // see their traffic move and their reported spend go to zero.
-    return undefined;
-  }
-  if (source && source.provider !== target.provider) return undefined;
+  if (!substitutionAllowed(context.model, rule.toModel)) return undefined;
 
   const applied = policy.action !== "monitor";
   return {
@@ -245,9 +274,40 @@ function evaluateRoute(
     fromModel: context.model,
     toModel: rule.toModel,
     applied,
+    fallback: false,
     reason: applied
       ? `routed from ${context.model} to ${rule.toModel} by "${policy.name}"`
       : `would route from ${context.model} to ${rule.toModel} (dry run)`,
+  };
+}
+
+/**
+ * The substitution a fired budget rule wants to make instead of refusing.
+ *
+ * `undefined` means there is no usable downgrade, and the rule's own action
+ * stands — so a `block` budget with an unusable fallback still blocks. That is
+ * the honest outcome: the cap the customer set is still a cap, and the only
+ * way it silently stops being one is if we invent a substitution we cannot
+ * make.
+ */
+function evaluateFallback(
+  policy: Policy,
+  fallbackModel: string,
+  context: RequestContext,
+): RouteDecision | undefined {
+  if (!substitutionAllowed(context.model, fallbackModel)) return undefined;
+
+  const applied = policy.action !== "monitor";
+  return {
+    policyId: policy.id,
+    policyName: policy.name,
+    fromModel: context.model,
+    toModel: fallbackModel,
+    applied,
+    fallback: true,
+    reason: applied
+      ? `over budget: downgraded from ${context.model} to ${fallbackModel} by "${policy.name}"`
+      : `over budget: would downgrade from ${context.model} to ${fallbackModel} (dry run)`,
   };
 }
 
@@ -266,6 +326,7 @@ export function evaluatePolicies(
   const resolve: SpendResolver = typeof spend === "function" ? spend : constantSpend(spend);
   const violations: PolicyViolation[] = [];
   let route: RouteDecision | undefined;
+  let fallback: RouteDecision | undefined;
 
   for (const policy of policies) {
     if (!policy.enabled) continue;
@@ -284,20 +345,42 @@ export function evaluatePolicies(
     const reason = evaluateRule(policy.rule, context, scopedSpend);
     if (reason === undefined) continue;
 
+    const downgrade =
+      policy.rule.kind === "budget" && policy.rule.fallbackModel !== undefined
+        ? evaluateFallback(policy, policy.rule.fallbackModel, context)
+        : undefined;
+
+    if (downgrade === undefined) {
+      violations.push({
+        policyId: policy.id,
+        policyName: policy.name,
+        action: policy.action,
+        reason,
+      });
+      continue;
+    }
+
+    fallback ??= downgrade;
+    // A fired budget with a usable fallback never blocks — the whole point is
+    // that the caller keeps getting an answer. It is still a violation, so it
+    // still shows up in the enforcement feed and in the response warnings.
     violations.push({
       policyId: policy.id,
       policyName: policy.name,
-      action: policy.action,
+      action: downgrade.applied ? "warn" : "monitor",
       reason,
     });
   }
 
   const blockedBy = violations.find((v) => v.action === "block");
+  // A soft fallback outranks a standing route rule: it is the emergency
+  // measure, and the budget it protects is the more urgent constraint.
+  const chosen = fallback ?? route;
   // A blocked call is never routed: it is not going anywhere.
   return {
     allowed: blockedBy === undefined,
     violations,
     blockedBy,
-    route: blockedBy === undefined ? route : undefined,
+    route: blockedBy === undefined ? chosen : undefined,
   };
 }

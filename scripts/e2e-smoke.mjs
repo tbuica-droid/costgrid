@@ -221,7 +221,23 @@ await cli(["policy", "route", "tenant", "claude-haiku-4-5", "--from", "claude-op
 res = await call({ model: "claude-opus-5", max_tokens: 100 }, { "x-costgrid-agent": "router-test" });
 check("live route rewrote the model", (await res.json()).model, "claude-haiku-4-5");
 
-console.log("\n6. enforcement: block the expensive model");
+console.log("\n6. soft fallback: over budget downgrades instead of refusing");
+// A cap this small is already blown by the calls above, so the next Opus call
+// is over budget by definition.
+const capOut = await cli(["policy", "budget", "tenant", "0.000001", "--fallback", "claude-haiku-4-5", "--action", "block"]);
+const capId = /Created policy (\S+)\./.exec(capOut)?.[1];
+res = await call({ model: "claude-opus-5", max_tokens: 100 }, { "x-costgrid-agent": "fallback-test" });
+check("over-budget call still answered", res.status, 200);
+check("answered on the cheap model", (await res.json()).model, "claude-haiku-4-5");
+check("caller told it was downgraded", res.headers.get("x-costgrid-fallback"), "claude-opus-5->claude-haiku-4-5");
+
+// Nothing cheaper left to give: the cap is a cap again.
+res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "fallback-test" });
+check("no downgrade left, so it blocks", res.status, 403);
+
+await cli(["policy", "disable", capId]);
+
+console.log("\n7. enforcement: block the expensive model");
 await cli(["policy", "allow", "claude-haiku-4-5", "--action", "block"]);
 res = await call({ model: "claude-opus-5", max_tokens: 100 }, { "x-costgrid-agent": "docs-writer" });
 check("blocked status", res.status, 403);
@@ -230,7 +246,7 @@ check("block reason", (await res.json()).error.type, "costgrid_policy_blocked");
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "ticket-classifier" });
 check("allowlisted model still passes", res.status, 200);
 
-console.log("\n7. CLI report\n");
+console.log("\n8. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

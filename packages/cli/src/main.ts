@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { toUsdString, usd } from "@costgrid/core";
+import { findModelPrice, toUsdString, usd } from "@costgrid/core";
 import {
   Analytics,
   backupDatabase,
@@ -18,6 +18,10 @@ Usage:
   costgrid report [--days N]              Spend report for the last N days (default 30)
   costgrid policy list                    Show configured policies
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
+                              [--fallback <model>]
+                                          With --fallback, over-budget traffic is
+                                          downgraded to that model instead of being
+                                          refused, so a cap stops breaking production.
   costgrid policy allow <model...>        Restrict the tenant to these models
   costgrid policy route <scope> <to-model> [--from a,b] [--action monitor|warn|block]
                                           Send matching traffic to a cheaper model.
@@ -151,7 +155,8 @@ async function main(): Promise<void> {
                 : `dept:${p.scope.department}`;
           const detail =
             p.rule.kind === "budget"
-              ? `budget $${toUsdString(p.rule.limit, 2)}/${p.rule.window}`
+              ? `budget $${toUsdString(p.rule.limit, 2)}/${p.rule.window}` +
+                (p.rule.fallbackModel ? ` -> ${p.rule.fallbackModel}` : "")
               : p.rule.kind === "max-output-tokens"
                 ? `max_tokens <= ${p.rule.limit}`
                 : p.rule.kind === "route"
@@ -172,14 +177,42 @@ async function main(): Promise<void> {
         const window = flag(argv, "window") ?? "month";
         if (window !== "day" && window !== "month") fail(`--window must be day or month`);
 
+        // Reject an unpriceable fallback here rather than at request time. A
+        // typo would otherwise sit dormant until the budget fired, and then
+        // the rule would quietly revert to refusing calls.
+        const fallbackModel = flag(argv, "fallback");
+        if (fallbackModel !== undefined && !findModelPrice(fallbackModel)) {
+          fail(`--fallback model ${fallbackModel} is not in the price catalog`);
+        }
+
+        const action = parseAction(flag(argv, "action"));
         const id = repository.createPolicy(tenantId, {
-          name: `${window}ly budget`,
+          name: fallbackModel ? `${window}ly budget, fallback ${fallbackModel}` : `${window}ly budget`,
           scope,
-          rule: { kind: "budget", window, limit: usd(amount) },
-          action: parseAction(flag(argv, "action")),
+          rule: {
+            kind: "budget",
+            window,
+            limit: usd(amount),
+            ...(fallbackModel ? { fallbackModel } : {}),
+          },
+          action,
           enabled: true,
         });
         console.log(`Created policy ${id}.`);
+        if (fallbackModel !== undefined) {
+          console.log(
+            action === "monitor"
+              ? `Dry run: over-budget calls are recorded as if downgraded to ${fallbackModel},`
+              : `Over-budget calls will answer on ${fallbackModel} instead of failing.`,
+          );
+          if (action === "monitor") console.log("but nothing is rewritten yet.");
+          if (action === "block") {
+            console.log(
+              `They only fail if the downgrade cannot be made — traffic already on ` +
+                `${fallbackModel}, or on another provider.`,
+            );
+          }
+        }
         break;
       }
 

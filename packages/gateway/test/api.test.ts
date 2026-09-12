@@ -245,6 +245,33 @@ describe("dashboard API", () => {
     expect(stored?.rule).toMatchObject({ kind: "budget", limit: usd("125.50") });
   });
 
+  it("round-trips a budget fallback, and rejects one it cannot price", async () => {
+    const create = (fallbackModel: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/policies",
+        headers: auth(),
+        payload: {
+          name: "monthly cap",
+          action: "block",
+          scope: { kind: "tenant" },
+          rule: { kind: "budget", window: "month", limitUsd: "500.00", fallbackModel },
+        },
+      });
+
+    expect((await create("claude-imaginary-9")).statusCode).toBe(400);
+    expect((await create("claude-haiku-4-5")).statusCode).toBe(201);
+
+    expect(repository.listPolicies("t1")[0]?.rule).toMatchObject({
+      fallbackModel: "claude-haiku-4-5",
+    });
+
+    // The dashboard has to be able to see it, or the rule looks like a plain
+    // cap in the one place a customer goes to check what their rules do.
+    const listed = await app.inject({ method: "GET", url: "/api/policies", headers: auth() });
+    expect(listed.json()[0].rule.fallbackModel).toBe("claude-haiku-4-5");
+  });
+
   it("rejects malformed policy payloads", async () => {
     const bad = [
       { action: "destroy", scope: { kind: "tenant" }, rule: { kind: "budget" } },

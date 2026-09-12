@@ -132,6 +132,20 @@ function identifyBySession(request: FastifyRequest, deps: ServerDeps): Caller | 
   return { tenantId: chosen.tenantId, agentId: session.user.email, department: "Unassigned" };
 }
 
+/**
+ * Make a string safe to put in an HTTP header.
+ *
+ * Warning text is built from customer-chosen policy names, and Node throws on
+ * a header value containing anything outside latin-1. A policy named with an
+ * arrow or an em dash would otherwise turn every one of that customer's calls
+ * into a 500 — the exact production breakage this whole feature exists to
+ * avoid, caused by the warning about it.
+ */
+function headerSafe(value: string): string {
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[^\x20-\x7e]/g, "?");
+}
+
 export function createServer(deps: ServerDeps): FastifyInstance {
   const { config, repository, analytics, accounts, imports } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
@@ -337,10 +351,20 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         route?.applied === true ? adapter.withModel(request.body, route.toModel) : request.body;
 
       if (route !== undefined) {
+        const substitution = `${route.fromModel}->${route.toModel}`;
         reply.header(
           "x-costgrid-routed",
-          route.applied ? `${route.fromModel}->${route.toModel}` : `dry-run:${route.fromModel}->${route.toModel}`,
+          route.applied ? substitution : `dry-run:${substitution}`,
         );
+        // A downgrade forced by a budget is a different fact about the call
+        // than a standing route rule, and a caller may want to degrade its own
+        // behaviour (shorter answers, a banner) when it sees one.
+        if (route.fallback) {
+          reply.header(
+            "x-costgrid-fallback",
+            route.applied ? substitution : `dry-run:${substitution}`,
+          );
+        }
       }
 
       // OpenAI omits usage from streams unless asked; without this every
@@ -386,7 +410,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         ...decision.violations.map((v) => v.reason),
         ...(route?.applied === true ? [route.reason] : []),
       ];
-      if (warnings.length > 0) reply.header("x-costgrid-warnings", warnings.join("; "));
+      if (warnings.length > 0) {
+        reply.header("x-costgrid-warnings", headerSafe(warnings.join("; ")));
+      }
 
       const record = (over: Partial<CallRecord>): void => {
         const usage = over.usage ?? ZERO_USAGE;

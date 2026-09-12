@@ -198,3 +198,142 @@ describe("evaluation semantics", () => {
     expect(evaluatePolicies([], context, noSpend).allowed).toBe(true);
   });
 });
+
+describe("soft fallback", () => {
+  const overBudget: SpendSnapshot = { day: usd("500.00"), month: usd("500.00") };
+
+  function cap(overrides: Partial<Policy> = {}, fallbackModel = "claude-haiku-4-5"): Policy {
+    return policy({
+      id: "cap",
+      name: "monthly cap",
+      action: "block",
+      rule: { kind: "budget", window: "month", limit: usd("100.00"), fallbackModel },
+      ...overrides,
+    });
+  }
+
+  it("downgrades instead of blocking when the budget is blown", () => {
+    const decision = evaluatePolicies([cap()], context, overBudget);
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.blockedBy).toBeUndefined();
+    expect(decision.route).toMatchObject({
+      fromModel: "claude-opus-5",
+      toModel: "claude-haiku-4-5",
+      applied: true,
+      fallback: true,
+    });
+  });
+
+  it("still records the violation, so the feed shows why the model changed", () => {
+    const decision = evaluatePolicies([cap()], context, overBudget);
+
+    expect(decision.violations).toHaveLength(1);
+    expect(decision.violations[0]?.action).toBe("warn");
+    expect(decision.violations[0]?.reason).toContain("500% of the $100.00 monthly budget");
+    // The downgrade itself is reported on the route decision, not folded into
+    // the budget's reason — the two are recorded as separate feed entries.
+    expect(decision.route?.reason).toContain("downgraded from claude-opus-5");
+  });
+
+  it("leaves an under-budget call completely alone", () => {
+    const decision = evaluatePolicies([cap()], context, { day: 0n, month: usd("99.99") });
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.violations).toHaveLength(0);
+    expect(decision.route).toBeUndefined();
+  });
+
+  it("monitor is a genuine dry run: recorded, not rewritten", () => {
+    const decision = evaluatePolicies([cap({ action: "monitor" })], context, overBudget);
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.route?.applied).toBe(false);
+    expect(decision.route?.fallback).toBe(true);
+    expect(decision.violations[0]?.action).toBe("monitor");
+    expect(decision.route?.reason).toContain("dry run");
+  });
+
+  it("blocks after all when the downgrade cannot be made", () => {
+    // Traffic is already on the fallback model, so there is nothing cheaper
+    // left to give and the cap the customer set still has to mean something.
+    const decision = evaluatePolicies(
+      [cap()],
+      { ...context, model: "claude-haiku-4-5" },
+      overBudget,
+    );
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.policyId).toBe("cap");
+    expect(decision.route).toBeUndefined();
+  });
+
+  it("never blocks on a warn rule, even with no usable downgrade", () => {
+    const decision = evaluatePolicies(
+      [cap({ action: "warn" })],
+      { ...context, model: "claude-haiku-4-5" },
+      overBudget,
+    );
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.route).toBeUndefined();
+    expect(decision.violations[0]?.action).toBe("warn");
+  });
+
+  it("refuses to downgrade across providers", () => {
+    const decision = evaluatePolicies([cap({}, "gpt-5")], context, overBudget);
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.route).toBeUndefined();
+  });
+
+  it("refuses to downgrade to a model it cannot price", () => {
+    const decision = evaluatePolicies([cap({}, "claude-imaginary-9")], context, overBudget);
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.route).toBeUndefined();
+  });
+
+  it("outranks a standing route rule", () => {
+    const routeRule = policy({
+      id: "standing",
+      action: "warn",
+      rule: { kind: "route", toModel: "claude-sonnet-5" },
+    });
+
+    // Rule order should not matter: the emergency measure wins either way.
+    for (const policies of [[routeRule, cap()], [cap(), routeRule]]) {
+      const decision = evaluatePolicies(policies, context, overBudget);
+      expect(decision.route?.toModel).toBe("claude-haiku-4-5");
+      expect(decision.route?.fallback).toBe(true);
+    }
+  });
+
+  it("is still overridden by a separate block rule", () => {
+    const denied = policy({
+      id: "denied",
+      action: "block",
+      rule: { kind: "model-denylist", models: ["claude-opus-5"] },
+    });
+    const decision = evaluatePolicies([cap(), denied], context, overBudget);
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.policyId).toBe("denied");
+    // A refused call is not downgraded — it is not going anywhere.
+    expect(decision.route).toBeUndefined();
+  });
+
+  it("takes the first fired budget when two caps both offer a fallback", () => {
+    const decision = evaluatePolicies(
+      [
+        cap({ id: "first" }, "claude-sonnet-5"),
+        cap({ id: "second" }, "claude-haiku-4-5"),
+      ],
+      context,
+      overBudget,
+    );
+
+    expect(decision.route?.toModel).toBe("claude-sonnet-5");
+    expect(decision.violations).toHaveLength(2);
+  });
+});

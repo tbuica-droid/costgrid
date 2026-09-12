@@ -161,6 +161,42 @@ A `block` is evaluated *before* the request is forwarded, so a blocked call
 costs nothing. `warn` forwards the call and returns an `x-costgrid-warnings`
 response header. `monitor` only records.
 
+### A cap that does not break production
+
+A hard cap protects the bill by breaking the customer's product, which is why
+most teams never switch one on. `--fallback` changes what happens at the
+ceiling: over-budget traffic is *downgraded* to a cheaper model instead of
+being refused.
+
+```bash
+npx tsx packages/cli/src/main.ts policy budget dept:Engineering 500.00 \
+  --fallback claude-haiku-4-5 --action block
+```
+
+Under $500 nothing changes. Over it, calls keep returning 200 — answered by
+Haiku, carrying `x-costgrid-fallback: claude-opus-5->claude-haiku-4-5` so the
+caller can tell, and recorded as a violation so the feed says why the model
+changed.
+
+The downgrade has to be safe by the same three rules as routing: same
+provider, priceable, not a no-op. When it cannot be made — most often because
+the traffic is *already* on the fallback model and there is nothing cheaper
+left to give — the rule's own action applies again. So:
+
+| Action | Over budget, downgrade possible | Over budget, no downgrade left |
+|---|---|---|
+| `block` | Answers on the cheap model | **403** — the cap is still a cap |
+| `warn` | Answers on the cheap model | Answers, with a warning header |
+| `monitor` | Dry run: records what it would have saved | Records only |
+
+Pick `block` for a true ceiling with a soft landing, and `warn` for a rule
+that will never refuse a call under any circumstance — accepting that spend
+then keeps accruing, just at the cheaper model's rate.
+
+A budget fallback outranks any standing `route` rule: it is the emergency
+measure. A separate `block` rule still wins over both, because a refused call
+is not going anywhere to be downgraded.
+
 ## 9. Let CostGrid do the saving
 
 Reporting a saving is advice. Making it is a product. A route rule sends
