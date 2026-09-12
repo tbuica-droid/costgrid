@@ -210,6 +210,62 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    version: 4,
+    name: "historical-import",
+    // Usage pulled from a provider's admin API, so a new customer sees their
+    // own numbers before routing a single request through the gateway.
+    //
+    // Deliberately NOT written into `calls`. Provider reports are daily
+    // aggregates; `calls` holds individual metered requests. Blending them
+    // would fabricate call records and quietly destroy the one dataset we can
+    // stand behind. Every read keeps the two apart and labels which is which.
+    sql: `
+      CREATE TABLE imported_usage (
+        id                    TEXT PRIMARY KEY,
+        tenant_id             TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider              TEXT NOT NULL,
+        -- UTC day the provider bucketed this under, as YYYY-MM-DD.
+        day                   TEXT NOT NULL,
+        model                 TEXT NOT NULL,
+
+        input_tokens          INTEGER NOT NULL DEFAULT 0,
+        output_tokens         INTEGER NOT NULL DEFAULT 0,
+        cache_write_5m_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_write_1h_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens     INTEGER NOT NULL DEFAULT 0,
+        requests              INTEGER NOT NULL DEFAULT 0,
+
+        -- What our catalog says these tokens cost at list price.
+        cost_catalog          INTEGER NOT NULL DEFAULT 0,
+        priced                INTEGER NOT NULL DEFAULT 1 CHECK (priced IN (0, 1)),
+        -- What the provider says they actually charged, when it reported a
+        -- figure. Differs from cost_catalog under a negotiated rate, which is
+        -- how an effective discount becomes observable rather than guessed.
+        cost_reported         INTEGER,
+
+        imported_at           INTEGER NOT NULL,
+        UNIQUE (tenant_id, provider, day, model)
+      ) STRICT;
+      CREATE INDEX idx_imported_tenant_day ON imported_usage(tenant_id, day);
+
+      -- One row per import run, so a customer can see where their history
+      -- came from and when, and a support question has an answer.
+      CREATE TABLE import_runs (
+        id            TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider      TEXT NOT NULL,
+        started_at    INTEGER NOT NULL,
+        finished_at   INTEGER,
+        from_day      TEXT NOT NULL,
+        to_day        TEXT NOT NULL,
+        rows_written  INTEGER NOT NULL DEFAULT 0,
+        status        TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error')),
+        error_message TEXT
+      ) STRICT;
+      CREATE INDEX idx_import_runs_tenant ON import_runs(tenant_id, started_at);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

@@ -76,6 +76,28 @@ has a healthcheck on `/health`.
 so plain http will not keep anyone signed in — which is the correct failure.
 Provider keys and API keys cross this connection.
 
+## Onboarding a customer
+
+The fastest path to showing value, and the one to use in a sales call:
+
+1. They sign up at `/console`.
+2. **Import** — they paste a provider *admin* key and CostGrid pulls their last
+   90 days from the provider's usage report. Their own numbers are on screen in
+   under a minute, before anything is integrated.
+3. They add a provider API key and point one service at the gateway.
+4. Metered spend, per-agent attribution and enforcement start from there.
+
+Step 2 matters because without it a prospect's first experience is an empty
+dashboard, which cannot be demoed and cannot be sold from.
+
+**The admin key is not stored.** It is used for that one request and dropped —
+worth saying out loud, because "can read our whole organisation's usage" is
+exactly the permission a security reviewer will stop on.
+
+Imported history is shown in its own labelled section and never merged into
+metered figures. It is daily totals with no per-agent attribution and nothing
+enforceable, and the UI says so.
+
 ## Operating
 
 ### Backups

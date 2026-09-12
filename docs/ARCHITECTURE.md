@@ -35,6 +35,7 @@ packages/
   gateway/              The proxy: auth, enforcement, metering, passthrough.
     providers/          One adapter per upstream; the handler is generic.
     console.ts          Hosted control plane: accounts, credentials, billing.
+    importers/          Historical backfill from each provider's admin API.
     ratelimit.ts        Per-tenant fixed-window cap.
   cli/                  Operator surface: keys, policies, reports, backups.
 ```
@@ -72,6 +73,27 @@ verification against a dummy hash when the account does not exist, so response
 time cannot enumerate addresses, and returns one message for both failure
 causes.
 
+### Imported history is never blended with metered calls
+
+A provider's admin API returns daily aggregates assembled by someone else; a
+metered call is a request we watched go past. Different fidelity, so they never
+share a table and no view merges them into one number without saying so.
+`imported_usage` is separate from `calls`, `/api/history` is separate from
+`/api/overview`, and the dashboard labels the section "provider report".
+
+Writing imports into `calls` would have been convenient and would have
+fabricated call records, destroying the one dataset the product can stand
+behind.
+
+Where the provider reports a charged amount, that beats our list price — it
+already includes whatever rate the customer negotiated. Comparing the two is
+how an effective discount becomes observable rather than guessed at.
+
+**The admin key is used and discarded.** A one-off backfill does not justify
+holding a credential that can read an entire organisation's usage, and "we do
+not keep it" is an easier sentence in a security review than any amount of
+encryption. A test sweeps every column of the database to prove it.
+
 ### The console is not the dashboard
 
 `/console` authenticates with a session cookie and manages accounts; `/api`
@@ -81,6 +103,14 @@ means a browser session can never be used to spend tokens.
 Because cookies are attached to cross-site form posts, `SameSite=Lax` alone is
 not sufficient; every state-changing console route also checks that a declared
 `Origin` matches the `Host` it arrived on.
+
+A session cookie *can* identify a tenant for the read-only dashboard API — a
+hosted customer should not have to paste an API key into their own console —
+but never for the proxy. Browsers attach cookies cross-site, so accepting one
+on `/v1/messages` would let any page on the internet spend a logged-in user's
+tokens. Spending requires an API key, which a cross-site page cannot obtain.
+`identify()` takes an explicit `allowSession` flag that only the read paths
+pass, and there is a test asserting the proxy rejects a cookie.
 
 Membership is checked on every console route rather than trusting a tenant id
 from the URL — otherwise any signed-in user could administer any organisation
@@ -287,7 +317,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-223 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+243 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

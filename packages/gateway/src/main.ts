@@ -4,7 +4,13 @@ import {
   deriveMasterKey,
   isCatalogStale,
 } from "@costgrid/core";
-import { AccountsRepository, Analytics, CostGridRepository, openDatabase } from "@costgrid/db";
+import {
+  AccountsRepository,
+  Analytics,
+  CostGridRepository,
+  ImportsRepository,
+  openDatabase,
+} from "@costgrid/db";
 import { loadConfig } from "./config.js";
 import { createServer } from "./server.js";
 
@@ -20,6 +26,7 @@ async function main(): Promise<void> {
   const db = openDatabase({ path: config.databasePath });
   const repository = new CostGridRepository(db);
   const analytics = new Analytics(db);
+  const imports = new ImportsRepository(db);
   const accounts =
     config.masterKeySecret === undefined
       ? undefined
@@ -29,7 +36,7 @@ async function main(): Promise<void> {
     repository.createTenant("Local", "local");
   }
 
-  const app = createServer({ config, repository, analytics, accounts });
+  const app = createServer({ config, repository, analytics, accounts, imports });
 
   // Expired rows can never authenticate anything; sweeping them keeps the
   // table from growing without bound in a long-lived deployment.

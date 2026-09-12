@@ -33,6 +33,14 @@ function escapeHtml(value) {
 const money = (decimalString) => `$${Number(decimalString).toFixed(2)}`;
 const count = (n) => n.toLocaleString("en-US");
 
+function relativeTime(timestamp) {
+  const seconds = Math.max(0, (Date.now() - timestamp) / 1000);
+  if (seconds < 90) return `${Math.round(seconds)}s ago`;
+  if (seconds < 5400) return `${Math.round(seconds / 60)}m ago`;
+  if (seconds < 172800) return `${Math.round(seconds / 3600)}h ago`;
+  return `${Math.round(seconds / 86400)}d ago`;
+}
+
 function field(label, name, type = "text", extra = "") {
   return `<label style="display:block;margin-bottom:14px">
     <span class="rail" style="display:block;margin-bottom:6px">${escapeHtml(label)}</span>
@@ -92,10 +100,11 @@ async function renderSettings() {
   const tenantId = state.tenantId;
   const org = state.orgs.find((o) => o.tenantId === tenantId);
 
-  const [credentials, keys, billing] = await Promise.all([
+  const [credentials, keys, billing, importState] = await Promise.all([
     call("GET", `/console/${tenantId}/credentials`),
     call("GET", `/console/${tenantId}/keys`),
     call("GET", `/console/${tenantId}/billing`),
+    call("GET", `/console/${tenantId}/import`),
   ]);
 
   const credentialRows = credentials.providers
@@ -174,6 +183,52 @@ async function renderSettings() {
       <thead><tr><th>Provider</th><th>Status</th><th class="num">Key</th></tr></thead>
       <tbody>${credentialRows}</tbody>
     </table></div>
+
+    <h2 style="margin-top:26px">Import your history</h2>
+    <p class="section-note">See your last 90 days before routing a single request. Paste an
+      <strong>admin</strong> key and CostGrid reads your organisation's usage report straight from
+      the provider. The key is used for this one request and <strong>never stored</strong>.</p>
+    <p class="section-note">These are the provider's daily totals, not calls we watched — so
+      there is no per-agent breakdown and nothing to enforce against. It is shown separately
+      from metered spend for exactly that reason.</p>
+    <div class="card">
+      ${importState.providers
+        .map(
+          (p) => `<form class="import-form" data-provider="${escapeHtml(p.provider)}"
+                        style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <span style="min-width:90px"><strong>${escapeHtml(p.provider)}</strong></span>
+            <input name="adminKey" type="password" placeholder="Admin key" autocomplete="off"
+              style="padding:8px 11px;border:1px solid var(--rule);background:var(--bg);
+                     color:var(--ink);font-family:var(--mono);font-size:12px;width:260px" />
+            <select name="days" style="padding:8px">
+              <option value="30">30 days</option>
+              <option value="90" selected>90 days</option>
+              <option value="365">1 year</option>
+            </select>
+            ${button("Import", 'type="submit"')}
+            <span class="kpi-sub" style="flex-basis:100%">${escapeHtml(p.keyHint)}</span>
+          </form>`,
+        )
+        .join("")}
+      ${
+        importState.runs.length
+          ? `<div class="scroll-x" style="margin-top:8px"><table>
+               <thead><tr><th>When</th><th>Provider</th><th>Range</th><th>Rows</th><th>Status</th></tr></thead>
+               <tbody>${importState.runs
+                 .map(
+                   (r) => `<tr>
+                     <td>${relativeTime(r.startedAt)}</td>
+                     <td>${escapeHtml(r.provider)}</td>
+                     <td><code>${escapeHtml(r.fromDay)} → ${escapeHtml(r.toDay)}</code></td>
+                     <td class="num">${count(r.rowsWritten)}</td>
+                     <td><span class="tag ${r.status === "ok" ? "on" : r.status === "error" ? "block" : "monitor"}">${escapeHtml(r.status)}</span>
+                       ${r.errorMessage ? `<br /><span class="kpi-sub">${escapeHtml(r.errorMessage)}</span>` : ""}</td>
+                   </tr>`,
+                 )
+                 .join("")}</tbody></table></div>`
+          : ""
+      }
+    </div>
 
     <h2 style="margin-top:26px">Gateway API keys</h2>
     <p class="section-note">What your services present to CostGrid, as the
@@ -291,6 +346,20 @@ document.addEventListener("submit", async (event) => {
       const { plan } = formValues(form);
       await call("PUT", `/console/${state.tenantId}/plan`, { plan });
       state.flash = { kind: "ok", text: "Plan updated." };
+    } else if (form.classList.contains("import-form")) {
+      const { adminKey, days } = formValues(form);
+      if (!adminKey) return;
+      const result = await call("POST", `/console/${state.tenantId}/import/${form.dataset.provider}`, {
+        adminKey,
+        days: Number(days),
+      });
+      const unpriced = result.unpricedModels.length
+        ? ` ${result.unpricedModels.length} model(s) could not be priced: ${result.unpricedModels.join(", ")}.`
+        : "";
+      state.flash = {
+        kind: "ok",
+        text: `Imported ${result.rowsWritten} day/model rows from ${result.provider}.${unpriced}`,
+      };
     } else if (form.classList.contains("cred-form")) {
       const { apiKey } = formValues(form);
       if (!apiKey) return;

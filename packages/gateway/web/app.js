@@ -83,12 +83,84 @@ function unpricedBanner(unpricedCalls) {
     and every total below is understated. Check the Pricing tab for what is catalogued.</div>`;
 }
 
-function emptyState() {
+function emptyState(hasHistory) {
   return `<div class="empty">
-    No calls recorded in this window.<br /><br />
-    Point a client at this gateway and make a request:<br />
-    <code>curl ${location.origin}/v1/messages -d '{"model":"claude-opus-5",…}'</code>
+    <strong>No calls metered in this window.</strong><br /><br />
+    ${
+      hasHistory
+        ? 'Your imported history is below. Route traffic through this gateway to get per-agent attribution and enforcement on top of it.'
+        : "Point a client at this gateway and make a request:"
+    }<br />
+    ${
+      hasHistory
+        ? ""
+        : `<code>curl ${location.origin}/v1/messages -d '{"model":"claude-opus-5",…}'</code>`
+    }
   </div>`;
+}
+
+/**
+ * Imported provider history, rendered as its own section.
+ *
+ * Never merged into the metered figures above it. These are the provider's
+ * daily totals — no per-agent breakdown, nothing enforceable — and a reader
+ * has to be able to tell at a glance which numbers we stand behind.
+ */
+function importedSection(history) {
+  if (!history.present) return "";
+
+  const rows = history.byModel
+    .map(
+      (m) => `<tr>
+        <td>${escapeHtml(m.key)}</td>
+        <td class="num">${money(m.costUsd)}</td>
+        <td class="num">${count(m.inputTokens + m.outputTokens)}</td>
+        <td class="num">${m.requests ? count(m.requests) : "—"}</td>
+      </tr>`,
+    )
+    .join("");
+
+  // When the provider told us what it charged, that already reflects any
+  // negotiated rate — so it beats our list-price estimate.
+  const rateNote =
+    history.reportedCostUsd === null
+      ? `Priced with our public-rate catalog; the provider's usage report does not include
+         charged amounts, so a negotiated rate would not be reflected.`
+      : `Uses the provider's own reported charges, which already include any negotiated rate.`;
+
+  return `
+    <h2 style="margin-top:30px">Imported history
+      <span class="tag" style="vertical-align:middle;margin-left:8px">provider report</span></h2>
+    <p class="section-note">Pulled from your provider's usage report, not metered by CostGrid.
+      Daily totals only — no per-agent attribution, and no enforcement, because these calls did
+      not pass through the gateway. ${rateNote}</p>
+
+    <div class="grid cols-4">
+      ${card("Historical spend", money(history.effectiveCostUsd), `over the last ${history.days} days`)}
+      ${card("Requests", history.requests ? count(history.requests) : "not reported", "as counted by the provider")}
+      ${card("Cache hit ratio", pct(history.cacheHitRatio), "of readable input tokens",
+        history.cacheHitRatio > 0.3 ? "accent-green" : "")}
+      ${card("Tokens", count(history.inputTokens + history.outputTokens), "input plus output")}
+    </div>
+
+    ${
+      history.unpricedRows > 0
+        ? `<div class="banner" style="margin-top:16px"><strong>${count(history.unpricedRows)} row(s) unpriced.</strong>
+             A model in your history is missing from the price catalog, so this total is understated.</div>`
+        : ""
+    }
+
+    <div class="card" style="margin-top:18px">
+      <div class="rail">Daily spend, imported</div>
+      <div style="margin-top:14px">${barChart(history.daily)}</div>
+    </div>
+
+    <div class="card scroll-x" style="margin-top:18px"><table>
+      <thead><tr>
+        <th>Model</th><th class="num">Cost</th><th class="num">Tokens</th><th class="num">Requests</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
 }
 
 // ------------------------------------------------------------------- charts
@@ -203,15 +275,20 @@ function breakdownTable(rows, label) {
 // -------------------------------------------------------------------- views
 
 async function renderOverview() {
-  const [overview, daily, byModel, byAgent, byDept] = await Promise.all([
+  const [overview, daily, byModel, byAgent, byDept, history] = await Promise.all([
     api("overview"),
     api("spend/daily"),
     api("spend/by/model"),
     api("spend/by/agent"),
     api("spend/by/department"),
+    api("history"),
   ]);
 
-  if (overview.calls === 0) return emptyState();
+  // A prospect who has imported history but routed nothing still sees their
+  // own numbers — the whole point of the import.
+  if (overview.calls === 0) {
+    return `${staleBanner(overview)}${emptyState(history.present)}${importedSection(history)}`;
+  }
 
   const kpis = [
     card("Spend", money(overview.totalCostUsd),
@@ -243,7 +320,8 @@ async function renderOverview() {
       <div class="card">${breakdownTable(byModel, "Model")}</div>
       <div class="card">${breakdownTable(byAgent, "Agent")}</div>
     </div>
-    <div class="card" style="margin-top:18px">${breakdownTable(byDept, "Department")}</div>`;
+    <div class="card" style="margin-top:18px">${breakdownTable(byDept, "Department")}</div>
+    ${importedSection(history)}`;
 }
 
 async function renderAgents() {

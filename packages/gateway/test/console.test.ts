@@ -1,5 +1,11 @@
 import { deriveMasterKey, usd } from "@costgrid/core";
-import { AccountsRepository, Analytics, CostGridRepository, openDatabase } from "@costgrid/db";
+import {
+  AccountsRepository,
+  Analytics,
+  CostGridRepository,
+  ImportsRepository,
+  openDatabase,
+} from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GatewayConfig } from "../src/config.js";
@@ -33,6 +39,7 @@ describe("hosted control plane", () => {
   let db: ReturnType<typeof openDatabase>;
   let accounts: AccountsRepository;
   let repository: CostGridRepository;
+  let imports: ImportsRepository;
   let app: FastifyInstance;
   let upstreamKeys: string[];
 
@@ -57,6 +64,7 @@ describe("hosted control plane", () => {
     db = openDatabase({ path: ":memory:" });
     accounts = new AccountsRepository(db, deriveMasterKey(MASTER_SECRET));
     repository = new CostGridRepository(db);
+    imports = new ImportsRepository(db);
     upstreamKeys = [];
 
     app = createServer({
@@ -64,6 +72,7 @@ describe("hosted control plane", () => {
       repository,
       analytics: new Analytics(db),
       accounts,
+      imports,
       fetchImpl: (async (_url: unknown, init?: RequestInit) => {
         const headers = (init?.headers ?? {}) as Record<string, string>;
         upstreamKeys.push(headers["x-api-key"] ?? headers["authorization"] ?? "(none)");
@@ -120,6 +129,7 @@ describe("hosted control plane", () => {
       repository,
       analytics: new Analytics(db),
       accounts,
+      imports,
     });
     const res = await signup({ email: "second@acme.test" });
     expect(String(res.headers["set-cookie"])).toMatch(/Secure/);
@@ -370,6 +380,214 @@ describe("hosted control plane", () => {
     expect(limited).toBe(60); // the 61st call
   });
 
+  // ------------------------------------------------- session-authed dashboard
+
+  it("lets a signed-in user read their own dashboard without an API key", async () => {
+    const acme = await signup();
+    const cookie = cookieFrom(acme);
+
+    const res = await app.inject({ method: "GET", url: "/api/overview", headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().calls).toBe(0);
+  });
+
+  it("refuses to SPEND on a session cookie, only to read", async () => {
+    /*
+     * Browsers attach cookies to cross-site requests. If the proxy accepted a
+     * session, any page on the internet could POST to /v1/messages and burn a
+     * logged-in user's tokens. Spending requires an API key, which a
+     * cross-site page cannot obtain.
+     */
+    const acme = await signup();
+    const tenantId = acme.json().tenantId;
+    const cookie = cookieFrom(acme);
+
+    await app.inject({
+      method: "PUT",
+      url: `/console/${tenantId}/credentials/anthropic`,
+      headers: { cookie },
+      payload: { apiKey: "sk-ant-victim-key" },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { cookie },
+      payload: { model: "claude-opus-5", max_tokens: 10 },
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(upstreamKeys).toHaveLength(0); // nothing reached the provider
+  });
+
+  it("scopes a session-read dashboard to the user's own organisation", async () => {
+    const acme = await signup();
+    const other = await signup({ email: "other@other.test", organisation: "Other" });
+
+    // A guessed tenant id in the query string resolves to nothing, so the
+    // request falls back to the caller's own first membership.
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/overview?tenant=${other.json().tenantId}`,
+      headers: { cookie: cookieFrom(acme) },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  // ---------------------------------------------------------- import
+
+  it("imports history, prices it, and keeps it out of metered spend", async () => {
+    const acme = await signup();
+    const tenantId = acme.json().tenantId;
+    const cookie = cookieFrom(acme);
+
+    // Stub the provider's admin report for this one call.
+    await app.close();
+    app = createServer({
+      config: HOSTED,
+      repository,
+      analytics: new Analytics(db),
+      accounts,
+      imports,
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                starting_at: "2026-06-01T00:00:00Z",
+                results: [
+                  {
+                    model: "claude-opus-5",
+                    uncached_input_tokens: 1_000_000,
+                    output_tokens: 1_000_000,
+                  },
+                ],
+              },
+            ],
+            has_more: false,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        )) as unknown as typeof fetch,
+    });
+
+    const run = await app.inject({
+      method: "POST",
+      url: `/console/${tenantId}/import/anthropic`,
+      headers: { cookie },
+      payload: { adminKey: "sk-ant-admin-demo", days: 90 },
+    });
+
+    expect(run.statusCode).toBe(200);
+    expect(run.json().rowsWritten).toBe(1);
+    expect(run.json().unpricedModels).toEqual([]);
+    // The admin key must not come back out, in any form.
+    expect(run.body).not.toContain("sk-ant-admin-demo");
+
+    // Imported history is visible...
+    const apiKey = repository.createApiKey(tenantId, "reader").plaintext;
+    const history = (
+      await app.inject({
+        method: "GET",
+        url: "/api/history?days=365",
+        headers: { "x-costgrid-key": apiKey },
+      })
+    ).json();
+    expect(history.present).toBe(true);
+    expect(history.effectiveCostUsd).toBe("30.000000"); // $5 + $25 per MTok
+
+    // ...and has NOT been mixed into metered spend, which is still zero.
+    const overview = (
+      await app.inject({
+        method: "GET",
+        url: "/api/overview?days=365",
+        headers: { "x-costgrid-key": apiKey },
+      })
+    ).json();
+    expect(overview.calls).toBe(0);
+    expect(overview.totalCostUsd).toBe("0.000000");
+    expect(overview.hasImportedHistory).toBe(true);
+  });
+
+  it("never writes the admin key anywhere", async () => {
+    const acme = await signup();
+    const tenantId = acme.json().tenantId;
+
+    await app.close();
+    app = createServer({
+      config: HOSTED,
+      repository,
+      analytics: new Analytics(db),
+      accounts,
+      imports,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ data: [], has_more: false }), { status: 200 })) as unknown as typeof fetch,
+    });
+
+    await app.inject({
+      method: "POST",
+      url: `/console/${tenantId}/import/anthropic`,
+      headers: { cookie: cookieFrom(acme) },
+      payload: { adminKey: "sk-ant-admin-super-secret", days: 30 },
+    });
+
+    // Sweep every text column in the database for the secret.
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .all() as { name: string }[];
+    for (const { name } of tables) {
+      const rows = db.prepare(`SELECT * FROM "${name}"`).all() as Record<string, unknown>[];
+      expect(JSON.stringify(rows), name).not.toContain("super-secret");
+    }
+  });
+
+  it("records a failed import instead of losing it silently", async () => {
+    const acme = await signup();
+    const tenantId = acme.json().tenantId;
+    const cookie = cookieFrom(acme);
+
+    await app.close();
+    app = createServer({
+      config: HOSTED,
+      repository,
+      analytics: new Analytics(db),
+      accounts,
+      imports,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ error: { message: "invalid admin key" } }), {
+          status: 401,
+        })) as unknown as typeof fetch,
+    });
+
+    const run = await app.inject({
+      method: "POST",
+      url: `/console/${tenantId}/import/anthropic`,
+      headers: { cookie },
+      payload: { adminKey: "wrong", days: 30 },
+    });
+
+    expect(run.statusCode).toBe(502);
+    expect(run.json().error).toMatch(/invalid admin key/);
+
+    const state = (
+      await app.inject({ method: "GET", url: `/console/${tenantId}/import`, headers: { cookie } })
+    ).json();
+    expect(state.runs[0].status).toBe("error");
+    expect(state.hasImports).toBe(false);
+  });
+
+  it("keeps one organisation's imported history from another", async () => {
+    const acme = await signup();
+    const other = await signup({ email: "other@other.test", organisation: "Other" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/console/${other.json().tenantId}/import/anthropic`,
+      headers: { cookie: cookieFrom(acme) },
+      payload: { adminKey: "sk-ant-admin-x" },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
   // ---------------------------------------------------------------- billing
 
   it("reports the invoice basis with our fee separate from their spend", async () => {
@@ -494,13 +712,14 @@ describe("self-hosted mode", () => {
     db.close();
   });
 
-  it("refuses to start hosted without an accounts repository", () => {
+  it("refuses to start hosted without the control-plane repositories", () => {
     const db = openDatabase({ path: ":memory:" });
     expect(() =>
       createServer({
         config: HOSTED,
         repository: new CostGridRepository(db),
         analytics: new Analytics(db),
+      imports: new ImportsRepository(db),
       }),
     ).toThrow(/hosted mode requires/);
     db.close();

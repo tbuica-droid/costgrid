@@ -14,11 +14,12 @@ import {
   Analytics,
   type CallRecord,
   CostGridRepository,
+  type ImportsRepository,
   trailingWindow,
 } from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { registerApi } from "./api.js";
-import { registerConsole } from "./console.js";
+import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
@@ -34,6 +35,7 @@ export interface ServerDeps {
   readonly analytics: Analytics;
   /** Required in hosted mode; absent in self-hosted, where there are no accounts. */
   readonly accounts?: AccountsRepository | undefined;
+  readonly imports: ImportsRepository;
   /** Overridable for tests, which must never reach a real provider. */
   readonly fetchImpl?: typeof fetch;
 }
@@ -59,7 +61,11 @@ function headerValue(request: FastifyRequest, name: string): string | undefined 
  * dashboard as an unowned cost line. Dropping the call would lose the spend
  * record; guessing an owner would be worse.
  */
-function identify(request: FastifyRequest, deps: ServerDeps): Caller | undefined {
+function identify(
+  request: FastifyRequest,
+  deps: ServerDeps,
+  allowSession = false,
+): Caller | undefined {
   const presented =
     headerValue(request, KEY_HEADER) ??
     headerValue(request, "authorization")?.replace(/^Bearer\s+/i, "");
@@ -74,6 +80,19 @@ function identify(request: FastifyRequest, deps: ServerDeps): Caller | undefined
     };
   }
 
+  // A signed-in human reading their own dashboard. Without this a hosted
+  // customer would have to paste an API key into their own console to see
+  // their own numbers.
+  //
+  // Only ever enabled for the read-only dashboard API. Browsers attach
+  // cookies to cross-site requests, so accepting one on the proxy would let
+  // any page on the internet spend a logged-in user's tokens. Spending
+  // requires an API key, which a cross-site page cannot obtain.
+  if (allowSession) {
+    const sessionCaller = identifyBySession(request, deps);
+    if (sessionCaller) return sessionCaller;
+  }
+
   if (!deps.config.allowAnonymous) return undefined;
   return {
     tenantId: "local",
@@ -82,8 +101,38 @@ function identify(request: FastifyRequest, deps: ServerDeps): Caller | undefined
   };
 }
 
+/**
+ * Resolve a browser session to one of the user's organisations.
+ *
+ * A user can belong to several, so `?tenant=` selects; otherwise the first
+ * membership wins. Membership is always re-checked, so a guessed id in the
+ * query string resolves to nothing.
+ */
+function identifyBySession(request: FastifyRequest, deps: ServerDeps): Caller | undefined {
+  const { accounts } = deps;
+  if (!deps.config.hosted || accounts === undefined) return undefined;
+
+  const token = readCookie(request, SESSION_COOKIE);
+  if (token === undefined) return undefined;
+
+  const session = accounts.resolveSession(token);
+  if (!session) return undefined;
+
+  const memberships = accounts.membershipsOf(session.user.id);
+  if (memberships.length === 0) return undefined;
+
+  const requested = (request.query as Record<string, unknown> | undefined)?.["tenant"];
+  const chosen =
+    typeof requested === "string"
+      ? memberships.find((m) => m.tenantId === requested)
+      : memberships[0];
+  if (!chosen) return undefined;
+
+  return { tenantId: chosen.tenantId, agentId: session.user.email, department: "Unassigned" };
+}
+
 export function createServer(deps: ServerDeps): FastifyInstance {
-  const { config, repository, analytics, accounts } = deps;
+  const { config, repository, analytics, accounts, imports } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
   const rateLimiter = new RateLimiter();
 
@@ -135,10 +184,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   registerApi(app, {
     repository,
     analytics,
-    tenantOf: (request) => identify(request, deps)?.tenantId,
+    imports,
+    // Read-only: a session cookie is accepted here and nowhere else.
+    tenantOf: (request) => identify(request, deps, true)?.tenantId,
   });
   if (config.hosted) {
-    registerConsole(app, { config, accounts: accounts!, repository, analytics });
+    registerConsole(app, {
+      config,
+      accounts: accounts!,
+      repository,
+      analytics,
+      imports,
+      fetchImpl: deps.fetchImpl,
+    });
   }
   registerDashboard(app, { hosted: config.hosted });
 
@@ -385,7 +443,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   }
 
   app.get("/v1/costgrid/summary", async (request, reply) => {
-    const caller = identify(request, deps);
+    const caller = identify(request, deps, true);
     if (!caller) return reply.code(401).send({ error: "unauthorized" });
 
     const window = trailingWindow(30);

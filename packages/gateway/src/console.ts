@@ -2,8 +2,10 @@ import {
   type AccountsRepository,
   Analytics,
   type CostGridRepository,
+  type ImportsRepository,
   type Role,
   SESSION_TTL_MS,
+  toUtcDay,
   trailingWindow,
   type User,
 } from "@costgrid/db";
@@ -18,6 +20,7 @@ import {
 } from "@costgrid/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayConfig } from "./config.js";
+import { importerFor, IMPORTERS } from "./importers/index.js";
 import { ADAPTERS } from "./providers/index.js";
 
 /**
@@ -35,13 +38,16 @@ export interface ConsoleDeps {
   readonly accounts: AccountsRepository;
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
+  readonly imports: ImportsRepository;
+  /** Overridable so tests never reach a real provider. */
+  readonly fetchImpl?: typeof fetch | undefined;
 }
 
 interface ConsoleRequest extends FastifyRequest {
   user?: User | undefined;
 }
 
-function readCookie(request: FastifyRequest, name: string): string | undefined {
+export function readCookie(request: FastifyRequest, name: string): string | undefined {
   const header = request.headers.cookie;
   if (typeof header !== "string") return undefined;
 
@@ -113,7 +119,7 @@ function sameOrigin(request: FastifyRequest): boolean {
 }
 
 export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
-  const { accounts, analytics, config, repository } = deps;
+  const { accounts, analytics, config, imports, repository } = deps;
   const secure = config.secureCookies;
 
   /** Resolve the session on every console request; does not itself reject. */
@@ -332,6 +338,78 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     }
     repository.revokeApiKey(keyId);
     return { ok: true };
+  });
+
+  // ------------------------------------------------------- historical import
+
+  app.get("/console/:tenantId/import", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    if (!requireRole(request, reply, tenantId, "owner")) return;
+
+    return {
+      providers: IMPORTERS.map((i) => ({ provider: i.provider, keyHint: i.keyHint })),
+      hasImports: imports.hasImports(tenantId),
+      runs: imports.recentRuns(tenantId),
+    };
+  });
+
+  /**
+   * Backfill history from a provider's admin API.
+   *
+   * The admin key is used for the duration of this request and then dropped.
+   * It is never written anywhere — not the database, not the log. A one-off
+   * backfill does not justify holding a credential that can read an entire
+   * organisation's usage.
+   */
+  app.post("/console/:tenantId/import/:provider", async (request: ConsoleRequest, reply) => {
+    const { tenantId, provider } = request.params as { tenantId: string; provider: string };
+    if (!requireRole(request, reply, tenantId, "owner")) return;
+
+    const importer = importerFor(provider);
+    if (!importer) return reply.code(400).send({ error: `unknown provider: ${provider}` });
+
+    const body = request.body as Record<string, unknown> | undefined;
+    const adminKey = typeof body?.["adminKey"] === "string" ? body["adminKey"].trim() : "";
+    if (adminKey === "") return reply.code(400).send({ error: "adminKey is required" });
+
+    const days = typeof body?.["days"] === "number" ? body["days"] : 90;
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      return reply.code(400).send({ error: "days must be an integer between 1 and 365" });
+    }
+
+    const to = new Date();
+    const from = new Date(to.getTime() - days * 86_400_000);
+    const runId = imports.startRun(tenantId, importer.provider, toUtcDay(from), toUtcDay(to));
+
+    try {
+      const result = await importer.run({
+        apiKey: adminKey,
+        from,
+        to,
+        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+      });
+      const written = imports.putRows(tenantId, result.rows);
+      imports.finishRun(runId, written);
+
+      return {
+        provider: importer.provider,
+        fromDay: toUtcDay(from),
+        toDay: toUtcDay(to),
+        rowsWritten: written,
+        // Named so nobody mistakes an unpriced model for free traffic.
+        unpricedModels: result.unpricedModels,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      imports.failRun(runId, message);
+      return reply.code(502).send({ error: `import failed: ${message}` });
+    }
+  });
+
+  app.delete("/console/:tenantId/import", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    if (!requireRole(request, reply, tenantId, "owner")) return;
+    return { deleted: imports.deleteAll(tenantId) };
   });
 
   // --------------------------------------------------------------- billing

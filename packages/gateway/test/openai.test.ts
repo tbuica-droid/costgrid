@@ -1,5 +1,5 @@
 import { usd } from "@costgrid/core";
-import { Analytics, CostGridRepository, openDatabase } from "@costgrid/db";
+import { Analytics, CostGridRepository, ImportsRepository, openDatabase } from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GatewayConfig } from "../src/config.js";
@@ -65,6 +65,7 @@ describe("openai provider", () => {
       config: { ...BOTH_PROVIDERS, ...config },
       repository,
       analytics,
+      imports: new ImportsRepository(db),
       fetchImpl: (async (url: unknown, init?: RequestInit) => {
         sent.push({ url: String(url), init: init ?? {} });
         return upstream(init ?? {});

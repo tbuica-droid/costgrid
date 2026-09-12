@@ -14,7 +14,13 @@ import {
   toUsdString,
   usd,
 } from "@costgrid/core";
-import { type Analytics, type CostGridRepository, type TimeRange, trailingWindow } from "@costgrid/db";
+import {
+  type Analytics,
+  type CostGridRepository,
+  type ImportsRepository,
+  type TimeRange,
+  trailingWindow,
+} from "@costgrid/db";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 /**
@@ -31,6 +37,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 export interface ApiDeps {
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
+  readonly imports: ImportsRepository;
   /** Resolves the caller's tenant, or undefined when unauthenticated. */
   readonly tenantOf: (request: FastifyRequest) => string | undefined;
 }
@@ -57,7 +64,7 @@ function rangeFor(days: number): TimeRange {
 }
 
 export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
-  const { analytics, repository, tenantOf } = deps;
+  const { analytics, imports, repository, tenantOf } = deps;
 
   // Every /api route is tenant-scoped; resolving it once here means no
   // individual handler can forget to filter by tenant.
@@ -89,6 +96,9 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       range,
       catalogStale: isCatalogStale(),
       catalogAgeDays: catalogAgeDays(),
+      // Lets the dashboard offer imported history when nothing is metered yet,
+      // instead of showing a prospect an empty screen.
+      hasImportedHistory: imports.hasImports(tenantId),
       totalCostUsd: money(summary.totalCost),
       // A 30-day projection from the observed daily average. Labelled a
       // projection because with three days of data it is barely one.
@@ -107,6 +117,51 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
         savingFraction: routing.savingFraction,
         projectedSavingUsd: spentDollars * routing.savingFraction,
       },
+    };
+  });
+
+  /**
+   * Historical usage imported from a provider's admin API.
+   *
+   * Returned on its own route, never merged into /api/overview. These are the
+   * provider's daily aggregates, not calls we watched: lower fidelity, no
+   * per-agent attribution, and nothing we can enforce against. Presenting them
+   * as if they were metered would be the most damaging kind of convenience.
+   */
+  app.get("/api/history", async (request) => {
+    const days = parseDays(request);
+    const range = rangeFor(days);
+    const tenantId = tenant(request);
+
+    const summary = imports.summary(tenantId, range);
+    // When the provider told us what it charged, that beats our list price —
+    // it already includes whatever rate they negotiated.
+    const effective = summary.reportedCost ?? summary.catalogCost;
+
+    return {
+      days,
+      present: summary.rows > 0,
+      source: "provider-report",
+      requests: summary.requests,
+      inputTokens: summary.inputTokens,
+      outputTokens: summary.outputTokens,
+      cacheHitRatio: summary.cacheHitRatio,
+      catalogCostUsd: money(summary.catalogCost),
+      reportedCostUsd: summary.reportedCost === undefined ? null : money(summary.reportedCost),
+      effectiveCostUsd: money(effective),
+      unpricedRows: summary.unpricedRows,
+      daily: imports.dailyCost(tenantId, range).map((d) => ({
+        day: d.day,
+        costUsd: money(d.cost),
+        requests: d.requests,
+      })),
+      byModel: imports.byModel(tenantId, range).map((m) => ({
+        key: m.key,
+        costUsd: money(m.cost),
+        requests: m.requests,
+        inputTokens: m.inputTokens,
+        outputTokens: m.outputTokens,
+      })),
     };
   });
 
