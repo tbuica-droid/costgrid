@@ -8,11 +8,28 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { rmSync } from "node:fs";
+import { createServer as createNetServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const DB = "./.tmp-e2e.db";
-const STUB_PORT = 8799;
-const GATEWAY_PORT = 8798;
+
+/**
+ * Grab a port the OS says is free.
+ *
+ * Fixed ports were a trap: a leftover gateway from a crashed run kept
+ * answering /health, so this script bound nothing, talked to the stale
+ * process, and reported failures that had nothing to do with the code.
+ */
+async function freePort() {
+  const server = createNetServer();
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+const STUB_PORT = await freePort();
+const GATEWAY_PORT = await freePort();
 
 for (const suffix of ["", "-wal", "-shm"]) {
   rmSync(`${DB}${suffix}`, { force: true });
@@ -78,7 +95,20 @@ const stub = createServer((req, res) => {
     );
   });
 });
-await new Promise((r) => stub.listen(STUB_PORT, r));
+// Fail loudly on a busy port. Without the error handler `listen` simply never
+// resolves and the whole script hangs with no output, which is a genuinely
+// horrible thing to debug.
+await new Promise((resolve, reject) => {
+  stub.once("error", (error) =>
+    reject(
+      new Error(
+        `could not bind :${STUB_PORT} (${error.code}). ` +
+          "A previous run may still be listening — check with: lsof -nP -iTCP:" + STUB_PORT,
+      ),
+    ),
+  );
+  stub.listen(STUB_PORT, resolve);
+});
 console.log(`stub provider on :${STUB_PORT}`);
 
 // --- Gateway ----------------------------------------------------------------
@@ -97,6 +127,15 @@ const gateway = spawn("node", ["--import", "tsx", "packages/gateway/src/main.ts"
   stdio: ["ignore", "inherit", "inherit"],
 });
 
+// A thrown error would otherwise leave the stub listening and the script
+// hanging with no output — the failure mode that cost the most time here.
+process.on("uncaughtException", (error) => {
+  console.error(error);
+  gateway.kill("SIGKILL");
+  stub.close();
+  process.exit(1);
+});
+
 const base = `http://127.0.0.1:${GATEWAY_PORT}`;
 for (let i = 0; ; i++) {
   try {
@@ -105,7 +144,13 @@ for (let i = 0; ; i++) {
   } catch {
     /* not up yet */
   }
-  if (i > 100) throw new Error("gateway did not start");
+  if (i > 100) {
+    gateway.kill("SIGKILL");
+    throw new Error(
+      `gateway did not start on :${GATEWAY_PORT} within 10s — see its output above, ` +
+        `and check nothing else is listening: lsof -nP -iTCP:${GATEWAY_PORT}`,
+    );
+  }
   await sleep(100);
 }
 console.log("gateway up");
@@ -115,6 +160,17 @@ const call = (payload, headers = {}, path = "/v1/messages") =>
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(payload),
+  });
+
+const cli = (args) =>
+  new Promise((resolve) => {
+    const p = spawn("node", ["--import", "tsx", "packages/cli/src/main.ts", ...args], {
+      env: { ...process.env, COSTGRID_DB: DB, COSTGRID_TENANT: "local" },
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    let out = "";
+    p.stdout.on("data", (c) => (out += c));
+    p.on("close", () => resolve(out));
   });
 
 function check(label, actual, expected) {
@@ -155,18 +211,17 @@ res = await call(
 check("status", res.status, 200);
 check("openai model echoed", (await res.json()).model, "gpt-5");
 
-console.log("\n5. enforcement: block the expensive model");
-const cli = (args) =>
-  new Promise((resolve) => {
-    const p = spawn("node", ["--import", "tsx", "packages/cli/src/main.ts", ...args], {
-      env: { ...process.env, COSTGRID_DB: DB, COSTGRID_TENANT: "local" },
-      stdio: ["ignore", "pipe", "inherit"],
-    });
-    let out = "";
-    p.stdout.on("data", (c) => (out += c));
-    p.on("close", () => resolve(out));
-  });
+console.log("\n5. auto-routing: dry run first, then live");
+await cli(["policy", "route", "tenant", "claude-haiku-4-5", "--from", "claude-sonnet-5", "--action", "monitor"]);
+res = await call({ model: "claude-sonnet-5", max_tokens: 100 }, { "x-costgrid-agent": "router-test" });
+check("dry run served the requested model", (await res.json()).model, "claude-sonnet-5");
+check("dry run advertised itself", res.headers.get("x-costgrid-routed")?.startsWith("dry-run:"), true);
 
+await cli(["policy", "route", "tenant", "claude-haiku-4-5", "--from", "claude-opus-5", "--action", "warn"]);
+res = await call({ model: "claude-opus-5", max_tokens: 100 }, { "x-costgrid-agent": "router-test" });
+check("live route rewrote the model", (await res.json()).model, "claude-haiku-4-5");
+
+console.log("\n6. enforcement: block the expensive model");
 await cli(["policy", "allow", "claude-haiku-4-5", "--action", "block"]);
 res = await call({ model: "claude-opus-5", max_tokens: 100 }, { "x-costgrid-agent": "docs-writer" });
 check("blocked status", res.status, 403);
@@ -175,7 +230,7 @@ check("block reason", (await res.json()).error.type, "costgrid_policy_blocked");
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "ticket-classifier" });
 check("allowlisted model still passes", res.status, 200);
 
-console.log("\n6. CLI report\n");
+console.log("\n7. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

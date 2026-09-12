@@ -111,6 +111,30 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("adds routing columns without disturbing existing calls", () => {
+    const db = buildAtVersion(4);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    db.prepare(
+      `INSERT INTO calls (
+         id, tenant_id, agent_id, department, provider, model,
+         started_at, duration_ms, streamed, cost_total, outcome
+       ) VALUES ('c1', 't1', 'a', 'Eng', 'anthropic', 'claude-opus-5', 1000, 5, 0, 77, 'ok')`,
+    ).run();
+
+    migrate(db);
+
+    const row = db.prepare("SELECT * FROM calls WHERE id = 'c1'").get() as Record<string, unknown>;
+    expect(row["cost_total"]).toBe(77);
+    // A pre-existing call was never routed, and must not read as a zero saving
+    // on a substitution that never happened — requested_model stays null.
+    expect(row["requested_model"]).toBeNull();
+    expect(row["routed"]).toBe(0);
+    expect(row["route_dry_run"]).toBe(0);
+    expect(row["saving_estimate"]).toBe(0);
+
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

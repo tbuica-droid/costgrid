@@ -1,4 +1,5 @@
 import { type Nanodollars, toUsdString } from "./money.js";
+import { findModelPrice } from "./pricing.js";
 
 /**
  * What CostGrid does when a rule fires.
@@ -32,7 +33,31 @@ export type PolicyRule =
     }
   | { readonly kind: "model-allowlist"; readonly models: readonly string[] }
   | { readonly kind: "model-denylist"; readonly models: readonly string[] }
-  | { readonly kind: "max-output-tokens"; readonly limit: number };
+  | { readonly kind: "max-output-tokens"; readonly limit: number }
+  | {
+      /**
+       * Send this traffic to a cheaper model than the caller asked for.
+       *
+       * The only rule that *changes* a request rather than permitting or
+       * refusing it, which makes it the one with real blast radius: routing
+       * a nuanced task to a small model degrades the customer's product
+       * quietly, and they will blame their own code before they blame us.
+       *
+       * Three guards, all enforced rather than advised:
+       *   - `monitor` is a genuine dry-run. Nothing is rewritten; the call is
+       *     recorded with what *would* have happened and what it would have
+       *     saved. This is how a customer builds confidence before enabling.
+       *   - `from` narrows the rule to specific source models, so "everything
+       *     goes to Haiku" has to be written deliberately rather than reached
+       *     by accident.
+       *   - The target must be the same provider (checked at evaluation), as
+       *     an Anthropic request body is not a valid OpenAI one.
+       */
+      readonly kind: "route";
+      /** Source models this applies to. Empty or absent means any model. */
+      readonly from?: readonly string[];
+      readonly toModel: string;
+    };
 
 export interface Policy {
   readonly id: string;
@@ -89,15 +114,42 @@ export interface PolicyViolation {
   readonly reason: string;
 }
 
+/**
+ * A model substitution chosen by a `route` rule.
+ *
+ * `applied` is false for a dry-run: the caller still gets the model they
+ * asked for, but the call records the counterfactual so the saving is
+ * measurable before anything is switched on.
+ */
+export interface RouteDecision {
+  readonly policyId: string;
+  readonly policyName: string;
+  readonly fromModel: string;
+  readonly toModel: string;
+  readonly applied: boolean;
+  readonly reason: string;
+}
+
 export interface PolicyDecision {
   /** False only when at least one `block` rule fired. */
   readonly allowed: boolean;
   readonly violations: readonly PolicyViolation[];
   /** The blocking violation, when `allowed` is false. */
   readonly blockedBy: PolicyViolation | undefined;
+  /**
+   * The model substitution to make, if any. At most one: rules are evaluated
+   * in order and the first matching route wins, so two overlapping rules
+   * cannot chain a request through several models.
+   */
+  readonly route: RouteDecision | undefined;
 }
 
-export const ALLOWED: PolicyDecision = { allowed: true, violations: [], blockedBy: undefined };
+export const ALLOWED: PolicyDecision = {
+  allowed: true,
+  violations: [],
+  blockedBy: undefined,
+  route: undefined,
+};
 
 export const ZERO_SPEND: SpendSnapshot = { day: 0n, month: 0n };
 
@@ -147,7 +199,56 @@ function evaluateRule(
     case "max-output-tokens":
       if (context.maxOutputTokens <= rule.limit) return undefined;
       return `max_tokens ${context.maxOutputTokens} exceeds the cap of ${rule.limit}`;
+
+    case "route":
+      // Routing is handled separately; it transforms rather than permits.
+      return undefined;
   }
+}
+
+/**
+ * Decide whether a route rule applies to this request.
+ *
+ * Returns `undefined` when it does not match, or when applying it would be
+ * unsafe. Unsafe means: the target is the same model (a no-op), the target is
+ * not in the price catalog (we could not price the result), or the target
+ * belongs to a different provider.
+ *
+ * The cross-provider check is not a nicety. An Anthropic request body is not a
+ * valid OpenAI one, so rewriting `model` across providers would send a
+ * malformed request upstream and break the caller's feature outright.
+ */
+function evaluateRoute(
+  policy: Policy,
+  rule: Extract<PolicyRule, { kind: "route" }>,
+  context: RequestContext,
+): RouteDecision | undefined {
+  if (rule.from !== undefined && rule.from.length > 0 && !rule.from.includes(context.model)) {
+    return undefined;
+  }
+  if (rule.toModel === context.model) return undefined;
+
+  const source = findModelPrice(context.model);
+  const target = findModelPrice(rule.toModel);
+
+  if (!target) {
+    // Refusing beats routing to something we cannot price: the customer would
+    // see their traffic move and their reported spend go to zero.
+    return undefined;
+  }
+  if (source && source.provider !== target.provider) return undefined;
+
+  const applied = policy.action !== "monitor";
+  return {
+    policyId: policy.id,
+    policyName: policy.name,
+    fromModel: context.model,
+    toModel: rule.toModel,
+    applied,
+    reason: applied
+      ? `routed from ${context.model} to ${rule.toModel} by "${policy.name}"`
+      : `would route from ${context.model} to ${rule.toModel} (dry run)`,
+  };
 }
 
 /**
@@ -164,10 +265,18 @@ export function evaluatePolicies(
 ): PolicyDecision {
   const resolve: SpendResolver = typeof spend === "function" ? spend : constantSpend(spend);
   const violations: PolicyViolation[] = [];
+  let route: RouteDecision | undefined;
 
   for (const policy of policies) {
     if (!policy.enabled) continue;
     if (!scopeMatches(policy.scope, context)) continue;
+
+    if (policy.rule.kind === "route") {
+      // First match wins, so overlapping rules cannot chain a request through
+      // several models.
+      route ??= evaluateRoute(policy, policy.rule, context);
+      continue;
+    }
 
     // Budget rules are the only ones that read spend, so the resolver is
     // called lazily — scoped spend queries are not free.
@@ -184,5 +293,11 @@ export function evaluatePolicies(
   }
 
   const blockedBy = violations.find((v) => v.action === "block");
-  return { allowed: blockedBy === undefined, violations, blockedBy };
+  // A blocked call is never routed: it is not going anywhere.
+  return {
+    allowed: blockedBy === undefined,
+    violations,
+    blockedBy,
+    route: blockedBy === undefined ? route : undefined,
+  };
 }

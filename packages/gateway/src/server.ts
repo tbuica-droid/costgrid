@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  estimateSaving,
   evaluatePolicies,
   planFor,
   type PolicyScope,
@@ -323,11 +324,30 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         upstreamHeaders["anthropic-version"] = "2023-06-01";
       }
 
+      /*
+       * Apply a route rule, if one matched and is not a dry run.
+       *
+       * This is the only place CostGrid changes what the customer asked for,
+       * so it happens once, explicitly, on a copy of the body. `requestedModel`
+       * is kept for the record: without it a rerouted call is indistinguishable
+       * from one that simply used a cheap model, and the saving is unprovable.
+       */
+      const route = decision.route;
+      const outgoingBody =
+        route?.applied === true ? adapter.withModel(request.body, route.toModel) : request.body;
+
+      if (route !== undefined) {
+        reply.header(
+          "x-costgrid-routed",
+          route.applied ? `${route.fromModel}->${route.toModel}` : `dry-run:${route.fromModel}->${route.toModel}`,
+        );
+      }
+
       // OpenAI omits usage from streams unless asked; without this every
       // streamed call would meter as zero.
       const prepared = config.injectUsageRequest
-        ? adapter.prepareBody(request.body)
-        : { body: request.body, injectedUsageRequest: false };
+        ? adapter.prepareBody(outgoingBody)
+        : { body: outgoingBody, injectedUsageRequest: false };
 
       let upstream: Response;
       try {
@@ -362,15 +382,33 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
       // Advertise which violations fired without blocking, so a caller can
       // surface a budget warning to its own operator.
-      if (decision.violations.length > 0) {
-        reply.header("x-costgrid-warnings", decision.violations.map((v) => v.reason).join("; "));
-      }
+      const warnings = [
+        ...decision.violations.map((v) => v.reason),
+        ...(route?.applied === true ? [route.reason] : []),
+      ];
+      if (warnings.length > 0) reply.header("x-costgrid-warnings", warnings.join("; "));
 
       const record = (over: Partial<CallRecord>): void => {
         const usage = over.usage ?? ZERO_USAGE;
         const model = over.model ?? requestedModel;
         const modifiers = over.modifiers ?? {};
         const computed = priceUsage(model, usage, modifiers);
+
+        /*
+         * The counterfactual, for a routed or dry-run call: what these same
+         * tokens would have cost on the model the caller asked for.
+         *
+         * An estimate, and labelled as one everywhere it surfaces — token
+         * counts are not invariant across models. For a dry run the served
+         * model *is* the requested one, so the comparison is against the model
+         * the rule would have used instead.
+         */
+        let savingEstimate: bigint | undefined;
+        if (route !== undefined) {
+          savingEstimate = route.applied
+            ? estimateSaving(route.fromModel, model, usage, modifiers)
+            : estimateSaving(model, route.toModel, usage, modifiers);
+        }
 
         // `priced: false` means the cost could not be established — either the
         // model is uncatalogued, or the provider reported no usage. Both must
@@ -388,12 +426,37 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           cost: computed.cost,
           priced,
           modifiers,
+          ...(route !== undefined
+            ? {
+                requestedModel: route.fromModel,
+                routed: route.applied,
+                routeDryRun: !route.applied,
+                ...(savingEstimate !== undefined ? { savingEstimate } : {}),
+              }
+            : {}),
           outcome: over.outcome ?? "ok",
           statusCode: over.statusCode ?? upstream.status,
         } as CallRecord);
 
         if (decision.violations.length > 0) {
           repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
+        }
+        if (route !== undefined) {
+          // Routing shows in the same feed as everything else, so a customer
+          // reviewing "what did CostGrid do to my traffic" sees one list.
+          repository.recordViolations(
+            caller.tenantId,
+            callId,
+            [
+              {
+                policyId: route.policyId,
+                policyName: route.policyName,
+                action: route.applied ? "warn" : "monitor",
+                reason: route.reason,
+              },
+            ],
+            startedAt,
+          );
         }
       };
 

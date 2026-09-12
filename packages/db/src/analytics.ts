@@ -79,6 +79,24 @@ export interface TierBreakdown {
   readonly calls: number;
 }
 
+/**
+ * What auto-routing achieved, and what a dry run says it would achieve.
+ *
+ * Kept as two separate figures. A customer running rules in dry-run mode has
+ * saved nothing yet, and reporting a projection as a realised saving is the
+ * fastest way to lose their trust in every other number on the page.
+ */
+export interface RoutingSavings {
+  /** Calls actually rewritten to a different model. */
+  readonly routedCalls: number;
+  /** Calls a dry-run rule matched but did not change. */
+  readonly dryRunCalls: number;
+  /** Estimated saving on calls that were genuinely rerouted. Signed. */
+  readonly realisedSaving: Nanodollars;
+  /** Estimated saving a dry run would have produced, had it been enabled. */
+  readonly potentialSaving: Nanodollars;
+}
+
 export interface FleetSummary {
   readonly totalCost: Nanodollars;
   readonly calls: number;
@@ -315,6 +333,64 @@ export class Analytics {
     }
 
     return [...byTier.entries()].map(([tier, v]) => ({ tier, ...v }));
+  }
+
+  /**
+   * Realised and potential savings from route rules.
+   *
+   * Both figures are estimates: they price the observed token counts at the
+   * model the caller originally requested. Token counts are not invariant
+   * across models, so this is the closest honest answer short of running every
+   * prompt twice.
+   */
+  routingSavings(tenantId: string, range: TimeRange): RoutingSavings {
+    const row = this.#db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(CASE WHEN routed = 1 THEN 1 ELSE 0 END), 0)                        AS routedCalls,
+           COALESCE(SUM(CASE WHEN route_dry_run = 1 THEN 1 ELSE 0 END), 0)                 AS dryRunCalls,
+           COALESCE(SUM(CASE WHEN routed = 1 THEN saving_estimate ELSE 0 END), 0)          AS realised,
+           COALESCE(SUM(CASE WHEN route_dry_run = 1 THEN saving_estimate ELSE 0 END), 0)   AS potential
+         FROM calls
+         WHERE tenant_id = ? AND outcome = 'ok' AND started_at >= ? AND started_at < ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, range.from, range.to) as Record<string, bigint>;
+
+    return {
+      routedCalls: Number(row["routedCalls"]),
+      dryRunCalls: Number(row["dryRunCalls"]),
+      realisedSaving: row["realised"]!,
+      potentialSaving: row["potential"]!,
+    };
+  }
+
+  /** Per-substitution detail, so a saving can be audited rather than trusted. */
+  routingBreakdown(tenantId: string, range: TimeRange) {
+    const rows = this.#db
+      .prepare(
+        `SELECT requested_model AS requestedModel, model AS servedModel,
+                route_dry_run AS dryRun,
+                COUNT(*) AS calls,
+                COALESCE(SUM(saving_estimate), 0) AS saving,
+                COALESCE(SUM(cost_total), 0)      AS cost
+         FROM calls
+         WHERE tenant_id = ? AND outcome = 'ok' AND requested_model IS NOT NULL
+           AND started_at >= ? AND started_at < ?
+         GROUP BY requested_model, model, route_dry_run
+         ORDER BY saving DESC`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to) as Record<string, bigint | string>[];
+
+    return rows.map((r) => ({
+      requestedModel: r["requestedModel"] as string,
+      servedModel: r["servedModel"] as string,
+      dryRun: Number(r["dryRun"]) === 1,
+      calls: Number(r["calls"]),
+      saving: r["saving"] as bigint,
+      cost: r["cost"] as bigint,
+    }));
   }
 
   recentViolations(tenantId: string, limit = 50) {

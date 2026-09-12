@@ -272,6 +272,37 @@ export function priceUsage(
 }
 
 /**
+ * What a call would have cost on a different model, given the same tokens.
+ *
+ * This is how a realised saving is measured: price the observed usage at the
+ * model the caller originally asked for, and subtract what was actually paid.
+ *
+ * It is an **estimate**, and the reason matters. Token counts are not
+ * invariant across models — different tokenizers produce different counts for
+ * the same text (Anthropic documents ~30% more on 4.7 and later), and a
+ * smaller model is often more verbose. So the counterfactual assumes the same
+ * token counts, which is the only assumption available without running the
+ * prompt twice. Every surface that shows this number calls it an estimate.
+ *
+ * Returns `undefined` when either model is unpriceable, rather than a
+ * confident zero.
+ */
+export function estimateSaving(
+  requestedModel: string,
+  servedModel: string,
+  usage: TokenUsage,
+  modifiers: PriceModifiers = NO_MODIFIERS,
+): Nanodollars | undefined {
+  const counterfactual = priceUsage(requestedModel, usage, modifiers);
+  const actual = priceUsage(servedModel, usage, modifiers);
+  if (!counterfactual.priced || !actual.priced) return undefined;
+
+  // Signed: a route that costs more must show as a loss, not be clamped to
+  // zero. A savings figure that can only go up is a marketing number.
+  return counterfactual.cost.total - actual.cost.total;
+}
+
+/**
  * Read the pricing modifiers a provider reports back on a completed call.
  *
  * `usage.speed` and `usage.inference_geo` are how the API tells you what it

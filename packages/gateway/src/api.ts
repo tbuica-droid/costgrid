@@ -112,6 +112,18 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       cacheReadTokens: summary.cacheReadTokens,
       cacheHitRatio: summary.cacheHitRatio,
       substitutionShare: share,
+      savings: (() => {
+        const s = analytics.routingSavings(tenantId, range);
+        return {
+          routedCalls: s.routedCalls,
+          dryRunCalls: s.dryRunCalls,
+          // Kept apart deliberately: a dry run has saved nothing yet, and
+          // reporting a projection as realised destroys trust in every other
+          // number on the page.
+          realisedUsd: money(s.realisedSaving),
+          potentialUsd: money(s.potentialSaving),
+        };
+      })(),
       routing: {
         optimalShare: routing.optimalShare,
         savingFraction: routing.savingFraction,
@@ -248,6 +260,32 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       savingFraction: analysis.savingFraction,
       assumptions: DEFAULT_ASSUMPTIONS,
       curve: costCurve(100).map((p) => ({ share: p.share, cost: p.blendedCost })),
+    };
+  });
+
+  /** Per-substitution detail, so a claimed saving can be audited. */
+  app.get("/api/savings", async (request) => {
+    const range = rangeFor(parseDays(request));
+    const tenantId = tenant(request);
+    const totals = analytics.routingSavings(tenantId, range);
+
+    return {
+      routedCalls: totals.routedCalls,
+      dryRunCalls: totals.dryRunCalls,
+      realisedUsd: money(totals.realisedSaving),
+      potentialUsd: money(totals.potentialSaving),
+      // Every figure here prices observed tokens at the requested model.
+      // Token counts differ between models, so this is an estimate and the UI
+      // says so rather than implying a measured result.
+      basis: "observed tokens priced at the requested model",
+      breakdown: analytics.routingBreakdown(tenantId, range).map((r) => ({
+        requestedModel: r.requestedModel,
+        servedModel: r.servedModel,
+        dryRun: r.dryRun,
+        calls: r.calls,
+        savingUsd: money(r.saving),
+        costUsd: money(r.cost),
+      })),
     };
   });
 

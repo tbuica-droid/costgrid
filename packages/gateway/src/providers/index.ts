@@ -53,6 +53,7 @@ export const anthropicAdapter: ProviderAdapter = {
   ],
 
   modelOf: (body) => stringField(body, "model", "unknown"),
+  withModel: (body, model) => ({ ...(record(body) ?? {}), model }),
   maxOutputTokensOf: (body) => numberField(body, "max_tokens"),
   isStreaming: (body) => record(body)?.["stream"] === true,
 
@@ -96,6 +97,7 @@ export const openaiAdapter: ProviderAdapter = {
   ],
 
   modelOf: (body) => stringField(body, "model", "unknown"),
+  withModel: (body, model) => ({ ...(record(body) ?? {}), model }),
   // Chat Completions renamed max_tokens to max_completion_tokens; accept both,
   // because an output cap that silently reads zero would never fire.
   maxOutputTokensOf: (body) =>

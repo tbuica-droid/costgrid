@@ -23,6 +23,8 @@ export interface ProviderAdapter {
   readonly forwardedResponseHeaders: readonly string[];
 
   modelOf(body: unknown): string;
+  /** Return a copy of the body with a different model. Never mutates the input. */
+  withModel(body: unknown, model: string): unknown;
   maxOutputTokensOf(body: unknown): number;
   isStreaming(body: unknown): boolean;
 

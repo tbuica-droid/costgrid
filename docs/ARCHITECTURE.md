@@ -221,6 +221,42 @@ that lands off a nanodollar boundary, that under-bills — by a hair, on every
 call, always in the customer's favour and always wrong. `mulDiv` rounds half
 away from zero so the error is unbiased.
 
+### Auto-routing is the one rule that changes a request
+
+Every other policy permits or refuses. A `route` rule rewrites the caller's
+`model`, which means a bad rule degrades their product quietly and they will
+blame their own code first. Four guards, enforced rather than advised:
+
+- **`monitor` is a genuine dry run.** Nothing is rewritten; the call records
+  what would have happened and what it would have saved. This is how a
+  customer builds confidence before switching anything on, and it is the
+  default the CLI picks.
+- **Never across providers.** An Anthropic request body is not a valid OpenAI
+  one, so rewriting `model` across providers would send a malformed request
+  upstream and break the feature outright.
+- **Never to an unpriceable model.** Otherwise the customer watches their
+  traffic move and their reported spend fall to zero.
+- **First match wins, and a blocked call is never routed.** Overlapping rules
+  cannot chain a request through several models, and a refused call is not
+  going anywhere to be rerouted.
+
+### Realised savings are separated from projected ones
+
+`realisedSaving` covers calls actually rerouted; `potentialSaving` covers
+dry-run matches. They are two figures, two cards, never summed. A customer in
+dry-run mode has saved nothing yet, and presenting a projection as a realised
+result would undermine every other number on the page.
+
+Both are **estimates**, and every surface says so. The counterfactual prices
+the observed tokens at the model originally requested — but token counts are
+not invariant across models (Anthropic documents ~30% more on 4.7 and later,
+and smaller models are often more verbose). Short of running each prompt
+twice, that assumption is the closest honest answer.
+
+The figure is signed. A route that costs more shows as a loss rather than
+being clamped to zero: a savings number that can only go up is a marketing
+number.
+
 ### An unknown model is unpriced, never free
 
 `findModelPrice` returns `undefined` for a model not in the catalog. The call
@@ -317,7 +353,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-243 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+261 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

@@ -266,6 +266,26 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_import_runs_tenant ON import_runs(tenant_id, started_at);
     `,
   },
+  {
+    version: 5,
+    name: "auto-routing",
+    // What the caller asked for, versus what was served, and the difference it
+    // made. Without `requested_model` a rerouted call is indistinguishable
+    // from one that simply used a cheap model, and the saving is unprovable.
+    //
+    // `saving_estimate` is the counterfactual: the same token counts priced at
+    // the requested model, minus the actual cost. Signed, because a route can
+    // make a call *more* expensive and that must be visible rather than
+    // clamped away. Negative on a dry run too, where the "saving" is what
+    // would have happened.
+    sql: `
+      ALTER TABLE calls ADD COLUMN requested_model TEXT;
+      ALTER TABLE calls ADD COLUMN routed INTEGER NOT NULL DEFAULT 0 CHECK (routed IN (0, 1));
+      ALTER TABLE calls ADD COLUMN route_dry_run INTEGER NOT NULL DEFAULT 0 CHECK (route_dry_run IN (0, 1));
+      ALTER TABLE calls ADD COLUMN saving_estimate INTEGER NOT NULL DEFAULT 0;
+      CREATE INDEX idx_calls_routed ON calls(tenant_id, routed, started_at);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

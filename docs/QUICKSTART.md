@@ -161,6 +161,37 @@ A `block` is evaluated *before* the request is forwarded, so a blocked call
 costs nothing. `warn` forwards the call and returns an `x-costgrid-warnings`
 response header. `monitor` only records.
 
+## 9. Let CostGrid do the saving
+
+Reporting a saving is advice. Making it is a product. A route rule sends
+matching traffic to a cheaper model:
+
+```bash
+# Dry run FIRST. Nothing is rewritten; it records what would have been saved.
+npx tsx packages/cli/src/main.ts policy route tenant claude-haiku-4-5 \
+  --from claude-opus-5 --action monitor
+
+# Check the estimate, then make it real.
+npx tsx packages/cli/src/main.ts report --days 7
+npx tsx packages/cli/src/main.ts policy route tenant claude-haiku-4-5 \
+  --from claude-opus-5 --action warn
+```
+
+The dashboard's Routing tab then shows **realised** savings separately from
+**dry-run** ones, with every substitution broken out so the number can be
+audited rather than trusted.
+
+Rerouted responses carry `x-costgrid-routed: claude-opus-5->claude-haiku-4-5`,
+so a caller can always tell which model actually answered.
+
+Three things CostGrid refuses to do, because each would break something
+quietly: route across providers (the request body would be malformed), route
+to a model it cannot price (your reported spend would fall to zero), or route
+a call that a block rule already refused.
+
+**Always start with `--action monitor`.** Routing is the only feature here that
+changes what your code asked for.
+
 ## Keeping prices honest
 
 ```bash

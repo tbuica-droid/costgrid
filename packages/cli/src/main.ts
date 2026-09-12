@@ -19,6 +19,11 @@ Usage:
   costgrid policy list                    Show configured policies
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
   costgrid policy allow <model...>        Restrict the tenant to these models
+  costgrid policy route <scope> <to-model> [--from a,b] [--action monitor|warn|block]
+                                          Send matching traffic to a cheaper model.
+                                          Start with --action monitor: it is a dry
+                                          run that records the saving without
+                                          changing a single request.
   costgrid policy disable <policy-id>
   costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
@@ -149,7 +154,10 @@ async function main(): Promise<void> {
               ? `budget $${toUsdString(p.rule.limit, 2)}/${p.rule.window}`
               : p.rule.kind === "max-output-tokens"
                 ? `max_tokens <= ${p.rule.limit}`
-                : `${p.rule.kind} [${p.rule.models.join(", ")}]`;
+                : p.rule.kind === "route"
+                  ? `route ${p.rule.from?.length ? p.rule.from.join(",") : "*"} -> ${p.rule.toModel}` +
+                    (p.action === "monitor" ? "  (dry run)" : "")
+                  : `${p.rule.kind} [${p.rule.models.join(", ")}]`;
           console.log(
             `${p.enabled ? "on " : "off"}  ${p.action.padEnd(7)}  ${scope.padEnd(24)}  ${detail}`,
           );
@@ -186,6 +194,34 @@ async function main(): Promise<void> {
           enabled: true,
         });
         console.log(`Created policy ${id}.`);
+        break;
+      }
+
+      if (sub === "route") {
+        const scope = parseScope(argv[2] ?? fail("policy route needs a scope"));
+        const toModel = argv[3] ?? fail("policy route needs a target model");
+        const from = flag(argv, "from")
+          ?.split(",")
+          .map((m) => m.trim())
+          .filter((m) => m !== "");
+
+        // Default to a dry run. Rewriting a customer's request is the one
+        // action here that can quietly degrade their product, so switching it
+        // on has to be a deliberate second step.
+        const action = parseAction(flag(argv, "action") ?? "monitor");
+        const id = repository.createPolicy(tenantId, {
+          name: `route to ${toModel}`,
+          scope,
+          rule: { kind: "route", toModel, ...(from && from.length > 0 ? { from } : {}) },
+          action,
+          enabled: true,
+        });
+
+        console.log(`Created policy ${id}.`);
+        if (action === "monitor") {
+          console.log("Dry run: nothing is rewritten. Run a report to see the estimated saving,");
+          console.log("then re-create with --action warn to start routing for real.");
+        }
         break;
       }
 

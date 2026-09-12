@@ -363,10 +363,11 @@ async function renderAgents() {
 }
 
 async function renderRouting() {
-  const [routing, tiers, overview] = await Promise.all([
+  const [routing, tiers, overview, savings] = await Promise.all([
     api("routing"),
     api("tiers"),
     api("overview"),
+    api("savings"),
   ]);
 
   const tierRows = tiers.length
@@ -383,6 +384,57 @@ async function renderRouting() {
     : `<tr><td colspan="4" class="kpi-sub">Nothing recorded.</td></tr>`;
 
   const a = routing.assumptions;
+
+  const breakdownRows = savings.breakdown
+    .map(
+      (r) => `<tr>
+        <td><code>${escapeHtml(r.requestedModel)}</code> → <code>${escapeHtml(r.servedModel)}</code>
+          ${r.dryRun ? '<span class="tag monitor" style="margin-left:6px">dry run</span>' : ""}</td>
+        <td class="num">${count(r.calls)}</td>
+        <td class="num">${money(r.costUsd)}</td>
+        <td class="num ${Number(r.savingUsd) < 0 ? "accent-rust" : "accent-green"}">${money(r.savingUsd)}</td>
+      </tr>`,
+    )
+    .join("");
+
+  /*
+   * Realised and potential are two cards, never one. A customer running rules
+   * in dry-run mode has saved nothing yet, and showing a projection as a
+   * realised saving would undermine every other number on the page.
+   */
+  const savingsSection =
+    savings.routedCalls === 0 && savings.dryRunCalls === 0
+      ? `<div class="card" style="margin-top:18px">
+           <div class="rail">Auto-routing</div>
+           <p class="kpi-sub" style="margin-top:10px">No route rules are firing. Add one in
+             dry-run mode to see what a substitution would save before changing any traffic:<br />
+             <code>costgrid policy route tenant claude-haiku-4-5 --from claude-opus-5 --action monitor</code>
+           </p>
+         </div>`
+      : `
+        <h2 style="margin-top:30px">Auto-routing</h2>
+        <p class="section-note">Savings are <strong>estimated</strong>: the tokens actually
+          observed, priced at the model the caller asked for. Token counts are not identical
+          across models, so this is the closest honest figure short of running every prompt
+          twice.</p>
+        <div class="grid cols-4">
+          ${card("Realised saving", money(savings.realisedUsd),
+            `${count(savings.routedCalls)} call(s) actually rerouted`,
+            Number(savings.realisedUsd) < 0 ? "accent-rust" : "accent-green")}
+          ${card("Dry-run saving", money(savings.potentialUsd),
+            `${count(savings.dryRunCalls)} call(s) matched but unchanged`, "accent-gold")}
+        </div>
+        ${
+          savings.breakdown.length
+            ? `<div class="card scroll-x" style="margin-top:18px"><table>
+                 <thead><tr>
+                   <th>Substitution</th><th class="num">Calls</th>
+                   <th class="num">Actual cost</th><th class="num">Estimated saving</th>
+                 </tr></thead>
+                 <tbody>${breakdownRows}</tbody>
+               </table></div>`
+            : ""
+        }`;
 
   return `
     <h2>Routing</h2>
@@ -422,7 +474,8 @@ async function renderRouting() {
           Edit them in <code>packages/core/src/routing.ts</code>.
         </p>
       </div>
-    </div>`;
+    </div>
+    ${savingsSection}`;
 }
 
 async function renderPolicies() {

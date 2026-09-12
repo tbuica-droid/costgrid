@@ -118,6 +118,27 @@ export function formatReport(
     out.push(table(byDept.map((r) => ({ label: r.key, ...r })), maxDept));
   }
 
+  // Realised savings come before the modelled ones: what actually happened
+  // outranks what a spreadsheet says could.
+  const savings = analytics.routingSavings(tenantId, range);
+  if (savings.routedCalls > 0 || savings.dryRunCalls > 0) {
+    out.push("");
+    out.push("  Auto-routing");
+    if (savings.routedCalls > 0) {
+      out.push(
+        `    realised         ${money(savings.realisedSaving)} across ` +
+          `${savings.routedCalls} rerouted call(s)`,
+      );
+    }
+    if (savings.dryRunCalls > 0) {
+      out.push(
+        `    dry run          ${money(savings.potentialSaving)} available across ` +
+          `${savings.dryRunCalls} call(s) — not yet saved`,
+      );
+    }
+    out.push("    (estimated: observed tokens priced at the requested model)");
+  }
+
   // The routing model, now anchored to a measured share rather than an assumed one.
   const routing = analyzeRouting(share);
   out.push("");

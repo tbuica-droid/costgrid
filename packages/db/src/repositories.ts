@@ -30,6 +30,13 @@ export interface CallRecord {
   readonly priced: boolean;
   /** Pricing modifiers in effect, so the row's cost is reproducible. */
   readonly modifiers?: PriceModifiers | undefined;
+  /** What the caller asked for, when a route rule changed it. */
+  readonly requestedModel?: string | undefined;
+  readonly routed?: boolean | undefined;
+  /** True when a route rule matched but was in dry-run mode. */
+  readonly routeDryRun?: boolean | undefined;
+  /** Counterfactual: requested-model cost minus actual. Signed. */
+  readonly savingEstimate?: Nanodollars | undefined;
   readonly outcome: CallOutcome;
   readonly statusCode?: number | undefined;
   readonly stopReason?: string | undefined;
@@ -195,14 +202,16 @@ export class CostGridRepository {
            input_tokens, output_tokens, cache_write_5m_tokens, cache_write_1h_tokens, cache_read_tokens,
            cost_input, cost_output, cost_cache_write, cost_cache_read, cost_total, priced,
            outcome, status_code, stop_reason, error_message,
-           speed, inference_geo, batch
+           speed, inference_geo, batch,
+           requested_model, routed, route_dry_run, saving_estimate
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
            @inputTokens, @outputTokens, @cacheWrite5m, @cacheWrite1h, @cacheRead,
            @costInput, @costOutput, @costCacheWrite, @costCacheRead, @costTotal, @priced,
            @outcome, @statusCode, @stopReason, @errorMessage,
-           @speed, @inferenceGeo, @batch
+           @speed, @inferenceGeo, @batch,
+           @requestedModel, @routed, @routeDryRun, @savingEstimate
          )`,
       )
       .run({
@@ -233,6 +242,10 @@ export class CostGridRepository {
         speed: call.modifiers?.speed ?? null,
         inferenceGeo: call.modifiers?.inferenceGeo ?? null,
         batch: call.modifiers?.batch === true ? 1 : 0,
+        requestedModel: call.requestedModel ?? null,
+        routed: call.routed === true ? 1 : 0,
+        routeDryRun: call.routeDryRun === true ? 1 : 0,
+        savingEstimate: call.savingEstimate ?? 0n,
       });
   }
 
