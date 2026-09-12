@@ -142,6 +142,28 @@ export class CostGridRepository {
     return { id: row.id, tenantId: row.tenantId, name: row.name };
   }
 
+  /** Keys a tenant has, without any secret material. */
+  listApiKeys(tenantId: string): {
+    id: string;
+    name: string;
+    prefix: string;
+    createdAt: number;
+    revokedAt: number | null;
+  }[] {
+    return this.#db
+      .prepare(
+        `SELECT id, name, key_prefix AS prefix, created_at AS createdAt, revoked_at AS revokedAt
+         FROM api_keys WHERE tenant_id = ? ORDER BY created_at DESC`,
+      )
+      .all(tenantId) as {
+      id: string;
+      name: string;
+      prefix: string;
+      createdAt: number;
+      revokedAt: number | null;
+    }[];
+  }
+
   revokeApiKey(id: string): void {
     this.#db.prepare("UPDATE api_keys SET revoked_at = ? WHERE id = ?").run(Date.now(), id);
   }

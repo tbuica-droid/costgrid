@@ -141,6 +141,75 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE calls ADD COLUMN batch INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 3,
+    name: "control-plane",
+    // Everything a hosted deployment needs that a self-hosted one does not:
+    // who the humans are, how they prove it, and whose provider credential
+    // pays for a given call.
+    sql: `
+      -- A person. Email is the login identity and is stored lower-cased so
+      -- "Tomas@x.com" and "tomas@x.com" cannot become two accounts.
+      CREATE TABLE users (
+        id             TEXT PRIMARY KEY,
+        email          TEXT NOT NULL UNIQUE,
+        name           TEXT NOT NULL,
+        password_hash  TEXT NOT NULL,
+        created_at     INTEGER NOT NULL,
+        last_login_at  INTEGER
+      ) STRICT;
+
+      -- Membership joins people to tenants. A user can belong to several.
+      -- 'owner' may manage billing, credentials and members; 'member' may not.
+      CREATE TABLE memberships (
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        role        TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+        created_at  INTEGER NOT NULL,
+        PRIMARY KEY (user_id, tenant_id)
+      ) STRICT;
+      CREATE INDEX idx_memberships_tenant ON memberships(tenant_id);
+
+      -- Only the hash of a session token is stored, so a database leak does
+      -- not hand an attacker live sessions.
+      CREATE TABLE sessions (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash  TEXT NOT NULL UNIQUE,
+        created_at  INTEGER NOT NULL,
+        expires_at  INTEGER NOT NULL,
+        revoked_at  INTEGER
+      ) STRICT;
+      CREATE INDEX idx_sessions_user ON sessions(user_id);
+      CREATE INDEX idx_sessions_expiry ON sessions(expires_at);
+
+      -- A tenant's own provider key, AES-256-GCM encrypted with a master key
+      -- held outside the database.
+      --
+      -- This is what makes hosting possible at all: without it every tenant's
+      -- traffic would bill to the operator's credential. 'secret_hint' is a
+      -- masked tail for recognition only and is never sensitive.
+      CREATE TABLE provider_credentials (
+        tenant_id      TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider       TEXT NOT NULL,
+        encrypted_key  TEXT NOT NULL,
+        secret_hint    TEXT NOT NULL,
+        base_url       TEXT,
+        created_at     INTEGER NOT NULL,
+        updated_at     INTEGER NOT NULL,
+        PRIMARY KEY (tenant_id, provider)
+      ) STRICT;
+
+      -- Subscription state. Kept on its own table rather than on tenants so a
+      -- plan change is an insert-and-supersede, not a destructive update.
+      CREATE TABLE subscriptions (
+        tenant_id   TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+        plan        TEXT NOT NULL,
+        started_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL
+      ) STRICT;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

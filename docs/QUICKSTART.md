@@ -1,5 +1,9 @@
 # Quickstart — metering your own LLM usage
 
+> This is the **self-hosted** path: one organisation, your own provider keys in
+> environment variables. To run CostGrid as a service other people sign up for,
+> see [HOSTING.md](./HOSTING.md).
+
 This is the shortest path from a clean checkout to a real spend report from
 your own traffic. It costs whatever your own calls cost and nothing more:
 CostGrid adds one local network hop and no charges of its own.

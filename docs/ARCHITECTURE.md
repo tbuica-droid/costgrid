@@ -34,6 +34,8 @@ packages/
   db/                   Schema, repositories, and read-side analytics.
   gateway/              The proxy: auth, enforcement, metering, passthrough.
     providers/          One adapter per upstream; the handler is generic.
+    console.ts          Hosted control plane: accounts, credentials, billing.
+    ratelimit.ts        Per-tenant fixed-window cap.
   cli/                  Operator surface: keys, policies, reports, backups.
 ```
 
@@ -41,6 +43,49 @@ packages/
 logic testable without a database or a network.
 
 ## Decisions worth knowing about
+
+### Hosted and self-hosted are one flag and two trust models
+
+Self-hosted uses the operator's provider keys from env vars, shared by all
+traffic — right for one organisation, catastrophic for many. Hosted stores each
+tenant's own key, encrypted, and resolves it per request. `COSTGRID_HOSTED=true`
+requires `COSTGRID_MASTER_KEY` and rejects `COSTGRID_ALLOW_ANONYMOUS`, both at
+boot, because either mistake would silently bill the wrong party.
+
+Operational details are in `HOSTING.md`, including what is deliberately not
+built (no payment processor, one node, no email).
+
+### Two secrets, two treatments
+
+A tenant's provider key must be *decryptable* — the gateway presents it
+upstream — so it is AES-256-GCM encrypted with a key derived from
+`COSTGRID_MASTER_KEY` and held outside the database. Neither a database dump
+nor the master key alone is enough. GCM authenticates, so a tampered row throws
+rather than yielding a corrupted key that would be sent to a provider.
+
+A password must *not* be decryptable, so it is scrypt-hashed with a per-user
+salt and a cost parameter stored alongside, allowing the cost to be raised
+later without invalidating existing passwords.
+
+Session tokens are stored only as digests, like API keys. Login runs a real
+verification against a dummy hash when the account does not exist, so response
+time cannot enumerate addresses, and returns one message for both failure
+causes.
+
+### The console is not the dashboard
+
+`/console` authenticates with a session cookie and manages accounts; `/api`
+authenticates with an API key and serves the dashboard. Keeping them apart
+means a browser session can never be used to spend tokens.
+
+Because cookies are attached to cross-site form posts, `SameSite=Lax` alone is
+not sufficient; every state-changing console route also checks that a declared
+`Origin` matches the `Host` it arrived on.
+
+Membership is checked on every console route rather than trusting a tenant id
+from the URL — otherwise any signed-in user could administer any organisation
+by guessing an id. A non-member gets 404, not 403, so the existence of an
+organisation is not leaked.
 
 ### Money is integer nanodollars, carried as `bigint`
 
@@ -242,7 +287,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-167 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+223 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.
@@ -266,8 +311,12 @@ billing history is unrecoverable without a backup.
   `/v1/chat/completions` is exposed.
 - `index.html` at the repo root is untouched and remains the seeded marketing
   demo, served by GitHub Pages. It is not the product dashboard.
-- No hosted control plane, billing, or signup. Deployment today is
-  self-hosted.
+- No payment processor. Plan changes record intent; an operator invoices.
+- SQLite means a single node: no horizontal scale, no HA. The schema is
+  Postgres-portable and the repository layer is the only code writing SQL, but
+  the swap has not been made.
+- Rate limiting is in-process, so the effective limit is `plan x instances`.
+- No email: no verification, password reset, or invitations.
 - `verify-pricing` is not yet wired to a scheduled CI job; it has to be run
   by hand today.
 - Batch API calls are priced correctly but not yet *detected* — the gateway

@@ -35,6 +35,18 @@ export interface GatewayConfig {
    * must stay false in any multi-tenant deployment.
    */
   readonly allowAnonymous: boolean;
+  /**
+   * Hosted mode: tenants sign up, bring their own provider credentials, and
+   * are billed. Enables the control plane and requires COSTGRID_MASTER_KEY.
+   *
+   * In self-hosted mode the operator's env-var keys serve everyone, which is
+   * exactly right for one organisation and exactly wrong for many.
+   */
+  readonly hosted: boolean;
+  /** Secret used to derive the key that encrypts tenants' provider credentials. */
+  readonly masterKeySecret: string | undefined;
+  /** Set Secure on session cookies. Must be true behind TLS; false breaks local http. */
+  readonly secureCookies: boolean;
   readonly logLevel: string;
 }
 
@@ -76,15 +88,36 @@ export function loadConfig(): GatewayConfig {
   const openaiBase = optional("OPENAI_BASE_URL");
   if (openaiBase !== undefined) providerBaseUrls.openai = openaiBase;
 
-  // A gateway with no upstream credential can meter nothing. Failing at boot
-  // beats accepting traffic and 404ing every call.
-  if (Object.keys(providerKeys).length === 0) {
+  const hosted = boolean("COSTGRID_HOSTED", false);
+  const masterKeySecret = optional("COSTGRID_MASTER_KEY");
+
+  if (hosted && masterKeySecret === undefined) {
     throw new Error(
-      "No provider credentials configured. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY.",
+      "COSTGRID_HOSTED=true requires COSTGRID_MASTER_KEY — tenants' provider keys " +
+        "cannot be encrypted without it. Generate one with: openssl rand -base64 48",
+    );
+  }
+
+  // Self-hosted mode meters nothing without an operator credential. Hosted
+  // mode does not need one: every tenant brings their own.
+  if (!hosted && Object.keys(providerKeys).length === 0) {
+    throw new Error(
+      "No provider credentials configured. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY, " +
+        "or set COSTGRID_HOSTED=true to let tenants supply their own.",
+    );
+  }
+
+  if (hosted && boolean("COSTGRID_ALLOW_ANONYMOUS", false)) {
+    throw new Error(
+      "COSTGRID_ALLOW_ANONYMOUS cannot be true in hosted mode — it would attribute " +
+        "every unauthenticated call to a single shared tenant.",
     );
   }
 
   return {
+    hosted,
+    masterKeySecret,
+    secureCookies: boolean("COSTGRID_SECURE_COOKIES", hosted),
     port: integer("COSTGRID_PORT", 8787),
     host: process.env["COSTGRID_HOST"]?.trim() || "127.0.0.1",
     databasePath: process.env["COSTGRID_DB"]?.trim() || "./costgrid.db",

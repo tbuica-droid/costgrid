@@ -66,7 +66,11 @@ describe("migrations", () => {
 
     migrate(db);
 
-    expect(appliedVersions(db)).toEqual([1, 2]);
+    // Asserted against SCHEMA_VERSION rather than a literal, so adding a
+    // migration does not require editing this test — only the assertions
+    // about what that migration actually did.
+    expect(appliedVersions(db).at(-1)).toBe(SCHEMA_VERSION);
+    expect(appliedVersions(db)).toEqual(MIGRATIONS.map((m) => m.version));
 
     const row = db.prepare("SELECT * FROM calls WHERE id = 'c1'").get() as Record<string, unknown>;
     // Pre-existing data survives, and the new columns take sane defaults:
@@ -76,6 +80,33 @@ describe("migrations", () => {
     expect(row["speed"]).toBeNull();
     expect(row["inference_geo"]).toBeNull();
     expect(row["batch"]).toBe(0);
+
+    db.close();
+  });
+
+  it("adds control-plane tables without touching metering data", () => {
+    const db = buildAtVersion(2);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    db.prepare(
+      `INSERT INTO calls (
+         id, tenant_id, agent_id, department, provider, model,
+         started_at, duration_ms, streamed, cost_total, outcome
+       ) VALUES ('c1', 't1', 'a', 'Eng', 'anthropic', 'claude-opus-5', 1000, 5, 0, 99, 'ok')`,
+    ).run();
+
+    migrate(db);
+
+    // The metering row is untouched...
+    expect(
+      (db.prepare("SELECT cost_total AS c FROM calls WHERE id = 'c1'").get() as { c: number }).c,
+    ).toBe(99);
+
+    // ...and the new tables exist and are empty. An existing tenant has no
+    // subscription row, which AccountsRepository reads as the free plan.
+    for (const table of ["users", "memberships", "sessions", "provider_credentials", "subscriptions"]) {
+      const row = db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number };
+      expect(row.n, table).toBe(0);
+    }
 
     db.close();
   });

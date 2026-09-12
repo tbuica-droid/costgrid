@@ -20,8 +20,13 @@ const CONTENT_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-export function registerDashboard(app: FastifyInstance): void {
+export function registerDashboard(app: FastifyInstance, options: { hosted?: boolean } = {}): void {
   app.get("/", async (_request, reply) => serve(reply, "index.html"));
+
+  // The console only exists where there are accounts to manage.
+  if (options.hosted === true) {
+    app.get("/console", async (_request, reply) => serve(reply, "console.html"));
+  }
 
   app.get("/app/:file", async (request, reply) => {
     const { file } = request.params as { file: string };

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   evaluatePolicies,
+  planFor,
   type PolicyScope,
   priceUsage,
   type RequestContext,
@@ -8,12 +9,20 @@ import {
   ZERO_COST,
   ZERO_USAGE,
 } from "@costgrid/core";
-import { Analytics, type CallRecord, CostGridRepository, trailingWindow } from "@costgrid/db";
+import {
+  type AccountsRepository,
+  Analytics,
+  type CallRecord,
+  CostGridRepository,
+  trailingWindow,
+} from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { registerApi } from "./api.js";
+import { registerConsole } from "./console.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
+import { RateLimiter } from "./ratelimit.js";
 
 const AGENT_HEADER = "x-costgrid-agent";
 const DEPARTMENT_HEADER = "x-costgrid-department";
@@ -23,6 +32,8 @@ export interface ServerDeps {
   readonly config: GatewayConfig;
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
+  /** Required in hosted mode; absent in self-hosted, where there are no accounts. */
+  readonly accounts?: AccountsRepository | undefined;
   /** Overridable for tests, which must never reach a real provider. */
   readonly fetchImpl?: typeof fetch;
 }
@@ -72,8 +83,35 @@ function identify(request: FastifyRequest, deps: ServerDeps): Caller | undefined
 }
 
 export function createServer(deps: ServerDeps): FastifyInstance {
-  const { config, repository, analytics } = deps;
+  const { config, repository, analytics, accounts } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
+  const rateLimiter = new RateLimiter();
+
+  if (config.hosted && accounts === undefined) {
+    throw new Error("hosted mode requires an AccountsRepository");
+  }
+
+  /**
+   * Find the credential to spend against for this call.
+   *
+   * Hosted: the tenant's own key, decrypted per request. Self-hosted: the
+   * operator's env-var key, shared by everyone — right for one organisation,
+   * wrong for many, which is the whole distinction between the two modes.
+   */
+  function resolveUpstream(
+    adapter: ProviderAdapter,
+    tenantId: string,
+  ): { apiKey: string; baseUrl: string } | undefined {
+    if (config.hosted) {
+      const stored = accounts!.revealCredential(tenantId, adapter.id);
+      if (!stored) return undefined;
+      return { apiKey: stored.apiKey, baseUrl: stored.baseUrl ?? adapter.defaultBaseUrl };
+    }
+
+    const apiKey = config.providerKeys[adapter.id];
+    if (apiKey === undefined) return undefined;
+    return { apiKey, baseUrl: config.providerBaseUrls[adapter.id] ?? adapter.defaultBaseUrl };
+  }
 
   const app = Fastify({
     logger: { level: config.logLevel },
@@ -85,10 +123,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   app.get("/health", async () => ({
     status: "ok",
     version: "0.1.0",
-    providers: ADAPTERS.filter((a) => config.providerKeys[a.id] !== undefined).map((a) => ({
-      id: a.id,
-      path: a.path,
-    })),
+    hosted: config.hosted,
+    providers: ADAPTERS.filter((a) => config.hosted || config.providerKeys[a.id] !== undefined).map(
+      (a) => ({ id: a.id, path: a.path }),
+    ),
   }));
 
   // The dashboard API and the proxy share a process so a self-hosted deploy is
@@ -99,7 +137,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     analytics,
     tenantOf: (request) => identify(request, deps)?.tenantId,
   });
-  registerDashboard(app);
+  if (config.hosted) {
+    registerConsole(app, { config, accounts: accounts!, repository, analytics });
+  }
+  registerDashboard(app, { hosted: config.hosted });
 
   /**
    * The proxy, once per provider.
@@ -109,7 +150,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
    * configured credential is not registered at all: the caller gets a clean
    * 404 rather than an upstream auth error they cannot act on.
    */
-  function proxyHandler(adapter: ProviderAdapter, apiKey: string) {
+  function proxyHandler(adapter: ProviderAdapter) {
     return async (request: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
       const startedAt = Date.now();
       const caller = identify(request, deps);
@@ -118,6 +159,40 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         return reply.code(401).send({
           type: "error",
           error: { type: "authentication_error", message: "Invalid or missing CostGrid API key." },
+        });
+      }
+
+      // --- Rate limit, before any work is done on the request ---------------
+      const plan = planFor(accounts?.planOf(caller.tenantId) ?? "business");
+      const limit = rateLimiter.check(caller.tenantId, plan.rateLimitPerMinute, startedAt);
+      reply.header("x-ratelimit-limit", String(limit.limit));
+      reply.header("x-ratelimit-remaining", String(limit.remaining));
+      reply.header("x-ratelimit-reset", String(Math.ceil(limit.resetAt / 1000)));
+
+      if (!limit.allowed) {
+        reply.header("retry-after", String(limit.retryAfterSeconds));
+        return reply.code(429).send({
+          type: "error",
+          error: {
+            type: "rate_limit_error",
+            message:
+              `Rate limit of ${limit.limit} requests/minute exceeded for the ` +
+              `${plan.name} plan. Retry in ${limit.retryAfterSeconds}s.`,
+          },
+        });
+      }
+
+      const upstreamCredential = resolveUpstream(adapter, caller.tenantId);
+      if (!upstreamCredential) {
+        return reply.code(400).send({
+          type: "error",
+          error: {
+            type: "provider_not_configured",
+            message: config.hosted
+              ? `No ${adapter.id} credential configured for this organisation. ` +
+                "Add one in Settings before routing traffic to it."
+              : `No ${adapter.id} credential configured. Set ${adapter.apiKeyEnvVar}.`,
+          },
         });
       }
 
@@ -177,7 +252,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       // --- Forward upstream -------------------------------------------------
-      const baseUrl = config.providerBaseUrls[adapter.id] ?? adapter.defaultBaseUrl;
+      const { apiKey, baseUrl } = upstreamCredential;
       const upstreamHeaders: Record<string, string> = {
         "content-type": "application/json",
         ...adapter.authHeaders(apiKey),
@@ -302,10 +377,11 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     };
   }
 
+  // Hosted mode registers every provider, because whether a tenant can use
+  // one depends on their own stored credential, not on startup config.
   for (const adapter of ADAPTERS) {
-    const apiKey = config.providerKeys[adapter.id];
-    if (apiKey === undefined) continue;
-    app.post(adapter.path, proxyHandler(adapter, apiKey));
+    if (!config.hosted && config.providerKeys[adapter.id] === undefined) continue;
+    app.post(adapter.path, proxyHandler(adapter));
   }
 
   app.get("/v1/costgrid/summary", async (request, reply) => {
