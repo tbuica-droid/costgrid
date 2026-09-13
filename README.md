@@ -209,7 +209,7 @@ sources support quantifying it.
 
 ## Author
 
-Built by Tomas Buica.
+Built by Tomas Buica &mdash; <tomasbuica@outlook.com>.
 
 ## License
 

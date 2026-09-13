@@ -107,7 +107,9 @@ Stated up front, because finding out in week three wastes your time:
 
 ## Getting help during the trial
 
-Open an issue: <https://github.com/tbuica-droid/costgrid/issues>.
+Email me directly: <tomasbuica@outlook.com>. I read these myself and usually
+reply the same day. Bugs are also welcome as issues:
+<https://github.com/tbuica-droid/costgrid/issues>.
 
 If something is wrong with the *numbers* — a price that disagrees with your
 invoice, a call attributed to the wrong team — that is the highest-priority kind
