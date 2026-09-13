@@ -22,9 +22,12 @@
   ::selection { background: #9d7b1f; color: #f5f2e9; }
   input[type="range"] { accent-color: #0f1411; }
   h1, h2, h3, p { text-wrap: pretty; }
-  /* Long code samples scroll inside their own box; grid children default to
-     min-width:auto, which would otherwise push the whole page sideways. */
-  .grid > * { min-width: 0; }
+  /* Grid children default to min-width:auto, so one wide thing inside a column
+     — the pricing table, a long code line — stretches the column past the
+     viewport and drags every sibling paragraph off-screen with it. This is
+     what makes an `overflow-x:auto` wrapper actually scroll instead of blow
+     out the page. */
+  .grid > *, .sec-grid > *, .hero-grid > * { min-width: 0; }
   pre { overflow-x: auto; }
 </style>
 <style>
@@ -68,6 +71,47 @@
 @media (max-width: 900px) {
   .hero-grid { grid-template-columns:1fr; }
   .hero-grid > div:first-child { border-right:0 !important; }
+  /* The tagline is nowrap, so on a narrow header it refuses to shrink and
+     slides underneath the wordmark instead of wrapping. */
+  .hdr-tagline { display:none; }
+}
+@media (max-width: 760px) {
+  /* Four anchors plus a button cannot fit a phone header. The button is the
+     one thing that has to survive: everything it links to is a scroll away. */
+  .hdr-links { display:none; }
+  .hdr-cta { padding:9px 13px !important; font-size:11px !important; }
+}
+@media (max-width: 380px) {
+  .hdr-cta { padding:9px 11px !important; font-size:10.5px !important; }
+}
+
+/* A desktop dashboard inside a 350px iframe is two nested scrollbars and no
+   comprehension. Phones get a tap-through to the real thing instead. */
+.demo-tap { display:none; }
+@media (max-width: 820px) {
+  .demo-embed { display:none; }
+  .demo-tap { display:block; }
+}
+
+/* "What you get" rows: the mono tag sits beside the prose on a wide screen and
+   under it on a phone, where a second column leaves the paragraph a ribbon. */
+@media (max-width: 700px) {
+  .row-2col { grid-template-columns:1fr !important; gap:10px !important; }
+  .row-2col > div:last-child {
+    padding-left:clamp(12px,1.5vw,22px) !important;
+    padding-right:0 !important;
+  }
+  /* Stacked research cards should share one left edge. */
+  .link-cards > a { padding-left:0 !important; padding-right:0 !important; border-right:0 !important; }
+  /* The plan table scrolls sideways on a phone; say so, because a scroll
+     container with no visible edge is a column nobody knows to look for. */
+  .swipe-hint { display:block !important; }
+}
+
+/* iOS Safari zooms the whole page when a focused input is under 16px, which
+   throws the layout sideways mid-form. 16px is the threshold, not a taste. */
+@media (max-width: 820px) {
+  .fld input, .fld select, .fld textarea { font-size:16px; }
 }
 @media (max-width: 820px) {
   .sec-grid { grid-template-columns:1fr; }
@@ -86,14 +130,14 @@
   <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 clamp(20px,3.5vw,56px);height:58px;background:rgba(245,242,233,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(15,20,17,0.16)">
     <div style="display:flex;align-items:baseline;gap:14px;min-width:0">
       <span style="font-size:17px;font-weight:700;letter-spacing:-0.02em">CostGrid</span>
-      <span style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);white-space:nowrap">Agentic FinOps &amp; AI governance</span>
+      <span class="hdr-tagline" style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);white-space:nowrap">Agentic FinOps &amp; AI governance</span>
     </div>
     <nav style="display:flex;align-items:center;gap:clamp(12px,2vw,30px);font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em">
-      <a href="#how" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv1">How it works</a>
-      <a href="#dial" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv2">The dial</a>
-      <a href="#pricing" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3">Pricing</a>
-      <a href="./demo/" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv4">Demo</a>
-      <a href="#trial" style="display:inline-flex;align-items:center;gap:8px;background:#0f1411;color:#f5f2e9;padding:8px 14px;text-decoration:none;white-space:nowrap" class="hv5">Start free trial <span style="font-family:'Libre Franklin',sans-serif">&#8594;</span></a>
+      <a href="#how" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv1 hdr-links">How it works</a>
+      <a href="#dial" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv2 hdr-links">The dial</a>
+      <a href="#pricing" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">Pricing</a>
+      <a href="./demo/" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv4 hdr-links">Demo</a>
+      <a href="#trial" class="hv5 hdr-cta" style="display:inline-flex;align-items:center;gap:8px;background:#0f1411;color:#f5f2e9;padding:8px 14px;text-decoration:none;white-space:nowrap">Start free trial <span style="font-family:'Libre Franklin',sans-serif">&#8594;</span></a>
     </nav>
   </header>
 
@@ -198,7 +242,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
         <h2 style="margin:0 0 clamp(26px,3vw,40px);font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">Reporting a saving is advice. Making one is a product.</h2>
         <div style="border-top:1px solid rgba(15,20,17,0.16)">
 
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)" class="grid">
+          <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
               <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Exact metering, not estimates</div>
               <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Token counts come from each provider&rsquo;s own <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">usage</code> object. Five buckets priced independently &mdash; input, output, 5-minute and 1-hour cache writes, cache reads &mdash; because a cache-heavy workload is mispriced by anything that lumps them together. 53 models, re-verified against the published tables.</p>
@@ -206,7 +250,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">no guessing</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(157,123,31,0.09)" class="grid">
+          <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(157,123,31,0.09)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
               <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Budgets that don&rsquo;t break production</div>
               <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">The reason nobody turns on a hard cap is that it breaks the product at 3am. A CostGrid cap can <em>downgrade</em> instead: over-budget traffic is served by a cheaper model and keeps answering, with a response header saying so. It refuses any substitution it cannot make safely &mdash; across providers, or to a model it cannot price.</p>
@@ -214,7 +258,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:#9d7b1f;padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">the difference</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)" class="grid">
+          <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
               <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Savings you can audit</div>
               <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A routing rule moves matching traffic to a cheaper model and records the counterfactual: what those exact tokens would have cost on the model the caller asked for. Realised savings are reported separately from dry-run ones, so the number can be checked rather than believed.</p>
@@ -222,7 +266,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">measured</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)" class="grid">
+          <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
               <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">A statement finance can reconcile</div>
               <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A closed calendar month in UTC &mdash; not a trailing window &mdash; because that is how the provider invoices. Spend by team with movement against last month, budget status, what routing saved. Text, CSV or JSON.</p>
@@ -312,7 +356,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">The actual dashboard, running on sample traffic.</h2>
         <p style="margin:18px 0 clamp(24px,2.6vw,32px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Not a mockup and not a video &mdash; this is the product&rsquo;s own dashboard bundle, served against a snapshot of 526 metered calls from a six-agent fleet. Every number in it was computed by the same code that would price your traffic. Click into it.</p>
 
-        <div style="border:1px solid rgba(15,20,17,0.28);background:rgba(15,20,17,0.035)">
+        <div class="demo-embed" style="border:1px solid rgba(15,20,17,0.28);background:rgba(15,20,17,0.035)">
           <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(15,20,17,0.16);font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.5)">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9d7b1f"></span>
             Live demo &middot; sample traffic
@@ -320,6 +364,35 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           <iframe src="./demo/" title="CostGrid dashboard demo" loading="lazy"
                   style="display:block;width:100%;height:min(72vh,620px);border:0;background:#f5f2e9"></iframe>
         </div>
+
+        <a href="./demo/" class="demo-tap" style="text-decoration:none;border:1px solid rgba(15,20,17,0.28);background:rgba(15,20,17,0.035)">
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(15,20,17,0.16);font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.5)">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9d7b1f"></span>
+            Live demo &middot; sample traffic
+          </div>
+          <div style="padding:26px 20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px 14px">
+              <div>
+                <div style="font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Spend</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.02em;margin-top:4px">$22.40</div>
+              </div>
+              <div>
+                <div style="font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Calls</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.02em;margin-top:4px">526</div>
+              </div>
+              <div>
+                <div style="font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Cache hit ratio</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.02em;margin-top:4px">27.8%</div>
+              </div>
+              <div>
+                <div style="font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Saved by routing</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.02em;margin-top:4px;color:#2f6b4f">$1.62</div>
+              </div>
+            </div>
+            <div style="margin-top:24px;display:inline-flex;align-items:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:13px 20px;font-family:'Fragment Mono',monospace;font-size:12px;letter-spacing:0.04em">OPEN THE DASHBOARD &#8594;</div>
+            <p style="margin:14px 0 0;font-family:'Fragment Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(15,20,17,0.5)">Best on a wider screen &mdash; it is a real dashboard, not a summary.</p>
+          </div>
+        </a>
 
         <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:22px">
           <a href="./demo/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:13px 20px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12px;letter-spacing:0.04em" class="hv10">OPEN THE DEMO FULL-SCREEN &#8594;</a>
@@ -369,6 +442,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">You run the software. The fee is for the product, not for hosting your data.</h2>
         <p style="margin:18px 0 clamp(26px,3vw,34px);max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Thirty days free on every plan, and the source is public &mdash; read it before you run it.</p>
+        <p class="swipe-hint" style="display:none;margin:0 0 12px;font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.45)">Swipe the table for included calls &amp; seats &#8594;</p>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-family:'Fragment Mono',monospace;font-size:13px;min-width:560px">
             <thead>
@@ -512,7 +586,7 @@ npm run gateway
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 18px;font-size:clamp(22px,2.2vw,32px);font-weight:600;letter-spacing:-0.025em;line-height:1.15;max-width:34ch;text-wrap:balance">A cost model first, a product second.</h2>
         <p style="margin:0 0 clamp(26px,3vw,34px);max-width:64ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">CostGrid began as research into why AI bills rise while token prices fall &mdash; six modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact, driven from a single assumptions sheet. The routing maths in the product is that model. The difference is that the product measures your real numbers instead of assuming them.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:1px solid rgba(15,20,17,0.28)" class="grid">
+        <div class="grid link-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:1px solid rgba(15,20,17,0.28)">
           <a href="./thesis.html" style="display:block;padding:20px clamp(16px,2vw,24px) 20px 0;border-bottom:1px solid rgba(15,20,17,0.12);border-right:1px solid rgba(15,20,17,0.12);text-decoration:none">
             <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.45);margin-bottom:8px">The thesis</div>
             <div style="font-size:15px;line-height:1.5">Why unit price is the wrong thing to watch &#8594;</div>
