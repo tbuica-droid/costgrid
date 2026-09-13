@@ -1,0 +1,1 @@
+{"routedCalls":18,"dryRunCalls":0,"realisedUsd":"1.620000","potentialUsd":"0.000000","basis":"observed tokens priced at the requested model","breakdown":[{"requestedModel":"claude-opus-5","servedModel":"claude-haiku-4-5","dryRun":false,"calls":18,"savingUsd":"1.620000","costUsd":"0.342000"}]}

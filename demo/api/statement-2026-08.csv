@@ -1,0 +1,25 @@
+CostGrid statement,2026-08
+Generated,2026-09-13T00:30:34.346Z
+Status,complete
+
+section,item,calls,cost_usd,share_pct,previous_cost_usd,change_pct
+total,all spend,320,11.041500,100.0,0.000000,
+department,Support,160,5.568000,50.4,0.000000,
+department,Engineering,120,4.176000,37.8,0.000000,
+department,Marketing,25,0.870000,7.9,0.000000,
+department,Unassigned,15,0.427500,3.9,0.000000,
+agent,chat-bot,40,3.480000,31.5,0.000000,
+agent,code-review,30,2.610000,23.6,0.000000,
+agent,ticket-triage,120,2.088000,18.9,0.000000,
+agent,lint-bot,90,1.566000,14.2,0.000000,
+agent,docs-writer,25,0.870000,7.9,0.000000,
+agent,unattributed,15,0.427500,3.9,0.000000,
+model,claude-opus-5,70,6.090000,55.2,0.000000,
+model,claude-haiku-4-5,210,3.654000,33.1,0.000000,
+model,claude-sonnet-5,25,0.870000,7.9,0.000000,
+model,gpt-5,15,0.427500,3.9,0.000000,
+saving,realised by auto-routing,0,0.000000,,,
+
+budget,scope,window,action,limit_usd,actual_usd,used_pct,days_over
+"monthly budget, fallback claude-haiku-4-5",whole account,month,block,40.000000,11.041500,27.6,
+daily cap,dept:Support,day,warn,1.500000,0.243600,16.2,0

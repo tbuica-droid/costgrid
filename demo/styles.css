@@ -1,0 +1,244 @@
+/*
+ * Dashboard styling.
+ *
+ * Deliberately shares the marketing site's palette and type — cream ground,
+ * near-black ink, gold accent, rust for anything that costs money or went
+ * wrong. A prospect who sees the site and then the product should recognise
+ * the second as the first.
+ *
+ * No CSS framework and no webfont CDN: the gateway may run inside a network
+ * that cannot reach either, and a dashboard that renders unstyled in a
+ * customer's VPC is worse than a plainer one that always works.
+ */
+
+:root {
+  --bg: #f5f2e9;
+  --ink: #0f1411;
+  --gold: #9d7b1f;
+  --rust: #a8452a;
+  --green: #2f6b4f;
+  --rule: rgba(15, 20, 17, 0.16);
+  --rule-soft: rgba(15, 20, 17, 0.08);
+  --muted: rgba(15, 20, 17, 0.6);
+  --muted-strong: rgba(15, 20, 17, 0.75);
+  --panel: rgba(15, 20, 17, 0.035);
+
+  --sans: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+  --mono: "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 clamp(16px, 3vw, 40px);
+  height: 56px;
+  background: rgba(245, 242, 233, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+
+.tagline {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+nav { display: flex; gap: 4px; margin-left: auto; }
+
+nav button {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+nav button:hover { color: var(--ink); }
+nav button[aria-current="true"] { color: var(--bg); background: var(--ink); }
+
+select {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+}
+
+main { padding: clamp(20px, 3vw, 40px); max-width: 1400px; }
+
+/* ------------------------------------------------------------- structure */
+
+h2 {
+  font-size: clamp(19px, 2vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+
+.section-note {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 22px;
+  max-width: 74ch;
+  line-height: 1.5;
+}
+
+.rail {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.grid { display: grid; gap: 18px; }
+.cols-4 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+
+.card { border: 1px solid var(--rule); padding: 18px; background: var(--bg); }
+.card.sunk { background: var(--panel); }
+
+.kpi-value {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin: 8px 0 4px;
+  line-height: 1.1;
+}
+
+.kpi-sub { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+.accent-gold { color: var(--gold); }
+.accent-rust { color: var(--rust); }
+.accent-green { color: var(--green); }
+
+/* ---------------------------------------------------------------- tables */
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+
+th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: left;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--rule-soft); }
+tbody tr:hover { background: var(--panel); }
+
+.num { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+th.num { text-align: right; padding-right: 0; }
+td.num { padding-right: 0; }
+
+.scroll-x { overflow-x: auto; }
+
+/* ----------------------------------------------------------------- misc */
+
+.tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.tag.block { border-color: var(--rust); color: var(--rust); }
+.tag.warn { border-color: var(--gold); color: var(--gold); }
+.tag.monitor { color: var(--muted); }
+.tag.on { border-color: var(--green); color: var(--green); }
+.tag.off { color: var(--muted); }
+
+.banner {
+  border: 1px solid var(--rust);
+  border-left-width: 3px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted-strong);
+}
+
+.banner strong { color: var(--rust); }
+
+.empty {
+  border: 1px dashed var(--rule);
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.empty code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel);
+  padding: 2px 6px;
+}
+
+svg { display: block; width: 100%; height: auto; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.swatch { display: inline-block; width: 9px; height: 9px; margin-right: 6px; }
+
+footer {
+  border-top: 1px solid var(--rule);
+  margin-top: 40px;
+  padding: 16px clamp(16px, 3vw, 40px);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  justify-content: space-between;
+}
+
+@media (max-width: 720px) {
+  header { flex-wrap: wrap; height: auto; padding-block: 10px; gap: 10px; }
+  .tagline { display: none; }
+  nav { margin-left: 0; width: 100%; overflow-x: auto; }
+}

@@ -410,8 +410,12 @@ billing history is unrecoverable without a backup.
   adapter and its own catalog.
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
-- `index.html` at the repo root is untouched and remains the seeded marketing
-  demo, served by GitHub Pages. It is not the product dashboard.
+- The GitHub Pages site is static. `index.html` is the product page,
+  `research.html` the original seeded research dashboard, and `demo/` runs the
+  *real* dashboard bundle against captured API snapshots — a transport swap in
+  `demo/demo-data.js` and nothing else, so the demo cannot drift from the
+  product by reimplementing any of its numbers. Refreshing it means re-capturing
+  the snapshots from a seeded gateway by hand.
 - No payment processor. Plan changes record intent; an operator invoices.
 - SQLite means a single node: no horizontal scale, no HA. The schema is
   Postgres-portable and the repository layer is the only code writing SQL, but

@@ -1,848 +1,410 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CostGrid | LLM Inference Cost Governance</title>
-<link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CostGrid — meter, attribute and cap your LLM API spend</title>
+<meta name="description" content="CostGrid sits in front of your LLM API calls: exact metering from provider usage data, per-team attribution, budgets enforced before the money is spent, and a monthly statement finance can reconcile." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230f1411'/><rect x='3' y='9' width='2' height='4' fill='%239d7b1f'/><rect x='7' y='5' width='2' height='8' fill='%23f5f2e9'/><rect x='11' y='7' width='2' height='6' fill='%23a8452a'/></svg>" />
 <style>
-  html{font-family:'Inter',system-ui,sans-serif}
-  .view{display:none;animation:fadeIn .28s ease}
-  .view.active{display:block}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .navlink{transition:all .15s ease}
-  .navlink.active{background:rgba(30,64,175,.55);color:#fff}
-  .navlink:not(.active):hover{background:rgba(255,255,255,.06)}
-  .kpi-card{transition:box-shadow .2s ease}
-  .kpi-card:hover{box-shadow:0 8px 24px -8px rgba(15,23,42,.18)}
-  .fact{transition:opacity .5s ease}
-  .tl-tooltip{position:relative}
-  .tl-tooltip .tl-tip{visibility:hidden;opacity:0;transition:opacity .15s ease;position:absolute;z-index:50;bottom:calc(100% + 8px);left:0;width:340px;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.5;padding:10px 12px;border-radius:10px;box-shadow:0 12px 30px -6px rgba(15,23,42,.45)}
-  .tl-tooltip:hover .tl-tip{visibility:visible;opacity:1}
-  .toggle{width:38px;height:22px;border-radius:9999px;background:#cbd5e1;position:relative;cursor:pointer;transition:background .15s ease;flex:none}
-  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:9999px;background:#fff;transition:left .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.25)}
-  .toggle.on{background:#1e40af}
-  .toggle.on::after{left:19px}
-  .modebtn{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;color:#64748b;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
-  .modebtn.sel{background:#1e40af;color:#fff}
-  .exp-row td{background:#f8fafc}
-  input[type=range]{-webkit-appearance:none;appearance:none;height:8px;border-radius:9999px;background:linear-gradient(90deg,#1e40af,#059669);outline:none}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:9999px;background:#fff;border:4px solid #1e40af;cursor:pointer;box-shadow:0 2px 8px rgba(15,23,42,.35)}
-  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:9999px;background:#fff;border:4px solid #1e40af;cursor:pointer}
-  @media print{
-    aside,header,.no-print{display:none!important}
-    main{margin-left:0!important;padding:0!important}
-    .view{display:none!important}
-    #view-reports{display:block!important}
-    body{background:#fff!important}
-    .print-break{page-break-inside:avoid}
-  }
+/*
+ * Same palette and type as the product dashboard: a prospect who sees this
+ * page and then the software should recognise the second as the first.
+ * No framework, no webfont CDN — the page has to render everywhere.
+ */
+:root {
+  --bg: #f5f2e9;
+  --ink: #0f1411;
+  --gold: #9d7b1f;
+  --rust: #a8452a;
+  --green: #2f6b4f;
+  --rule: rgba(15, 20, 17, 0.16);
+  --rule-soft: rgba(15, 20, 17, 0.08);
+  --muted: rgba(15, 20, 17, 0.62);
+  --panel: rgba(15, 20, 17, 0.035);
+  --sans: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+  --mono: "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--ink); text-decoration-color: var(--gold); text-underline-offset: 3px; }
+a:hover { color: var(--gold); }
+code, pre { font-family: var(--mono); }
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+header {
+  border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0; background: var(--bg); z-index: 10;
+}
+header .wrap { display: flex; align-items: center; gap: 16px; height: 58px; }
+.brand { font-weight: 700; letter-spacing: -0.01em; font-size: 17px; }
+.tagline {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+}
+header nav { margin-left: auto; display: flex; gap: 18px; font-size: 13px; }
+@media (max-width: 640px) { .tagline { display: none; } }
+
+h1 {
+  font-size: clamp(30px, 5.2vw, 50px); line-height: 1.08;
+  letter-spacing: -0.025em; margin: 0 0 20px; font-weight: 700;
+}
+h2 {
+  font-size: 13px; font-family: var(--mono); letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500;
+  margin: 0 0 22px; padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+}
+h3 { font-size: 17px; margin: 0 0 8px; letter-spacing: -0.01em; }
+p { margin: 0 0 16px; }
+section { padding: 60px 0; border-bottom: 1px solid var(--rule-soft); }
+.lede { font-size: 19px; max-width: 44em; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+.hero { padding: 76px 0 60px; }
+.hero .lede { font-size: 20px; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.btn {
+  display: inline-block; padding: 11px 20px; font-size: 14px;
+  border: 1px solid var(--ink); text-decoration: none; background: transparent;
+}
+.btn:hover { background: var(--ink); color: var(--bg); }
+.btn.primary { background: var(--ink); color: var(--bg); }
+.btn.primary:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+
+pre.term {
+  background: var(--ink); color: #e8e4d8; padding: 20px 22px; overflow-x: auto;
+  font-size: 12.5px; line-height: 1.65; margin: 0; border-radius: 2px;
+}
+pre.term .g { color: #c9a227; }
+pre.term .m { color: rgba(232, 228, 216, 0.55); }
+pre.snippet {
+  background: var(--panel); border: 1px solid var(--rule-soft);
+  padding: 16px 18px; overflow-x: auto; font-size: 13px; margin: 0 0 16px;
+}
+
+.grid { display: grid; gap: 18px; }
+/* Grid items default to min-width:auto, so one long line inside a <pre> would
+   push the whole page sideways instead of scrolling inside its own box. */
+.grid > * { min-width: 0; }
+.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.cols-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 760px) { .cols-2, .cols-3 { grid-template-columns: 1fr; } }
+
+.card { border: 1px solid var(--rule); padding: 22px; background: var(--panel); }
+.rail {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+}
+.step-n {
+  font-family: var(--mono); font-size: 26px; color: var(--gold);
+  line-height: 1; margin-bottom: 12px;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--rule-soft); }
+th {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500;
+}
+td.num, th.num { text-align: right; font-family: var(--mono); }
+.plan-price { font-size: 22px; font-family: var(--mono); }
+
+dl { margin: 0; }
+dt { font-weight: 600; margin-top: 20px; }
+dt:first-child { margin-top: 0; }
+dd { margin: 6px 0 0; color: var(--muted); }
+
+footer { padding: 40px 0 60px; font-size: 13px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; }
 </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased">
+<body>
 
-<!-- ============ SIDEBAR ============ -->
-<aside class="fixed inset-y-0 left-0 w-64 bg-[#0f172a] text-slate-300 flex flex-col z-40">
-  <div class="px-5 pt-6 pb-5 border-b border-white/10">
-    <div class="flex items-center gap-3">
-      <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="9" fill="#1e40af"/><circle cx="17" cy="17" r="8.5" stroke="#93c5fd" stroke-width="2.5" fill="none"/><circle cx="17" cy="17" r="3" fill="#34d399"/><path d="M23 23 L29 29" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round"/></svg>
+<header>
+  <div class="wrap">
+    <span class="brand">CostGrid</span>
+    <span class="tagline">Agentic FinOps &amp; AI governance</span>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="./demo/">Demo</a>
+      <a href="https://github.com/tbuica-droid/costgrid">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <h1>Your software calls an LLM API.<br />CostGrid meters it, bills it back, and stops it running away.</h1>
+  <p class="lede">Point your SDK at CostGrid instead of the provider. Every call is priced
+    from the provider's own token counts, attributed to a team and a feature, and checked
+    against your budgets <em>before</em> the money is spent. One line of configuration, no
+    SDK to install, no code to change.</p>
+  <div class="cta-row">
+    <a class="btn primary" href="https://github.com/tbuica-droid/costgrid/blob/main/docs/TRIAL.md">Start a free trial</a>
+    <a class="btn" href="./demo/">See the dashboard</a>
+    <a class="btn" href="https://github.com/tbuica-droid/costgrid">Read the source</a>
+  </div>
+</div>
+
+<section id="problem">
+  <div class="wrap">
+    <h2>The problem</h2>
+    <div class="grid cols-2">
       <div>
-        <div class="text-white font-800 font-extrabold text-lg leading-none tracking-tight">CostGrid</div>
-        <div class="text-[10px] text-slate-400 mt-1 leading-tight">Agentic FinOps &amp; AI Governance</div>
+        <p>Per-token prices keep falling and AI bills keep rising. Unit price is the wrong
+          thing to watch: spend is price multiplied by volume, and volume wins. An agent
+          that retries, a prompt that grew, a feature shipped on the frontier model
+          "just to be safe" — none of it shows up until the invoice does.</p>
+        <p>By then the provider bill is a single number for the whole company. It cannot
+          tell you which team spent it, which feature, or which of them was worth it.</p>
+      </div>
+      <div>
+        <p><strong>The usual answers do not work.</strong> A dashboard built on the
+          provider's billing export arrives days late and has no idea what a "team" is.
+          Spreadsheets estimate tokens instead of counting them. Neither can refuse a
+          call, which means neither can stop anything.</p>
+        <p>Reporting a saving is advice. CostGrid is in the request path, so it can
+          actually make one.</p>
       </div>
     </div>
   </div>
-  <nav class="flex-1 px-3 py-4 space-y-1 text-sm font-medium" id="nav"></nav>
-  <div class="px-5 py-4 border-t border-white/10">
-    <div class="text-[11px] text-slate-500 mt-2">Client: <span class="text-slate-300 font-semibold">Meridian Financial</span></div>
-    <div class="text-[11px] text-slate-500">14 agents · 6 departments · ~2,400 employees</div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <div class="grid cols-3">
+      <div class="card">
+        <div class="step-n">1</div>
+        <h3>Change one line</h3>
+        <p class="small">Point your client's base URL at CostGrid. It forwards to the same
+          provider with the same request, streaming included.</p>
+        <pre class="snippet">client = Anthropic(
+  base_url="https://costgrid.acme.dev",
+  api_key="unused",
+)</pre>
+        <p class="small muted">Your provider key lives in CostGrid, so the services calling
+          through it never hold one. Anthropic and OpenAI today.</p>
+      </div>
+      <div class="card">
+        <div class="step-n">2</div>
+        <h3>Label the traffic</h3>
+        <p class="small">Two optional headers turn one provider invoice into per-team,
+          per-feature chargeback.</p>
+        <pre class="snippet">x-costgrid-agent: chat-bot
+x-costgrid-department: Support</pre>
+        <p class="small muted">Unlabelled calls are still metered — they show up as
+          <code>unattributed</code>, a visible cost line rather than a silent gap.</p>
+      </div>
+      <div class="card">
+        <div class="step-n">3</div>
+        <h3>Set the rules</h3>
+        <p class="small">Budgets per team or per agent, model allowlists, output caps.
+          Start in <code>monitor</code> to watch, then enforce.</p>
+        <pre class="snippet">costgrid policy budget \
+  dept:Engineering 500.00 \
+  --fallback claude-haiku-4-5</pre>
+        <p class="small muted">A blocked call is refused before it is forwarded, so it
+          costs nothing.</p>
+      </div>
+    </div>
   </div>
-</aside>
+</section>
 
-<!-- ============ MAIN ============ -->
-<main class="ml-64 min-h-screen">
-  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200 px-8 py-4 flex items-center justify-between">
-    <div>
-      <h1 id="view-title" class="text-xl font-bold text-slate-900">Overview</h1>
-      <p id="view-sub" class="text-xs text-slate-500 mt-0.5">Portfolio-wide AI spend, routing posture and enforcement</p>
-    </div>
-    <div class="flex items-center gap-3">
-      <span class="text-[11px] font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Demo — illustrative data, mid-2026 snapshot</span>
-      <span class="text-[11px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Meridian Financial</span>
-    </div>
-  </header>
+<section id="what">
+  <div class="wrap">
+    <h2>What you get</h2>
+    <div class="grid cols-2">
+      <div>
+        <h3>Exact metering, not estimates</h3>
+        <p class="small">Token counts come from each provider's own <code>usage</code>
+          object. Five buckets are priced independently — input, output, 5-minute and
+          1-hour cache writes, cache reads — because they cost different amounts and a
+          cache-heavy workload is mispriced by anything that lumps them together. Money is
+          integer arithmetic end to end; nothing rounds until it is displayed.</p>
 
-  <div class="p-8 max-w-[1320px]">
+        <h3>Budgets that do not break production</h3>
+        <p class="small">The reason nobody turns on a hard cap is that it breaks the
+          product at 3am. A CostGrid cap can <em>downgrade</em> instead: over-budget
+          traffic is served by a cheaper model and keeps answering, with a response header
+          saying so. It refuses to make a substitution it cannot make safely — across
+          providers, or to a model it cannot price.</p>
 
-  <!-- ============ VIEW 1: OVERVIEW ============ -->
-  <section id="view-overview" class="view">
-    <div class="grid grid-cols-4 gap-5" id="kpi-cards"></div>
+        <h3>Savings you can audit</h3>
+        <p class="small">A routing rule sends matching traffic to a cheaper model and
+          records the counterfactual: what those exact tokens would have cost on the model
+          the caller asked for. Always dry-run first — <code>monitor</code> changes
+          nothing and still measures what it would have saved.</p>
+      </div>
+      <div>
+        <h3>A statement finance can reconcile</h3>
+        <p class="small">A closed calendar month in UTC, not a trailing window, because
+          that is how the provider invoices. Spend by team with movement against last
+          month, budget status, what routing saved — as text, CSV or JSON.</p>
+        <pre class="term"><span class="m">$ costgrid statement --month 2026-08</span>
 
-    <div class="mt-5 bg-[#1e40af] rounded-xl px-6 py-3.5 text-white flex items-center gap-4 shadow-sm">
-      <span class="text-[10px] font-bold tracking-widest bg-white/15 rounded-md px-2 py-1 flex-none">WHY&nbsp;NOW</span>
-      <div id="fact-strip" class="fact text-[13px] font-medium leading-snug"></div>
-    </div>
+  CostGrid statement — August 2026
+  ────────────────────────────────────────────
+  Total spend        <span class="g">$11.04</span>
+  Calls              320
+  Cache hit ratio    33.3%
 
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <div class="flex items-baseline justify-between">
-        <div>
-          <h2 class="font-bold text-slate-900">Daily AI spend — last 90 days</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Actual routing (s = 15%) vs the risk-adjusted optimum (s = 83%). The gap is the prize.</p>
-        </div>
-        <div class="flex items-center gap-4 text-xs text-slate-500">
-          <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded bg-[#1e40af] inline-block"></span>Actual (s=15%)</span>
-          <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded bg-[#059669] inline-block"></span>At optimum routing (s=83%)</span>
-        </div>
-      </div>
-      <div class="h-[290px] mt-4"><canvas id="ch-spend"></canvas></div>
-    </div>
+  By department
+  Support        $5.57   50.4%   160 calls
+  Engineering    $4.18   37.8%   120 calls
+  Marketing      $0.87    7.9%    25 calls
+  Unassigned     $0.43    3.9%    15 calls
 
-    <div class="mt-5 grid grid-cols-3 gap-5">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <h2 class="font-bold text-slate-900">Spend by model</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Last 30 days</p>
-        <div class="h-[260px] mt-3"><canvas id="ch-donut"></canvas></div>
-      </div>
-      <div class="col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <h2 class="font-bold text-slate-900">Spend by department</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Last 30 days — totals reconcile to the monthly run-rate</p>
-        <div class="h-[260px] mt-3"><canvas id="ch-dept"></canvas></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ VIEW 2: COST EXPLORER ============ -->
-  <section id="view-explorer" class="view">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 tl-tooltip">
-      <div class="flex items-start gap-3">
-        <div class="w-9 h-9 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center flex-none">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        </div>
-        <div>
-          <p class="text-sm font-semibold text-slate-900">Sticker price ≠ cost: the cheaper-listed model is pricier in 21.8% of head-to-head pairs — by up to 28×. Metering is the only truth.</p>
-          <p class="text-xs text-slate-500 mt-1">Driven by hidden reasoning-token volume — arXiv:2603.23971. Hover for the reversal example.</p>
-        </div>
-      </div>
-      <div class="tl-tip"><b>Reversal example:</b> Gemini 3 Flash listed <b>78% cheaper</b> than GPT-5.2 but came in <b>22% higher</b> in actual total cost — arXiv:2603.23971. (Citation example only — not a routable model in this demo.)</div>
-    </div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200">
-      <div class="px-5 pt-5 pb-3 flex flex-wrap items-center gap-3 border-b border-slate-100">
-        <h2 class="font-bold text-slate-900 mr-auto">Agent cost explorer <span class="text-xs font-medium text-slate-400 ml-1">14 agents · click a row for detail</span></h2>
-        <select id="f-dept" class="text-xs border border-slate-200 rounded-lg px-2.5 py-2 bg-slate-50 font-medium"></select>
-        <select id="f-model" class="text-xs border border-slate-200 rounded-lg px-2.5 py-2 bg-slate-50 font-medium"></select>
-        <input id="f-search" type="text" placeholder="Search agents…" class="text-xs border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 w-44">
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-[12.5px]">
-          <thead>
-            <tr class="text-left text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
-              <th class="px-5 py-3 font-semibold">Agent</th>
-              <th class="py-3 font-semibold">Department</th>
-              <th class="py-3 font-semibold">Model</th>
-              <th class="py-3 font-semibold text-right">Req / day</th>
-              <th class="py-3 font-semibold text-right">Avg tok / req</th>
-              <th class="py-3 font-semibold text-right">Monthly cost</th>
-              <th class="py-3 font-semibold text-right">Cost-of-Pass</th>
-              <th class="py-3 font-semibold text-right">Useful-token</th>
-              <th class="py-3 font-semibold text-center">Trend</th>
-              <th class="py-3 pr-5 font-semibold text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody id="agent-tbody"></tbody>
-        </table>
-      </div>
-      <p class="px-5 py-3 text-[11px] text-slate-400 border-t border-slate-100">Cost-of-Pass = cost per attempt ÷ success rate · Useful-token ratio = valid output tokens ÷ total billed</p>
-    </div>
-  </section>
-
-  <!-- ============ VIEW 3: SUBSTITUTION STUDIO ============ -->
-  <section id="view-studio" class="view">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <div class="flex items-baseline justify-between">
-        <div>
-          <h2 class="font-bold text-slate-900 text-lg">Substitution-share control</h2>
-          <p class="text-xs text-slate-500 mt-0.5">The % of traffic routed from frontier models to the open-weight floor. Govern the substitution.</p>
-        </div>
-        <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Engine: blendedCost(s) — Routing module, scenario model v2</span>
-      </div>
-      <div class="mt-6 flex items-center gap-5">
-        <span class="text-xs font-semibold text-slate-400 flex-none">0%</span>
-        <input id="s-slider" type="range" min="0" max="99" value="15" class="flex-1">
-        <span class="text-xs font-semibold text-slate-400 flex-none">99%</span>
-      </div>
-      <div class="mt-1.5 flex items-center gap-5 text-[11px] text-slate-500 pl-8 pr-8">
-        <span class="font-semibold text-[#1e40af]">▲ Meridian today: 15%</span>
-        <span class="ml-auto font-semibold text-[#059669]">Risk-adjusted optimum: ~83% ▲</span>
-      </div>
-      <div class="mt-5 grid grid-cols-4 gap-4" id="studio-kpis"></div>
-      <div class="mt-5 grid grid-cols-2 gap-4">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 flex items-center gap-3">
-          <div id="tg-cap" class="toggle"></div>
-          <div>
-            <div class="text-[12.5px] font-semibold text-slate-800">Max output-token cap (p95 clamp)</div>
-            <div class="text-[11px] text-slate-500">Trims runaway completions. <span id="cap-save" class="font-semibold text-[#059669] hidden"></span></div>
-          </div>
-        </div>
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 flex items-center gap-3">
-          <div id="tg-reason" class="toggle"></div>
-          <div>
-            <div class="text-[12.5px] font-semibold text-slate-800">Route reasoning-heavy tasks only when justified</div>
-            <div class="text-[11px] text-slate-500">Reasoning tokens carry a ~31.5× average price premium — arXiv:2603.28576. <span id="reason-save" class="font-semibold text-[#059669] hidden"></span></div>
-          </div>
-        </div>
+  Budgets
+    39%  whole account   $15.70 of $40.00
+         [block, falls back to claude-haiku-4-5]</pre>
+        <p class="small muted" style="margin-top:14px">Sample traffic. Anything the numbers
+          do not cover is stated on the statement rather than left out — unpriced models,
+          calls refused by policy, upstream failures.</p>
       </div>
     </div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <h2 class="font-bold text-slate-900">Blended cost curve — the U-shape executives need to see</h2>
-      <p class="text-xs text-slate-500 mt-0.5">Cost falls as routing shifts to the open floor, then the s<sup>8</sup> misrouting-risk penalty bends it back up past ~90%.</p>
-      <div class="h-[300px] mt-4"><canvas id="ch-curve"></canvas></div>
-      <p class="text-[12.5px] font-semibold text-slate-700 mt-4 text-center">“Stop forecasting vendor prices — forecast your routing. Substitution share is the dial you control.”</p>
-    </div>
-
-    <div class="mt-5 grid grid-cols-5 gap-5">
-      <div class="col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <h2 class="font-bold text-slate-900">Routing rules</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Model-tier-to-task examples</p>
-        <div class="mt-4 space-y-3 text-[12.5px]">
-          <div class="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3.5">
-            <div class="font-semibold text-slate-800">Ticket classification</div>
-            <div class="text-slate-600 mt-0.5">Opus 4.8 → <b>DeepSeek V4 Flash</b> <span class="text-[11px] text-slate-500">(commodity work — open floor)</span></div>
-          </div>
-          <div class="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3.5">
-            <div class="font-semibold text-slate-800">Contract summarization</div>
-            <div class="text-slate-600 mt-0.5">Sonnet 4.6 → <b>DeepSeek V4 Pro</b> <span class="text-[11px] text-slate-500">with mid-tier fallback</span></div>
-          </div>
-          <div class="rounded-lg border border-blue-100 bg-blue-50/60 p-3.5">
-            <div class="font-semibold text-slate-800">M&amp;A diligence analysis</div>
-            <div class="text-slate-600 mt-0.5">stays <b>Opus 4.8</b> <span class="text-[11px] text-slate-500">(accountable core — trust is the scarce layer)</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <h2 class="font-bold text-slate-900">Pricing reference — mid-2026 project-verified anchors</h2>
-        <p class="text-xs text-slate-500 mt-0.5">$ per M tokens · blended = 3:1 input:output = (3×in + 1×out)/4</p>
-        <table class="w-full text-[12px] mt-3">
-          <thead><tr class="text-left text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
-            <th class="py-2 font-semibold">Model</th><th class="py-2 font-semibold">Tier</th>
-            <th class="py-2 font-semibold text-right">Input</th><th class="py-2 font-semibold text-right">Output</th><th class="py-2 font-semibold text-right">Blended</th>
-          </tr></thead>
-          <tbody id="pricing-tbody"></tbody>
-        </table>
-        <p class="text-[10.5px] text-slate-400 mt-3 italic leading-relaxed">“Mid-2026 snapshot, blended 3:1 input:output. Prices and model versions move monthly — re-verify against official pricing pages before external use.”</p>
-        <p class="text-[10.5px] text-slate-400 mt-1 italic leading-relaxed">“GPT-5.5 cached input is $0.50 (standard); the $10.00 in / $45.00 out tier is the long-context (&gt;272K) surcharge, whose cached rate is $1.00. GPT-5.6 Sol (GA July 2026) holds the same $5/$30 standard price. All routing math here uses the $5/$30 standard tier.”</p>
-        <p class="text-[10.5px] text-slate-400 mt-1 italic leading-relaxed">“Claude Sonnet 5 (GA, intro $2.00/$10.00 through Aug 31, 2026, then $3.00/$15.00) supersedes Sonnet 4.6 at the same standard price. Anchors retained at the mid-2026 snapshot.”</p>
-        <p class="text-[11px] text-slate-500 mt-2">Routing math uses tier anchors: <b>frontier blended $10.00</b>, <b>open blended $0.35</b> — 2026 frontier/open gap ≈ <b>28.6×</b>.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ VIEW 4: GOVERNANCE ============ -->
-  <section id="view-gov" class="view">
-    <div class="bg-[#0f172a] rounded-xl px-6 py-3.5 text-slate-200 text-[12.5px] font-medium flex items-center gap-3">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" class="flex-none"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/></svg>
-      <span>Only ~1 in 5 firms has mature agent governance <span class="text-slate-500">·</span> ~35% couldn’t stop a rogue agent <span class="text-slate-500 text-[10px]">(Deloitte)</span> <span class="text-slate-500">·</span> 97% of AI security incidents lacked access controls <span class="text-slate-500 text-[10px]">(IBM)</span> <span class="text-slate-500">·</span> EU AI Act fines begin Aug 2026</span>
-    </div>
-
-    <div class="mt-5 grid grid-cols-2 gap-5" id="gov-grid"></div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200">
-      <div class="px-6 pt-5 pb-3 flex items-center justify-between border-b border-slate-100">
-        <div>
-          <h2 class="font-bold text-slate-900">Live enforcement feed</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Control-plane events, today (AAGATE pattern — monitor / warn / block per agent)</p>
-        </div>
-        <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Enforcing</span>
-      </div>
-      <div id="feed" class="divide-y divide-slate-50 max-h-[420px] overflow-y-auto"></div>
-    </div>
-  </section>
-
-  <!-- ============ VIEW 5: REPORTS ============ -->
-  <section id="view-reports" class="view">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-      <div class="flex items-start justify-between">
-        <div>
-          <h2 class="text-lg font-bold text-slate-900">Executive summary — Meridian Financial, Q2 2026</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Prepared with CostGrid · AI cost POV companion</p>
-        </div>
-        <button onclick="window.print()" class="no-print text-xs font-semibold bg-[#1e40af] text-white rounded-lg px-4 py-2.5 hover:bg-blue-800 transition-colors flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2m-12-4h12v8H6v-8Z"/></svg>
-          Export report
-        </button>
-      </div>
-      <div id="exec-summary" class="mt-4 text-[13.5px] leading-relaxed text-slate-700 space-y-3"></div>
-      <div class="mt-5 grid grid-cols-4 gap-4" id="report-metrics"></div>
-    </div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-      <h2 class="font-bold text-slate-900">The EBITDA &amp; exit bridge</h2>
-      <p class="text-xs text-slate-500 mt-0.5">At s = 0.80 the token line falls to 30.9% of frontier-default (~69% reduction); net saving after hosting/observability overhead: 60%.</p>
-      <div id="waterfall" class="mt-5 space-y-3"></div>
-    </div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-      <h2 class="font-bold text-slate-900">The three-layer stack — where value accrues</h2>
-      <p class="text-xs text-slate-500 mt-0.5">The POV’s reframe of the AI value chain</p>
-      <div class="mt-5 space-y-2.5">
-        <div class="rounded-xl border-2 border-[#059669] bg-emerald-50 px-6 py-4 flex items-center gap-5">
-          <div class="flex-none w-44">
-            <div class="font-bold text-emerald-900 text-[13.5px]">Trust &amp; accountability</div>
-            <div class="text-[11px] font-bold text-emerald-700 mt-0.5">margin ↑</div>
-          </div>
-          <p class="text-[12.5px] text-emerald-900/80 leading-relaxed">“Governance, security, sovereignty, the accountable boundary. Scarce, sticky — and where margin and exit value accrue.”</p>
-        </div>
-        <div class="rounded-xl border-2 border-[#1e40af] bg-blue-50 px-6 py-4 flex items-center gap-5">
-          <div class="flex-none w-44">
-            <div class="font-bold text-blue-900 text-[13.5px]">Orchestration &amp; routing</div>
-            <div class="text-[11px] font-bold text-blue-700 mt-0.5">the dial</div>
-          </div>
-          <p class="text-[12.5px] text-blue-900/80 leading-relaxed">“the lever you control… where substitution share lives: model-tier-to-task, evals, caps, fallback.”</p>
-        </div>
-        <div class="rounded-xl border-2 border-slate-300 bg-slate-50 px-6 py-4 flex items-center gap-5">
-          <div class="flex-none w-44">
-            <div class="font-bold text-slate-700 text-[13.5px]">Capability (models &amp; tokens)</div>
-            <div class="text-[11px] font-bold text-slate-500 mt-0.5">price ↓</div>
-          </div>
-          <p class="text-[12.5px] text-slate-600 leading-relaxed">“Deflating ~10x/yr toward the cost of electricity… Commoditizing — no durable margin.”</p>
-        </div>
-      </div>
-      <p class="mt-4 text-center text-[13px] font-bold text-slate-800">“Value never accrues where prices converge — it accrues where trust is scarce.”</p>
-      <p class="text-center text-[11.5px] text-slate-500 mt-1">CostGrid operates the top two layers.</p>
-    </div>
-
-    <div class="mt-5 grid grid-cols-5 gap-5">
-      <div class="col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-        <h2 class="font-bold text-slate-900">Forecast — 2026 → 2030, bifurcation scenario</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Frontier vs open blended $/Mtok (log scale, left) · enterprise GenAI spend $B (right)</p>
-        <div class="h-[250px] mt-4"><canvas id="ch-forecast"></canvas></div>
-        <p class="text-[12px] font-semibold text-slate-700 mt-3">The gap widens to ~70× — the substitution prize grows every year.</p>
-        <p class="text-[11.5px] text-slate-500">Falling prices don’t shrink the bill — they grow it: spend $69.1B (2026) → $207.3B (2030).</p>
-      </div>
-      <div class="col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-        <h2 class="font-bold text-slate-900">Forecast markers</h2>
-        <div class="mt-4 space-y-3.5 text-[12.5px] text-slate-700" id="forecast-bullets"></div>
-      </div>
-    </div>
-
-    <div class="mt-5 bg-white rounded-xl shadow-sm border border-slate-200 p-7 print-break">
-      <h2 class="font-bold text-slate-900">Top 3 recommendations — AI-cost playbook</h2>
-      <div class="mt-4 grid grid-cols-3 gap-4">
-        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-          <div class="w-7 h-7 rounded-lg bg-[#1e40af] text-white text-xs font-bold flex items-center justify-center">1</div>
-          <p class="mt-3 text-[13px] font-semibold text-slate-800 leading-relaxed">“Match model tier to task value — don’t tokenmaxx”</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-          <div class="w-7 h-7 rounded-lg bg-[#1e40af] text-white text-xs font-bold flex items-center justify-center">2</div>
-          <p class="mt-3 text-[13px] font-semibold text-slate-800 leading-relaxed">“Install Agentic FinOps: a budget owner per cost row, spend circuit-breakers before agents scale”</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-          <div class="w-7 h-7 rounded-lg bg-[#1e40af] text-white text-xs font-bold flex items-center justify-center">3</div>
-          <p class="mt-3 text-[13px] font-semibold text-slate-800 leading-relaxed">“Keep an open-source option — the open-weight floor is your pricing leverage and your migration insurance.”</p>
-        </div>
-      </div>
-      <p class="mt-8 text-center text-[14px] font-bold text-slate-900 tracking-tight">“Tokens are cheap. Trust is not. Govern the substitution. Price every AI dollar against risk-adjusted EBITDA — and the value it creates at exit.”</p>
-    </div>
-  </section>
-
   </div>
-</main>
+</section>
 
-<script>
-'use strict';
-/* ================= 1. HELPERS ================= */
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-const fmt$ = v => '$'+Math.round(v).toLocaleString('en-US');
-const fmt$c = v => '$'+v.toFixed(2);
-const fmtM = v => '$'+(v/1e6).toFixed(1)+'M';
-const fmtMtok = v => v>=1000 ? (v/1000).toFixed(1)+'B tok' : Math.round(v)+'M tok';
+<section id="trust">
+  <div class="wrap">
+    <h2>The questions you are about to ask</h2>
+    <dl>
+      <dt>Does our prompt and response data go to you?</dt>
+      <dd>No. You run CostGrid inside your own infrastructure; there is no CostGrid
+        service in the middle. Request and response bodies are forwarded to the provider
+        and streamed back untouched — what is stored is token counts, model names, cost,
+        and the labels you attach. Not prompts, not completions.</dd>
 
-/* ================= 2. CANONICAL PRICING ================= */
-const MODELS = {
-  opus48:   {name:'Claude Opus 4.8',    tier:'Frontier flagship',     input:5.00,  output:25.00, blended:10.00,   color:'#1e40af'},
-  gpt55:    {name:'GPT-5.5 (standard)', tier:'Frontier flagship',     input:5.00,  output:30.00, blended:11.25,   color:'#7c3aed'},
-  sonnet46: {name:'Claude Sonnet 4.6',  tier:'Mid-tier',              input:3.00,  output:15.00, blended:6.00,    color:'#0ea5e9'},
-  gemini31: {name:'Gemini 3.1 Pro',     tier:'Mid-tier',              input:2.00,  output:12.00, blended:4.50,    color:'#f59e0b'},
-  flashlite:{name:'Gemini Flash-Lite',  tier:'Budget small',          input:0.25,  output:1.50,  blended:0.5625,  color:'#fbbf24'},
-  dsflash:  {name:'DeepSeek V4 Flash',  tier:'Open-weight commodity', input:0.14,  output:0.28,  blended:0.175,   color:'#059669'},
-  dspro:    {name:'DeepSeek V4 Pro',    tier:'Open-weight commodity', input:0.435, output:0.87,  blended:0.54375, color:'#34d399'},
-};
+      <dt>What does it do to latency?</dt>
+      <dd>One local network hop. Streaming bytes are passed through as they arrive rather
+        than buffered, so time-to-first-token is essentially unchanged.</dd>
 
-/* ================= 3. ROUTING ENGINE (scenario model v2, Routing module) ================= */
-const OPEN=0.35, FRONTIER=10.00, K=0.46, OVERHEAD=0.15, NPOW=8;
-function blendedCost(s){ return s*OPEN*(1+OVERHEAD) + (1-s)*FRONTIER + K*FRONTIER*Math.pow(s,NPOW); }
-// numeric optimum
-let S_OPT=0, _min=Infinity;
-for(let i=0;i<=9900;i++){ const s=i/10000, c=blendedCost(s); if(c<_min){_min=c;S_OPT=s;} }
-const COST_OPT = blendedCost(S_OPT), COST_NOW = blendedCost(0.15);
-console.log('[CostGrid self-test] blendedCost(0.8253) = $'+blendedCost(0.8253).toFixed(2)+'/Mtok (expect ≈ $3.07)');
-console.log('[CostGrid self-test] blendedCost(0.15)   = $'+blendedCost(0.15).toFixed(2)+'/Mtok (expect ≈ $8.56)');
-console.log('[CostGrid self-test] numeric optimum s* = '+S_OPT.toFixed(4)+' (expect ≈ 0.8253)');
+      <dt>What happens if CostGrid goes down?</dt>
+      <dd>It is in the request path, and pretending otherwise would be dishonest: if it is
+        down, those calls fail. That is the price of being able to <em>refuse</em> a call
+        rather than just report it afterwards. Run it beside the service that calls it, and
+        start every rule in <code>monitor</code> until you trust it.</dd>
 
-/* ================= 4. SEEDED DATA LAYER ================= */
-const BASE_DATE = new Date(2026,6,14); // fixed anchor — identical on every open
-const DAYS=90, SPIKE_DAY=69;
-function dateFor(d){ const t=new Date(BASE_DATE); t.setDate(t.getDate()-(89-d)); return t; }
-const AGENTS = [
-  {name:'Code-Review-Agent',    dept:'Engineering',      model:'opus48',   req:3300,  tok:42000, success:0.91, useful:0.86, util:0.78},
-  {name:'CI-Triage-Agent',      dept:'Engineering',      model:'sonnet46', req:5200,  tok:20000, success:0.88, useful:0.81, util:0.66},
-  {name:'Docs-Generator',       dept:'Engineering',      model:'dspro',    req:5600,  tok:24000, success:0.84, useful:0.77, util:0.54},
-  {name:'Support-Triage-Agent', dept:'Customer Support', model:'opus48',   req:14000, tok:18500, success:0.93, useful:0.83, util:1.08, spike:true},
-  {name:'Ticket-Classifier',    dept:'Customer Support', model:'flashlite',req:40000, tok:8000,  success:0.96, useful:0.92, util:0.71},
-  {name:'Response-Drafter',     dept:'Customer Support', model:'sonnet46', req:16000, tok:12000, success:0.90, useful:0.85, util:0.82},
-  {name:'Sales-Outreach-Agent', dept:'Sales',            model:'gpt55',    req:7800,  tok:15400, success:0.79, useful:0.72, util:0.94},
-  {name:'Lead-Scorer',          dept:'Sales',            model:'gemini31', req:9100,  tok:10000, success:0.90, useful:0.88, util:0.63},
-  {name:'Contract-Analyzer',    dept:'Legal',            model:'opus48',   req:1900,  tok:66000, success:0.94, useful:0.90, util:0.76},
-  {name:'Compliance-Monitor',   dept:'Legal',            model:'sonnet46', req:3600,  tok:22000, success:0.92, useful:0.87, util:0.58},
-  {name:'Content-Studio-Agent', dept:'Marketing',        model:'gpt55',    req:4200,  tok:16500, success:0.82, useful:0.70, util:0.85},
-  {name:'Campaign-Optimizer',   dept:'Marketing',        model:'gemini31', req:5400,  tok:14000, success:0.87, useful:0.80, util:0.69},
-  {name:'Expense-Auditor',      dept:'Finance',          model:'dsflash',  req:26000, tok:7000,  success:0.95, useful:0.91, util:0.49},
-  {name:'FP&A-Analyst',         dept:'Finance',          model:'opus48',   req:1600,  tok:61000, success:0.89, useful:0.84, util:0.73},
-];
-const DEPTS = ['Engineering','Customer Support','Sales','Legal','Marketing','Finance'];
-(function generate(){
-  const rand = mulberry32(982451653);
-  AGENTS.forEach(a=>{
-    const base = a.req*a.tok/1e6*MODELS[a.model].blended;
-    a.series=[];
-    for(let d=0;d<DAYS;d++){
-      const dow=dateFor(d).getDay();
-      let f=(dow===0||dow===6)?0.35:1; if(dow===5)f*=0.93;
-      let v = base*f*(1+0.0035*d)*(0.88+rand()*0.24);
-      if(a.spike&&d===SPIKE_DAY)v*=8;
-      if(a.spike&&d===SPIKE_DAY+1)v*=2.5;
-      a.series.push(v);
-    }
-  });
-  const raw = AGENTS.reduce((s,a)=>s+a.series.slice(60).reduce((x,y)=>x+y,0),0);
-  const SC = 333333/raw;
-  AGENTS.forEach(a=>{
-    a.series=a.series.map(v=>v*SC);
-    a.monthly=a.series.slice(60).reduce((x,y)=>x+y,0);
-    a.reqDay=Math.round(a.req*SC);
-    a.tokSeries=a.series.map(v=>v/MODELS[a.model].blended);
-    a.monthlyTok=a.tokSeries.slice(60).reduce((x,y)=>x+y,0);
-    a.costPerReq=a.monthly/(a.reqDay*30);
-    a.cop=a.costPerReq/a.success;
-    a.budget=Math.round(a.monthly/a.util/100)*100;
-  });
-})();
-const T = {
-  monthly: AGENTS.reduce((s,a)=>s+a.monthly,0),
-  monthlyTok: AGENTS.reduce((s,a)=>s+a.monthlyTok,0),
-  daily: Array.from({length:DAYS},(_,d)=>AGENTS.reduce((s,a)=>s+a.series[d],0)),
-  byDept: Object.fromEntries(DEPTS.map(dp=>[dp,AGENTS.filter(a=>a.dept===dp).reduce((s,a)=>s+a.monthly,0)])),
-  byModel: {},
-};
-Object.keys(MODELS).forEach(m=>{ const v=AGENTS.filter(a=>a.model===m).reduce((s,a)=>s+a.monthly,0); if(v>0)T.byModel[m]=v; });
-T.openShare = AGENTS.filter(a=>a.model==='dsflash'||a.model==='dspro').reduce((s,a)=>s+a.monthlyTok,0)/T.monthlyTok;
-T.mtokMonth = T.monthly/COST_NOW; // Mtok/month implied at s=0.15
-console.log('[CostGrid self-test] dept totals reconcile to monthly KPI: '+(Math.abs(Object.values(T.byDept).reduce((a,b)=>a+b,0)-T.monthly)<0.01));
-console.log('[CostGrid self-test] monthly total = '+fmt$(T.monthly)+' (target $333,333 ± 1%) · substitution share = '+(T.openShare*100).toFixed(1)+'%');
+      <dt>Are the prices right?</dt>
+      <dd>53 models across Anthropic and OpenAI, checked against the providers' published
+        tables by a script that fails on a discrepancy or a stale verification date. The
+        dashboard says so on the page when the catalog is more than 45 days old, because a
+        stale catalog does not fail loudly — it just bills last quarter's rates.</dd>
 
-/* ================= 5. CHART REGISTRY ================= */
-Chart.defaults.font.family='Inter';
-Chart.defaults.font.size=11;
-Chart.defaults.color='#64748b';
-const charts={};
-function makeChart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); return charts[id]; }
-function destroyCharts(){ Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];}); }
-function rr(ctx,x,y,w,h,r){ if(ctx.roundRect){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}else{ctx.beginPath();ctx.rect(x,y,w,h);} }
+      <dt>What is it bad at?</dt>
+      <dd>Bedrock and Vertex are not supported yet, only direct Anthropic and OpenAI. It
+        governs API spend, not seat licences — if your AI bill is people using a chat
+        product in a browser, there is nothing here to meter. And it is one node on
+        SQLite today: fine for a team, not yet a high-availability deployment.</dd>
+    </dl>
+  </div>
+</section>
 
-/* ================= 6. VIEW MANAGER ================= */
-const VIEWS={
-  overview:{el:'view-overview',title:'Overview',sub:'Portfolio-wide AI spend, routing posture and enforcement',render:renderOverview},
-  explorer:{el:'view-explorer',title:'Cost Explorer',sub:'Per-agent metering — Cost-of-Pass, useful-token ratio, routing recommendations',render:renderExplorer},
-  studio:{el:'view-studio',title:'Substitution Studio',sub:'Route to the risk-adjusted optimum — govern the substitution',render:renderStudio},
-  gov:{el:'view-gov',title:'Governance & Boundaries',sub:'NIST AI RMF control plane — budgets, allowlists, anomaly profiling, kill-switch',render:renderGovernance},
-  reports:{el:'view-reports',title:'Reports',sub:'Executive summary, EBITDA & exit bridge, 2026–2030 forecast',render:renderReports},
-};
-const NAV_ICONS={
-  overview:'<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
-  explorer:'<path d="M3 6h18M3 12h18M3 18h18"/>',
-  studio:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
-  gov:'<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
-  reports:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
-};
-function showView(key){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById(VIEWS[key].el).classList.add('active');
-  document.querySelectorAll('.navlink').forEach(n=>n.classList.toggle('active',n.dataset.view===key));
-  document.getElementById('view-title').textContent=VIEWS[key].title;
-  document.getElementById('view-sub').textContent=VIEWS[key].sub;
-  destroyCharts();
-  if(factTimer){clearInterval(factTimer);factTimer=null;} // renderOverview restarts it
-  VIEWS[key].render();
-}
-(function buildNav(){
-  const nav=document.getElementById('nav');
-  Object.keys(VIEWS).forEach(k=>{
-    const b=document.createElement('button');
-    b.className='navlink w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left';
-    b.dataset.view=k;
-    b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-none">'+NAV_ICONS[k]+'</svg><span>'+VIEWS[k].title+'</span>';
-    b.onclick=()=>showView(k);
-    nav.appendChild(b);
-  });
-})();
+<section id="pricing">
+  <div class="wrap">
+    <h2>Pricing</h2>
+    <p class="lede">You run the software; the fee is for the product, not for hosting your
+      data. Self-hosting is the default and the source is public — read it before you run
+      it.</p>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Plan</th><th class="num">Monthly</th><th class="num">On metered spend</th>
+            <th class="num">Calls included</th><th class="num">Seats</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Free</strong><br /><span class="small muted">One team, evaluating</span></td>
+            <td class="num plan-price">$0</td><td class="num">—</td>
+            <td class="num">10,000</td><td class="num">2</td>
+          </tr>
+          <tr>
+            <td><strong>Team</strong><br /><span class="small muted">The usual starting point</span></td>
+            <td class="num plan-price">$99</td><td class="num">2%</td>
+            <td class="num">1,000,000</td><td class="num">10</td>
+          </tr>
+          <tr>
+            <td><strong>Business</strong><br /><span class="small muted">Multiple teams, chargeback</span></td>
+            <td class="num plan-price">$499</td><td class="num">1%</td>
+            <td class="num">20,000,000</td><td class="num">100</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:14px">The percentage falls as volume rises, on
+      purpose: the fee should not grow faster than the value of governing the spend. If
+      CostGrid is not saving you more than it costs, it is not worth running — the routing
+      report tells you which of those is true.</p>
+  </div>
+</section>
 
-/* ================= 7. OVERVIEW ================= */
-const FACTS=[
-  'Cost per customer-service interaction: <b>$0.04 (2023) → $1.20 (2026)</b> — EY, “Total Cost of Agents” (2026)',
-  'Enterprise GenAI spend grew <b>$1.7B → $11.5B → $37B</b> (2023–25) while unit prices fell >90% — Menlo Ventures',
-  'Agents burn <b>~15× tokens per request</b>; agentic tokens overtook human-driven usage ~Feb 2026 — OpenRouter/a16z',
-];
-let factIdx=0, factTimer=null;
-function renderOverview(){
-  const kpis=[
-    {label:'AI run-rate',val:fmt$(T.monthly)+'<span class="text-sm font-semibold text-slate-400">/mo</span>',sub:'$4.0M / yr, frontier-default',accent:'#1e40af'},
-    {label:'Substitution share',val:Math.round(T.openShare*100)+'%',sub:'optimum: 83% — the controllable lever',accent:'#059669'},
-    {label:'Projected EBITDA uplift',val:'$2.4M<span class="text-sm font-semibold text-slate-400">/yr</span>',sub:'at s = 0.80 · $28.8M at 12× exit',accent:'#059669'},
-    {label:'Policy violations blocked',val:'23',sub:'this month, across 14 agents',accent:'#dc2626'},
-  ];
-  document.getElementById('kpi-cards').innerHTML=kpis.map(k=>
-    '<div class="kpi-card bg-white rounded-xl shadow-sm border border-slate-200 p-5">'+
-    '<div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">'+k.label+'</div>'+
-    '<div class="text-[26px] font-extrabold mt-1.5 tracking-tight" style="color:'+k.accent+'">'+k.val+'</div>'+
-    '<div class="text-[11.5px] text-slate-500 mt-1">'+k.sub+'</div></div>').join('');
+<section id="trial">
+  <div class="wrap">
+    <h2>Free trial</h2>
+    <div class="grid cols-2">
+      <div>
+        <p>Thirty days, free, on your own infrastructure. No card, no sales call, nothing
+          to uninstall — if you stop, you point your base URL back at the provider and
+          everything keeps working.</p>
+        <p>The install is a checkout, a build and a key. First metered call in about five
+          minutes; the dashboard is meaningful within a day, and the first monthly
+          statement is the thing worth waiting for.</p>
+        <div class="cta-row">
+          <a class="btn primary" href="https://github.com/tbuica-droid/costgrid/blob/main/docs/TRIAL.md">How the trial works</a>
+          <a class="btn" href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Quickstart</a>
+        </div>
+      </div>
+      <div>
+        <pre class="snippet"><span class="muted"># 1. get it</span>
+git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install &amp;&amp; npm run build
 
-  const strip=document.getElementById('fact-strip');
-  strip.innerHTML=FACTS[0]; factIdx=0;
-  if(factTimer)clearInterval(factTimer);
-  factTimer=setInterval(()=>{
-    strip.style.opacity=0;
-    setTimeout(()=>{factIdx=(factIdx+1)%FACTS.length;strip.innerHTML=FACTS[factIdx];strip.style.opacity=1;},500);
-  },6000);
+<span class="muted"># 2. your provider key goes in .env</span>
+cp .env.example .env
 
-  const labels=Array.from({length:DAYS},(_,d)=>dateFor(d).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
-  const ratio=COST_OPT/COST_NOW;
-  const optimum=T.daily.map(v=>v*ratio);
-  const ptRadius=T.daily.map((_,i)=>i===SPIKE_DAY?5:0);
-  const ptColor=T.daily.map((_,i)=>i===SPIKE_DAY?'#dc2626':'#1e40af');
-  const spikePlugin={id:'spikeLabel',afterDatasetsDraw(chart){
-    const pt=chart.getDatasetMeta(0).data[SPIKE_DAY]; if(!pt)return;
-    const ctx=chart.ctx, area=chart.chartArea;
-    ctx.save();
-    ctx.beginPath();ctx.arc(pt.x,pt.y,8,0,Math.PI*2);ctx.strokeStyle='rgba(220,38,38,.5)';ctx.lineWidth=2;ctx.stroke();
-    const text='Runaway agent — models can’t predict their own spend (r ≤ 0.39)';
-    ctx.font='600 11px Inter';
-    const w=ctx.measureText(text).width+18, h=26;
-    let x=Math.min(Math.max(pt.x-w+40,area.left),area.right-w);
-    const y=Math.max(pt.y-52,area.top+4);
-    ctx.beginPath();ctx.moveTo(pt.x,pt.y-9);ctx.lineTo(pt.x,y+h);ctx.strokeStyle='#dc2626';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
-    rr(ctx,x,y,w,h,7);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#dc2626';ctx.lineWidth=1.25;ctx.stroke();
-    ctx.fillStyle='#dc2626';ctx.textBaseline='middle';ctx.fillText(text,x+9,y+h/2+0.5);
-    ctx.restore();
-  }};
-  makeChart('ch-spend',{type:'line',plugins:[spikePlugin],data:{labels,datasets:[
-    {label:'Actual (s=15%)',data:T.daily,borderColor:'#1e40af',backgroundColor:'rgba(30,64,175,.07)',fill:true,tension:.3,borderWidth:2,pointRadius:ptRadius,pointBackgroundColor:ptColor},
-    {label:'At optimum routing (s=83%)',data:optimum,borderColor:'#059669',borderDash:[6,4],fill:false,tension:.3,borderWidth:2,pointRadius:0},
-  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmt$(c.parsed.y)}}},
-    scales:{x:{ticks:{maxTicksLimit:12},grid:{display:false}},y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'},grid:{color:'#f1f5f9'}}}}});
+<span class="muted"># 3. run it</span>
+npx tsx packages/cli/src/main.ts init
+npm run gateway
 
-  const mk=Object.keys(T.byModel);
-  makeChart('ch-donut',{type:'doughnut',data:{labels:mk.map(m=>MODELS[m].name),datasets:[{data:mk.map(m=>T.byModel[m]),backgroundColor:mk.map(m=>MODELS[m].color),borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
-    plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10.5}}},tooltip:{callbacks:{label:c=>' '+c.label+': '+fmt$(c.parsed)+' ('+(c.parsed/T.monthly*100).toFixed(1)+'%)'}}}}});
+<span class="muted"># 4. point a client at it and open</span>
+<span class="muted">#    http://127.0.0.1:8787</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
 
-  makeChart('ch-dept',{type:'bar',data:{labels:DEPTS,datasets:[{data:DEPTS.map(d=>T.byDept[d]),backgroundColor:'#1e40af',borderRadius:6,barThickness:22}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt$(c.parsed.x)+'/mo ('+(c.parsed.x/T.monthly*100).toFixed(1)+'%)'}}},
-    scales:{x:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'},grid:{color:'#f1f5f9'}},y:{grid:{display:false}}}}});
-}
+<section id="research">
+  <div class="wrap">
+    <h2>Where this came from</h2>
+    <p class="lede">CostGrid started as research into why AI bills rise while token prices
+      fall: a cost model covering price decay, routing economics and volume growth to 2030.
+      The routing maths in the product is that model, and the dashboard's Routing tab
+      measures your real substitution share against the optimum it computes.</p>
+    <p><a href="./research.html">Read the research dashboard</a> — illustrative figures, a
+      thesis rather than a deployment. Every figure in the product is measured from your
+      own traffic, and an empty database shows an empty state rather than a plausible chart.</p>
+  </div>
+</section>
 
-/* ================= 8. COST EXPLORER ================= */
-let expanded=null;
-function sparkline(canvas,data,color){
-  const ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
-  const mn=Math.min(...data),mx=Math.max(...data),rg=mx-mn||1;
-  ctx.clearRect(0,0,W,H);ctx.beginPath();
-  data.forEach((v,i)=>{const x=i/(data.length-1)*(W-4)+2,y=H-3-((v-mn)/rg)*(H-6);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
-}
-function statusOf(a){
-  if(a.spike)return['Anomaly','bg-red-50 text-red-700 border-red-200'];
-  if(a.util>=1)return['Over budget','bg-red-50 text-red-700 border-red-200'];
-  if(a.util>=0.9)return['Watch','bg-amber-50 text-amber-700 border-amber-200'];
-  return['Healthy','bg-emerald-50 text-emerald-700 border-emerald-200'];
-}
-function recsFor(a){
-  const m=MODELS[a.model];
-  if(m.tier==='Open-weight commodity')return[
-    'Already on the open-weight floor — hold position; this is your pricing leverage.',
-    'Arm mid-tier fallback (Claude Sonnet 4.6) for low-confidence outputs to protect quality.',
-    'Batch non-urgent jobs off-peak and cache repeated context.'];
-  return[
-    'Route commodity slice (~40% of volume) → DeepSeek V4 Flash: est. −'+fmt$(a.monthly*0.40*(1-MODELS.dsflash.blended/m.blended))+'/mo',
-    'Enable cached-input pricing on repeated system context: est. −'+fmt$(a.monthly*0.12)+'/mo',
-    'Cap output tokens at p95 (useful-token ratio '+(a.useful*100).toFixed(0)+'%): est. −'+fmt$(a.monthly*0.07)+'/mo'];
-}
-function renderExplorer(){
-  const fd=document.getElementById('f-dept'),fm=document.getElementById('f-model');
-  if(!fd.options.length){
-    fd.innerHTML='<option value="">All departments</option>'+DEPTS.map(d=>'<option>'+d+'</option>').join('');
-    fm.innerHTML='<option value="">All models</option>'+Object.keys(MODELS).map(m=>'<option value="'+m+'">'+MODELS[m].name+'</option>').join('');
-    fd.onchange=fm.onchange=()=>{expanded=null;drawRows();};
-    document.getElementById('f-search').oninput=()=>{expanded=null;drawRows();};
-  }
-  drawRows();
-}
-function drawRows(){
-  const fd=document.getElementById('f-dept').value, fm=document.getElementById('f-model').value,
-        q=document.getElementById('f-search').value.toLowerCase();
-  const rows=AGENTS.filter(a=>(!fd||a.dept===fd)&&(!fm||a.model===fm)&&(!q||a.name.toLowerCase().includes(q)));
-  const tb=document.getElementById('agent-tbody');
-  tb.innerHTML='';
-  rows.forEach(a=>{
-    const [st,stc]=statusOf(a);
-    const tr=document.createElement('tr');
-    tr.className='border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer transition-colors';
-    tr.innerHTML=
-      '<td class="px-5 py-3 font-semibold text-slate-800">'+a.name.replace('&','&amp;')+'</td>'+
-      '<td class="py-3 text-slate-500">'+a.dept+'</td>'+
-      '<td class="py-3"><span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:'+MODELS[a.model].color+'"></span>'+MODELS[a.model].name+'</span></td>'+
-      '<td class="py-3 text-right tabular-nums">'+a.reqDay.toLocaleString('en-US')+'</td>'+
-      '<td class="py-3 text-right tabular-nums">'+a.tok.toLocaleString('en-US')+'</td>'+
-      '<td class="py-3 text-right font-semibold tabular-nums">'+fmt$(a.monthly)+'</td>'+
-      '<td class="py-3 text-right tabular-nums">$'+a.cop.toFixed(3)+'</td>'+
-      '<td class="py-3 text-right tabular-nums">'+(a.useful*100).toFixed(0)+'%</td>'+
-      '<td class="py-3 text-center"><canvas width="96" height="26" class="inline-block"></canvas></td>'+
-      '<td class="py-3 pr-5 text-right"><span class="text-[10.5px] font-semibold px-2 py-1 rounded-full border '+stc+'">'+st+'</span></td>';
-    tr.onclick=()=>{expanded=(expanded===a.name)?null:a.name;drawRows();};
-    tb.appendChild(tr);
-    sparkline(tr.querySelector('canvas'),a.series.slice(60),a.spike?'#dc2626':'#1e40af');
-    if(expanded===a.name){
-      const ex=document.createElement('tr');ex.className='exp-row';
-      const inTok=a.monthlyTok*0.75, outTok=a.monthlyTok*0.25, cached=inTok*0.30;
-      ex.innerHTML='<td colspan="10" class="px-5 py-5"><div class="grid grid-cols-3 gap-6">'+
-        '<div><div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold mb-2.5">Token breakdown — last 30 days</div>'+
-          '<div class="space-y-2 text-[12px]">'+
-          '<div class="flex justify-between"><span class="text-slate-500">Input tokens</span><b>'+fmtMtok(inTok)+'</b></div>'+
-          '<div class="flex justify-between"><span class="text-slate-500">Output tokens</span><b>'+fmtMtok(outTok)+'</b></div>'+
-          '<div class="flex justify-between"><span class="text-slate-500">— of input, cached</span><b>'+fmtMtok(cached)+'</b></div>'+
-          '<div class="flex justify-between border-t border-slate-200 pt-2"><span class="text-slate-500">Total billed</span><b>'+fmtMtok(a.monthlyTok)+'</b></div>'+
-          '<div class="flex justify-between"><span class="text-slate-500">Success rate</span><b>'+(a.success*100).toFixed(0)+'%</b></div></div></div>'+
-        '<div><div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold mb-2.5">Cost history — 90 days</div><canvas width="330" height="110" class="w-full"></canvas></div>'+
-        '<div><div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold mb-2.5">Top routing recommendations</div>'+
-          '<ol class="space-y-2 text-[12px] text-slate-600 list-decimal list-inside">'+recsFor(a).map(r=>'<li>'+r+'</li>').join('')+'</ol></div>'+
-        '</div></td>';
-      tb.appendChild(ex);
-      const cv=ex.querySelector('canvas'),ctx=cv.getContext('2d');
-      const data=a.series,mx=Math.max(...data);
-      ctx.clearRect(0,0,cv.width,cv.height);
-      data.forEach((v,i)=>{const bw=cv.width/data.length,x=i*bw,h=v/mx*(cv.height-8);
-        ctx.fillStyle=(a.spike&&(i===SPIKE_DAY||i===SPIKE_DAY+1))?'#dc2626':'rgba(30,64,175,.55)';
-        ctx.fillRect(x,cv.height-h,Math.max(bw-1,1),h);});
-    }
-  });
-}
+<footer>
+  <div class="wrap">
+    <span>CostGrid — built by Tomas Buica. MIT licensed.</span>
+    <span>
+      <a href="https://github.com/tbuica-droid/costgrid">Source</a> ·
+      <a href="https://github.com/tbuica-droid/costgrid/issues/new">Get in touch</a> ·
+      <a href="./demo/">Demo</a>
+    </span>
+  </div>
+</footer>
 
-/* ================= 9. SUBSTITUTION STUDIO ================= */
-const studio={s:15,cap:false,reason:false};
-function studioNumbers(){
-  const s=studio.s/100, bc=blendedCost(s);
-  const monthly=T.mtokMonth*bc;
-  const saving=(T.monthly-monthly)*12;
-  const cards=[
-    {label:'Blended cost',val:fmt$c(bc)+'<span class="text-xs font-semibold text-slate-400">/Mtok</span>',sub:'at s = '+studio.s+'%'},
-    {label:'Monthly cost',val:fmt$(monthly),sub:'vs '+fmt$(T.monthly)+' today'},
-    {label:'Annual saving vs today',val:(saving>=0?'':'−')+fmt$(Math.abs(saving)),sub:saving>=0?'flows to EBITDA':'cost increase',color:saving>=0?'#059669':'#dc2626'},
-    {label:'Risk-adjusted optimum',val:Math.round(S_OPT*100)+'%',sub:fmt$c(COST_OPT)+'/Mtok at optimum',color:'#059669'},
-  ];
-  document.getElementById('studio-kpis').innerHTML=cards.map(c=>
-    '<div class="rounded-lg border border-slate-200 bg-slate-50 p-4">'+
-    '<div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold">'+c.label+'</div>'+
-    '<div class="text-[21px] font-extrabold mt-1 tracking-tight" style="color:'+(c.color||'#0f172a')+'">'+c.val+'</div>'+
-    '<div class="text-[11px] text-slate-500 mt-0.5">'+c.sub+'</div></div>').join('');
-  const capEl=document.getElementById('cap-save'),reEl=document.getElementById('reason-save');
-  capEl.classList.toggle('hidden',!studio.cap);
-  reEl.classList.toggle('hidden',!studio.reason);
-  if(studio.cap)capEl.textContent='Est. additional −'+fmt$(T.monthly*0.049)+'/mo (from last-30-day output overrun).';
-  if(studio.reason)reEl.textContent='Est. additional −'+fmt$(T.monthly*0.031)+'/mo.';
-  if(charts['ch-curve'])charts['ch-curve'].update('none');
-}
-function renderStudio(){
-  if(!document.getElementById('pricing-tbody').innerHTML){
-    const fmtPx=v=>{const s=''+v;const dec=s.includes('.')?s.split('.')[1].length:0;return v.toFixed(Math.max(dec,2));};
-    document.getElementById('pricing-tbody').innerHTML=Object.keys(MODELS).map(m=>{const M=MODELS[m];return(
-      '<tr class="border-b border-slate-50"><td class="py-2 font-semibold text-slate-800"><span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:'+M.color+'"></span>'+M.name+'</span></td>'+
-      '<td class="py-2 text-slate-500">'+M.tier+'</td>'+
-      '<td class="py-2 text-right tabular-nums">$'+fmtPx(M.input)+'</td>'+
-      '<td class="py-2 text-right tabular-nums">$'+fmtPx(M.output)+'</td>'+
-      '<td class="py-2 text-right tabular-nums font-semibold">$'+fmtPx(M.blended)+'</td></tr>');}).join('');
-  }
-  const sl=document.getElementById('s-slider');
-  sl.value=studio.s;
-  sl.oninput=()=>{studio.s=+sl.value;studioNumbers();};
-  const tgc=document.getElementById('tg-cap'),tgr=document.getElementById('tg-reason');
-  tgc.classList.toggle('on',studio.cap); tgr.classList.toggle('on',studio.reason);
-  tgc.onclick=()=>{studio.cap=!studio.cap;tgc.classList.toggle('on',studio.cap);studioNumbers();};
-  tgr.onclick=()=>{studio.reason=!studio.reason;tgr.classList.toggle('on',studio.reason);studioNumbers();};
-
-  const xs=Array.from({length:100},(_,i)=>i), ys=xs.map(i=>blendedCost(i/100));
-  const curvePlugin={id:'curveMarks',afterDatasetsDraw(chart){
-    const ctx=chart.ctx,area=chart.chartArea,meta=chart.getDatasetMeta(0);
-    ctx.save();
-    // vertical line at 15% (today)
-    const p15=meta.data[15];
-    ctx.beginPath();ctx.moveTo(p15.x,area.top);ctx.lineTo(p15.x,area.bottom);
-    ctx.strokeStyle='#1e40af';ctx.setLineDash([5,4]);ctx.lineWidth=1.25;ctx.stroke();ctx.setLineDash([]);
-    ctx.font='600 10.5px Inter';ctx.fillStyle='#1e40af';
-    ctx.fillText('Meridian today: 15% · '+fmt$c(COST_NOW)+'/Mtok',p15.x+7,area.top+14);
-    // optimum marker
-    const oi=Math.round(S_OPT*100),po=meta.data[oi];
-    ctx.beginPath();ctx.arc(po.x,po.y,6,0,Math.PI*2);ctx.fillStyle='#059669';ctx.fill();
-    ctx.beginPath();ctx.arc(po.x,po.y,10,0,Math.PI*2);ctx.strokeStyle='rgba(5,150,105,.4)';ctx.lineWidth=2;ctx.stroke();
-    const lbl='Risk-adjusted optimum ≈83% · '+fmt$c(COST_OPT)+'/Mtok';
-    const w=ctx.measureText(lbl).width;
-    ctx.fillStyle='#059669';ctx.fillText(lbl,Math.min(po.x-w/2,area.right-w-4),po.y-18);
-    // slider position
-    const ps=meta.data[studio.s];
-    ctx.beginPath();ctx.arc(ps.x,ps.y,5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
-    ctx.lineWidth=3;ctx.strokeStyle='#0f172a';ctx.stroke();
-    ctx.restore();
-  }};
-  makeChart('ch-curve',{type:'line',plugins:[curvePlugin],data:{labels:xs.map(i=>i+'%'),datasets:[
-    {data:ys,borderColor:'#1e40af',borderWidth:2.5,pointRadius:0,tension:.15,fill:true,backgroundColor:'rgba(30,64,175,.05)'}]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>'Substitution share '+i[0].label,label:c=>' blended '+fmt$c(c.parsed.y)+'/Mtok · '+fmt$(T.mtokMonth*c.parsed.y)+'/mo'}}},
-    scales:{x:{ticks:{maxTicksLimit:11},grid:{display:false},title:{display:true,text:'Substitution share s (traffic routed to open-weight floor)'}},
-            y:{ticks:{callback:v=>'$'+v.toFixed(0)},grid:{color:'#f1f5f9'},title:{display:true,text:'Blended $/Mtok'}}}}});
-  studioNumbers();
-}
-
-/* ================= 10. GOVERNANCE ================= */
-const FEED=[
-  ['09:42','BLOCKED','Blocked: Sales-Outreach-Agent exceeded daily budget cap — request rejected (policy GOV-04)'],
-  ['09:38','REROUTED','Rerouted: routine summarization Opus 4.8 → DeepSeek V4 Flash, saved $0.84'],
-  ['09:31','KILL-SWITCH','Kill-switch armed: Support-Triage-Agent token velocity 9× baseline'],
-  ['09:27','HELD','Held for review: prompt matched sensitive-data pattern (client-confidential screen)'],
-  ['09:19','REROUTED','Rerouted: Ticket-Classifier batch → Gemini Flash-Lite off-peak queue, saved $0.31'],
-  ['09:12','WARN','Warning: Content-Studio-Agent output tokens 2.4× p95 cap — completion trimmed'],
-  ['09:04','BLOCKED','Blocked: unregistered agent identity attempted API call (MAP registry)'],
-  ['08:56','REROUTED','Rerouted: contract summarization Sonnet 4.6 → DeepSeek V4 Pro (mid-tier fallback armed), saved $0.62'],
-  ['08:47','WARN','Anomaly: Lead-Scorer request pattern deviates from UEBA baseline (score 0.81)'],
-  ['08:40','HELD','Held: FP&A-Analyst request above single-request cost threshold ($4.20) — awaiting human approval'],
-  ['08:33','BLOCKED','Blocked: Legal dept. request to non-allowlisted model (Gemini Flash-Lite)'],
-  ['08:25','REROUTED','Rerouted: CI log triage Sonnet 4.6 → DeepSeek V4 Flash, saved $0.47'],
-  ['08:16','WARN','Reasoning-tier request flagged: justification missing (31.5× premium policy)'],
-  ['08:09','BLOCKED','Blocked: Expense-Auditor exceeded max cost per single request'],
-  ['08:01','AUDIT','Audit: tamper-evident log checkpoint sealed (block #48,221)'],
-  ['07:52','REROUTED','Rerouted: routine email drafting GPT-5.5 → DeepSeek V4 Pro, saved $0.58'],
-  ['07:44','HELD','Held for review: outbound draft contained account numbers — sensitive-data screen'],
-  ['07:36','WARN','Budget watch: Sales-Outreach-Agent at 94% of monthly cap'],
-  ['07:28','BLOCKED','Blocked: Campaign-Optimizer attempted tool call outside approved scope'],
-  ['07:20','KILL-SWITCH','Kill-switch test: Docs-Generator halted and resumed in 38 ms (autonomy circuit-breaker)'],
-];
-const FEED_STYLE={'BLOCKED':'bg-red-50 text-red-700 border-red-200','REROUTED':'bg-emerald-50 text-emerald-700 border-emerald-200','KILL-SWITCH':'bg-slate-900 text-white border-slate-900','HELD':'bg-amber-50 text-amber-700 border-amber-200','WARN':'bg-amber-50 text-amber-700 border-amber-200','AUDIT':'bg-blue-50 text-blue-700 border-blue-200'};
-function policyCard(title,desc,mode,extra){
-  return '<div class="rounded-lg border border-slate-200 bg-slate-50 p-4">'+
-    '<div class="flex items-start gap-3"><div class="toggle on flex-none mt-0.5" onclick="this.classList.toggle(\'on\')"></div>'+
-    '<div class="flex-1"><div class="text-[12.5px] font-semibold text-slate-800">'+title+'</div>'+
-    '<div class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">'+desc+'</div>'+(extra||'')+'</div>'+
-    '<div class="flex gap-1 flex-none bg-white border border-slate-200 rounded-lg p-0.5" onclick="if(event.target.classList.contains(\'modebtn\')){this.querySelectorAll(\'.modebtn\').forEach(b=>b.classList.remove(\'sel\'));event.target.classList.add(\'sel\')}">'+
-    ['monitor','warn','block'].map(m=>'<span class="modebtn'+(m===mode?' sel':'')+'">'+m+'</span>').join('')+'</div></div></div>';
-}
-function renderGovernance(){
-  const budgetRows=AGENTS.map(a=>{
-    const pct=a.util*100;
-    const bar=pct>=100?'#dc2626':pct>=90?'#f59e0b':'#1e40af';
-    return '<div class="flex items-center gap-3 text-[11.5px]">'+
-      '<span class="w-40 flex-none font-medium text-slate-700 truncate">'+a.name.replace('&','&amp;')+'</span>'+
-      '<div class="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full rounded-full" style="width:'+Math.min(pct,100)+'%;background:'+bar+'"></div></div>'+
-      '<span class="w-24 flex-none text-right tabular-nums text-slate-500">'+fmt$(a.monthly)+' / '+fmt$(a.budget)+'</span>'+
-      '<span class="w-11 flex-none text-right font-semibold tabular-nums" style="color:'+bar+'">'+pct.toFixed(0)+'%</span></div>';
-  }).join('');
-  const sections=[
-    {fn:'GOVERN',desc:'Accountability structures and budget ownership',color:'#1e40af',cards:
-      policyCard('Per-agent monthly budget caps','Hard spend ceilings per agent — a budget owner per cost row.','block',
-        '<div class="mt-3 space-y-1.5">'+budgetRows+'</div>')+
-      policyCard('Tamper-evident audit log','Append-only, hash-chained record of every routing and enforcement decision.','monitor')},
-    {fn:'MAP',desc:'Context and inventory of every autonomous agent',color:'#0ea5e9',cards:
-      policyCard('Model allowlists per department','Legal → approved models only (Claude Opus 4.8, Claude Sonnet 4.6). Non-allowlisted calls are rejected at the gateway.','block')+
-      policyCard('Agent identity registry','14 registered agents with owner, scope and credential binding. Unregistered identities cannot reach a provider.','block')},
-    {fn:'MEASURE',desc:'Metering, profiling and anomaly detection',color:'#f59e0b',cards:
-      policyCard('Behavioral anomaly profiling (UEBA)','Per-agent baselines on token velocity, call pattern and tool mix; deviations scored in real time.','warn')+
-      policyCard('Max cost per single request','Requests projected above $5.00 are held before dispatch. Models cannot predict their own token spend (r ≤ 0.39 — arXiv:2604.22750).','warn')},
-    {fn:'MANAGE',desc:'Response, containment and human oversight',color:'#dc2626',cards:
-      policyCard('Millisecond kill-switch (autonomy circuit-breaker)','Per-agent hard stop; halts dispatch, revokes credentials, drains queue. Tested weekly.','block')+
-      policyCard('Human approval above cost threshold','Requests above the threshold route to a named approver before execution.','warn')+
-      policyCard('Sensitive-data screen','Blocks prompts containing client-confidential data before they reach a provider.','block')},
-  ];
-  document.getElementById('gov-grid').innerHTML=sections.map(s=>
-    '<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">'+
-    '<div class="flex items-center gap-2.5"><span class="text-[10px] font-bold tracking-widest text-white rounded-md px-2 py-1" style="background:'+s.color+'">'+s.fn+'</span>'+
-    '<span class="text-[11px] text-slate-400">NIST AI RMF · '+s.desc+'</span></div>'+
-    '<div class="mt-4 space-y-3">'+s.cards+'</div></div>').join('');
-  document.getElementById('feed').innerHTML=FEED.map(e=>
-    '<div class="px-6 py-3 flex items-center gap-4 text-[12.5px]">'+
-    '<span class="text-[11px] text-slate-400 tabular-nums flex-none w-10">'+e[0]+'</span>'+
-    '<span class="text-[9.5px] font-bold tracking-wider px-2 py-0.5 rounded-full border flex-none w-24 text-center '+FEED_STYLE[e[1]]+'">'+e[1]+'</span>'+
-    '<span class="text-slate-600">'+e[2]+'</span></div>').join('');
-}
-
-/* ================= 11. REPORTS ================= */
-function renderReports(){
-  const validInf=AGENTS.reduce((s,a)=>s+a.reqDay*30*a.success,0);
-  const lcoai=T.monthly/validInf;
-  document.getElementById('exec-summary').innerHTML=
-    '<p>Meridian Financial runs <b>14 production AI agents</b> across 6 departments at a run-rate of <b>'+fmt$(T.monthly)+'/mo ($4.0M/yr)</b> — roughly <b>~'+(T.mtokMonth/1000).toFixed(1)+'B tokens/month</b> (modeled at the $8.56/Mtok blended anchor). Two-thirds of enterprises Deloitte surveyed already consume 1B+ tokens a month (37% at 1–10B, 30% at 10B+). Only <b>'+Math.round(T.openShare*100)+'% of traffic</b> is routed to the open-weight floor, against a risk-adjusted optimum of <b>~83%</b>. That gap — not vendor pricing — is the controllable lever. <b>Spend = price × volume — and volume usually wins.</b></p>'+
-    '<p>The volume problem is structural. An agentic task consumes <b>~3,500×</b> the tokens of a single reasoning call (arXiv:2604.22750), and models cannot predict their own token spend (r ≤ 0.39 — arXiv:2604.22750). Ungoverned, this is why <b>95%</b> of GenAI pilots show no measurable P&amp;L impact (MIT NANDA) and why <b>&gt;40%</b> of agentic AI projects will be cancelled by end of 2027 (Gartner). Governed, it is an EBITDA line: routing to the optimum takes the token line to <b>30.9%</b> of frontier-default, a <b>60% net saving</b> after hosting/observability overhead.</p>'+
-    '<p>At '+fmt$(T.monthly)+'/mo, Meridian also clears the self-hosting threshold (rule of thumb: above ~$20k/mo spend and &gt;70% utilization), which makes the open-weight floor credible pricing leverage — and migration insurance.</p>';
-  document.getElementById('report-metrics').innerHTML=[
-    {label:'AI run-rate',val:fmt$(T.monthly)+'/mo',sub:'$4.0M/yr frontier-default'},
-    {label:'Substitution share',val:Math.round(T.openShare*100)+'% → 83%',sub:'realized vs risk-adjusted optimum'},
-    {label:'LCOAI',val:'$'+lcoai.toFixed(3),sub:'(amortized CapEx + total OpEx) ÷ valid inferences'},
-    {label:'EBITDA per AI $',val:'$0.60',sub:'uplift per AI dollar at optimized routing (proposed)'},
-  ].map(m=>'<div class="rounded-lg border border-slate-200 bg-slate-50 p-4"><div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold">'+m.label+'</div><div class="text-[19px] font-extrabold text-slate-900 mt-1">'+m.val+'</div><div class="text-[10.5px] text-slate-500 mt-0.5 leading-snug">'+m.sub+'</div></div>').join('');
-
-  const steps=[
-    {label:'AI run-cost today (frontier-default)',v:4.0,off:0,color:'#64748b',txt:'$4.0M/yr'},
-    {label:'Optimized run-cost (s = 0.80)',v:1.6,off:0,color:'#1e40af',txt:'$1.6M/yr'},
-    {label:'Annual EBITDA uplift',v:2.4,off:1.6,color:'#059669',txt:'$2.4M/yr'},
-    {label:'Enterprise value at exit (12× EV/EBITDA)',v:28.8,off:0,color:'#065f46',txt:'$28.8M'},
-  ];
-  document.getElementById('waterfall').innerHTML=steps.map(s=>{
-    const w=Math.max(s.v/28.8*100,4), inside=w>50;
-    return '<div class="flex items-center gap-4 text-[12px]">'+
-    '<span class="w-72 flex-none text-slate-600 font-medium">'+s.label+'</span>'+
-    '<div class="flex-1 h-8 relative"><div class="absolute inset-y-0 rounded-md flex items-center px-2.5" style="left:'+(s.off/28.8*100)+'%;width:'+w+'%;background:'+s.color+'">'+
-    (inside?'<span class="text-white text-[11px] font-bold whitespace-nowrap">'+s.txt+'</span>':'')+'</div>'+
-    (inside?'':'<span class="absolute inset-y-0 flex items-center text-[11px] font-bold whitespace-nowrap" style="left:calc('+((s.off+s.v)/28.8*100)+'% + 10px);color:'+s.color+'">'+s.txt+'</span>')+
-    '</div></div>';}).join('')+
-    '<p class="text-[10.5px] text-slate-400 pt-1">Bars to common scale ($0–28.8M). Token line at s = 0.80: 30.9% of frontier-default (~69% reduction); 60% net after overhead.</p>';
-
-  const years=['2026','2027','2028','2029','2030'];
-  const frontier=[10.00,8.21,6.75,5.53,4.54], open=[0.35,0.230,0.151,0.099,0.065], spend=[69.1,90.9,119.7,157.5,207.3];
-  makeChart('ch-forecast',{type:'line',data:{labels:years,datasets:[
-    {label:'Frontier blended $/Mtok',data:frontier,borderColor:'#1e40af',borderWidth:2.5,tension:.25,yAxisID:'y',pointRadius:3,pointBackgroundColor:'#1e40af'},
-    {label:'Open blended $/Mtok',data:open,borderColor:'#059669',borderWidth:2.5,tension:.25,yAxisID:'y',pointRadius:3,pointBackgroundColor:'#059669'},
-    {label:'Enterprise GenAI spend $B',data:spend,borderColor:'#f59e0b',borderDash:[5,4],borderWidth:2,tension:.25,yAxisID:'y1',pointRadius:3,pointBackgroundColor:'#f59e0b'},
-  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{labels:{boxWidth:10,font:{size:10.5}}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(c.dataset.yAxisID==='y1'?'$'+c.parsed.y.toFixed(1)+'B':'$'+c.parsed.y.toFixed(c.parsed.y<1?3:2))}}},
-    scales:{y:{type:'logarithmic',position:'left',title:{display:true,text:'$/Mtok (log)'},
-              afterBuildTicks:axis=>{axis.ticks=[0.05,0.1,0.35,1,4.54,10].map(v=>({value:v}));},
-              ticks:{callback:v=>'$'+v}},
-            y1:{position:'right',title:{display:true,text:'Spend $B'},grid:{drawOnChartArea:false},ticks:{callback:v=>'$'+v+'B'}},
-            x:{grid:{display:false}}}}});
-
-  document.getElementById('forecast-bullets').innerHTML=[
-    ['Frontier/open gap','28.6× (2026) → <b>69.9×</b> (2030) in the bifurcation scenario — <b>13.0×</b> under convergence.'],
-    ['Tokens per interaction','grow <b>~352×</b> vs 2023.'],
-    ['Cost per customer interaction','$0.04 (2023) → $1.20 (2026) → peaks <b>~$2.04 in 2027</b> at realized routing vs <b>$0.74</b> at optimum — that gap is <b>“the Agentic-FinOps prize.”</b>'],
-    ['Substitution share','optimum rises <b>83% → 90%</b>; realized share <b>15% → 45%</b>.'],
-  ].map(b=>'<div class="rounded-lg border border-slate-200 bg-slate-50 p-3.5"><div class="text-[10.5px] uppercase tracking-wider text-slate-400 font-semibold">'+b[0]+'</div><div class="mt-1 leading-relaxed">'+b[1]+'</div></div>').join('');
-}
-
-/* ================= INIT ================= */
-showView('overview');
-</script>
 </body>
 </html>
