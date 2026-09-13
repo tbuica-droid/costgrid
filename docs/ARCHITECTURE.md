@@ -411,7 +411,8 @@ billing history is unrecoverable without a backup.
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
 - The GitHub Pages site is static. `index.html` is the product page,
-  `research.html` the original seeded research dashboard, and `demo/` runs the
+  `thesis.html` and `dashboard.html` the original research write-up and its
+  seeded dashboard, and `demo/` runs the
   *real* dashboard bundle against captured API snapshots — a transport swap in
   `demo/demo-data.js` and nothing else, so the demo cannot drift from the
   product by reimplementing any of its numbers. Refreshing it means re-capturing

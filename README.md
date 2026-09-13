@@ -73,7 +73,8 @@ packages/
   cli/      Operator surface: keys, policies, reports, statements, backups.
 docs/       QUICKSTART (self-hosted), TRIAL (what a trial involves),
             HOSTING (as a service), ARCHITECTURE (decisions and their reasons).
-index.html  The site. research.html is the original research dashboard.
+index.html  The product site. thesis.html and dashboard.html are the
+            original research write-up and its illustrative dashboard.
 demo/       The real dashboard against a captured snapshot, for GitHub Pages.
 scripts/    Pricing verification and an end-to-end smoke test.
 CostGrid_Token_Cost_Model.xlsx   The forecast model, 2023 to 2030.
@@ -85,7 +86,8 @@ npm install && npm run build && npm test
 
 **Site:** <https://tbuica-droid.github.io/costgrid/> ·
 **Dashboard demo:** <https://tbuica-droid.github.io/costgrid/demo/> ·
-**Research dashboard:** <https://tbuica-droid.github.io/costgrid/research.html>
+**Thesis:** <https://tbuica-droid.github.io/costgrid/thesis.html> ·
+**Research dashboard:** <https://tbuica-droid.github.io/costgrid/dashboard.html>
 
 ---
 
@@ -93,8 +95,8 @@ npm install && npm run build && npm test
 
 CostGrid started from an observation: per-token prices are collapsing and
 enterprise AI bills are rising anyway. Unit price is the wrong thing to watch —
-spend is price multiplied by volume, and volume usually wins. `research.html`
-and the spreadsheet are that research, and the routing economics in
+spend is price multiplied by volume, and volume usually wins. `thesis.html`,
+`dashboard.html` and the spreadsheet are that research, and the routing economics in
 `packages/core/src/routing.ts` come straight from it.
 
 **Cost taxonomy.** Tokens are the visible line, not the whole bill. The model
@@ -122,8 +124,8 @@ text marking cells meant to be changed and a source note beside each hardcoded
 number. `Model` is entirely formulas driven by those assumptions. Six modules:
 price decay, routing, volume, spend, seat pricing, and EBITDA impact.
 
-The figures in `research.html` describe an illustrative organisation, not a real
-one. Every figure in the *product* dashboard is measured from traffic, and an
+The figures in `dashboard.html` describe an illustrative organisation, not a
+real one. Every figure in the *product* dashboard is measured from traffic, and an
 empty database shows an empty state rather than a plausible chart.
 
 ---
