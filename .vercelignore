@@ -1,0 +1,16 @@
+# The repo is a product and a website in one tree. Only the website should be
+# published to the marketing domain — the source stays on GitHub, where people
+# expect to read it, rather than being served from costgrid.dev.
+node_modules
+packages
+scripts
+docs
+Dockerfile
+.dockerignore
+.env.example
+tsconfig.json
+tsconfig.base.json
+vitest.config.ts
+package.json
+package-lock.json
+*.db

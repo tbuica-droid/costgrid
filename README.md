@@ -15,8 +15,8 @@ and nothing else changes:
 client = Anthropic(base_url="https://costgrid.example.com", api_key="unused")
 ```
 
-**[Try the dashboard](https://tbuica-droid.github.io/costgrid/demo/)** against
-sample traffic — no install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
+**[Try the dashboard](https://costgrid.dev/demo/)** against sample traffic —
+no install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
 takes a clean checkout to a real spend report from your own traffic, and
 **[docs/TRIAL.md](docs/TRIAL.md)** covers what a free trial involves and what
 data stays inside your network (all of it).
@@ -84,10 +84,10 @@ CostGrid_Token_Cost_Model.xlsx   The forecast model, 2023 to 2030.
 npm install && npm run build && npm test
 ```
 
-**Site:** <https://tbuica-droid.github.io/costgrid/> ·
-**Dashboard demo:** <https://tbuica-droid.github.io/costgrid/demo/> ·
-**Thesis:** <https://tbuica-droid.github.io/costgrid/thesis.html> ·
-**Research dashboard:** <https://tbuica-droid.github.io/costgrid/dashboard.html>
+**Site:** <https://costgrid.dev> ·
+**Dashboard demo:** <https://costgrid.dev/demo/> ·
+**Thesis:** <https://costgrid.dev/thesis.html> ·
+**Research dashboard:** <https://costgrid.dev/dashboard.html>
 
 ---
 
