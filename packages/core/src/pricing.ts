@@ -1,6 +1,15 @@
 import { mulDiv, type Nanodollars, usd } from "./money.js";
 
-export type Provider = "anthropic" | "openai";
+/**
+ * A billing channel, not a model family.
+ *
+ * Bedrock and Vertex serve the same Claude models as Anthropic direct, but
+ * they are separate providers here because they bill separately, hold separate
+ * credentials, and must never be routed across: a Bedrock model id is not
+ * valid on the Anthropic API, so rewriting one into the other would send a
+ * malformed request upstream.
+ */
+export type Provider = "anthropic" | "openai" | "bedrock" | "vertex";
 
 /**
  * Tiers are CostGrid's own classification, not a vendor concept. The routing
@@ -490,9 +499,59 @@ export function listModelPrices(provider?: Provider): ModelPrice[] {
  * flag the cost as unpriced" — never as "this request was free". A model
  * released after our last catalog refresh is the normal cause.
  */
+/**
+ * Strip a channel's packaging from a model id.
+ *
+ * The same model reaches a customer under three spellings:
+ *
+ *   anthropic direct  claude-opus-4-5-20260101
+ *   bedrock           anthropic.claude-opus-4-5-20260101-v1:0
+ *   bedrock, routed   us.anthropic.claude-opus-4-5-20260101-v1:0
+ *   vertex            claude-opus-4-5@20260101
+ *
+ * The rates are looked up under the first. Normalising here means the catalog
+ * stays one table rather than three that must be kept in step — and a model
+ * priced correctly on one channel cannot silently become unpriced on another.
+ *
+ * Channel *prices* do differ, and this function does not pretend otherwise;
+ * see `CHANNEL_PRICING_NOTE`.
+ */
+export function normaliseModelId(modelId: string): string {
+  let id = modelId.trim();
+
+  // Bedrock cross-region inference profiles prefix a geography.
+  id = id.replace(/^(us|eu|apac|us-gov)\./, "");
+  // Bedrock namespaces by vendor and suffixes a version.
+  id = id.replace(/^(anthropic|meta|mistral|amazon|cohere|ai21)\./, "");
+  id = id.replace(/-v\d+:\d+$/, "");
+  // Vertex separates the snapshot date with @ rather than a hyphen.
+  id = id.replace(/@(\d{8})$/, "-$1");
+
+  return id;
+}
+
+/**
+ * What to tell an operator whose traffic arrives through Bedrock or Vertex.
+ *
+ * Those channels publish their own per-region rates, which this catalog does
+ * not carry and cannot verify. Traffic is priced at the direct-API list rate
+ * for the same model, which is close but not exact. `costgrid rates derive`
+ * against the AWS or GCP invoice turns close into exact.
+ */
+export const CHANNEL_PRICING_NOTE =
+  "Bedrock and Vertex traffic is priced at the direct-API list rate for the same model. " +
+  "Their published rates differ by channel and region, so derive your actual rate from an " +
+  "invoice: costgrid rates derive <provider> --invoiced <usd>.";
+
 export function findModelPrice(modelId: string): ModelPrice | undefined {
   const exact = PRICES.get(modelId);
   if (exact) return exact;
+
+  const normalised = normaliseModelId(modelId);
+  if (normalised !== modelId) {
+    const viaChannel = findModelPrice(normalised);
+    if (viaChannel) return viaChannel;
+  }
 
   // Anthropic accepts dated snapshot IDs (`claude-opus-5-20260401`) that price
   // identically to their base model. Match the longest catalog id that the
