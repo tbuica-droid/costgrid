@@ -95,6 +95,9 @@
 
 /* "What you get" rows: the mono tag sits beside the prose on a wide screen and
    under it on a phone, where a second column leaves the paragraph a ribbon. */
+@media (max-width: 860px) {
+  .topo-grid { grid-template-columns:1fr !important; }
+}
 @media (max-width: 700px) {
   .row-2col { grid-template-columns:1fr !important; gap:10px !important; }
   .row-2col > div:last-child {
@@ -136,6 +139,7 @@
     <nav style="display:flex;align-items:center;gap:clamp(12px,2vw,30px);font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em">
       <a href="#how" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv1 hdr-links">How it works</a>
       <a href="#dial" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv2 hdr-links">The dial</a>
+      <a href="#topology-section" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">Topology</a>
       <a href="#pricing" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">Pricing</a>
       <a href="./demo/" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv4 hdr-links">Demo</a>
       <a href="#trial" class="hv5 hdr-cta" style="display:inline-flex;align-items:center;gap:8px;background:#0f1411;color:#f5f2e9;padding:8px 14px;text-decoration:none;white-space:nowrap">Start free trial <span style="font-family:'Libre Franklin',sans-serif">&#8594;</span></a>
@@ -403,10 +407,46 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
     </div>
   </section>
 
-  <!-- ===================================================== 05 questions -->
+
+  <!-- ===================================================== 05 topology -->
+  <section id="topology-section" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
+    <div class="sec-grid">
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">05 &mdash; What you actually run</div>
+      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
+        <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">Nobody can tell you what their agents can reach.</h2>
+        <p style="margin:18px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">They have a diagram from six months ago and a lot of hope. CostGrid reads the
+          shape out of your own traffic instead: which agents call which models, which tools they
+          can invoke, and who hands work to whom. Not from your documentation &mdash; from what your
+          software actually did this week.</p>
+        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Once the map exists, a policy can name a boundary rather than a budget:
+          <em>this agent may not reach <code style="font-family:'Fragment Mono',monospace;font-size:13px">refund_customer</code>,
+          directly or through anything it delegates to.</em></p>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(20px,2.4vw,32px);align-items:start" class="grid topo-grid">
+          <div style="border:1px solid rgba(15,20,17,0.28);background:#f5f2e9">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:9px 14px;border-bottom:1px solid rgba(15,20,17,0.16);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.5)">
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#0f1411;vertical-align:-1px;margin-right:5px"></span>Agent</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#9d7b1f;vertical-align:-1px;margin-right:5px"></span>Model</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid #a8452a;vertical-align:-1px;margin-right:5px"></span>Tool</span>
+              <span style="margin-left:auto">&mdash;&mdash; extracted &nbsp; &middot;&middot;&middot;&middot; illustrative</span>
+            </div>
+            <div id="topology" style="padding:4px"></div>
+          </div>
+          <div id="topology-panel" style="border:1px solid rgba(15,20,17,0.28);background:#f5f2e9;padding:20px;font-size:14.5px;line-height:1.6;min-height:200px"></div>
+        </div>
+
+        <p style="margin:18px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.7;color:rgba(15,20,17,0.55);max-width:78ch">Agents, models and spend above are extracted from the demo&rsquo;s real metered
+          calls &mdash; solid edges. Tool and delegation edges are drawn dashed because they need the
+          run and tool-call extraction shipping in the next release; they are an example of the
+          shape, not a measurement. CostGrid labels the difference everywhere it reports one.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== 06 questions -->
   <section id="questions" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">05 &mdash; Straight answers</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">06 &mdash; Straight answers</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 clamp(26px,3vw,38px);font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">The questions you are about to ask.</h2>
 
@@ -439,7 +479,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 06 pricing -->
   <section id="pricing" style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">06 &mdash; Pricing</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">07 &mdash; Pricing</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">You run the software. The fee is for the product, not for hosting your data.</h2>
         <p style="margin:18px 0 clamp(26px,3vw,34px);max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Thirty days free on every plan, and the source is public &mdash; read it before you run it.</p>
@@ -488,7 +528,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 07 trial -->
   <section id="trial" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035);scroll-margin-top:58px">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#9d7b1f">07 &mdash; Start free</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#9d7b1f">08 &mdash; Start free</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">Thirty days, free, on your own infrastructure.</h2>
         <p style="margin:18px 0 clamp(28px,3vw,40px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">No card and no sales call. Stopping is a one-line revert: point your base URL back at the provider and everything keeps working.</p>
@@ -583,7 +623,7 @@ npm run gateway
   <!-- ===================================================== 08 research -->
   <section style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">08 &mdash; Where this came from</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">09 &mdash; Where this came from</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 18px;font-size:clamp(22px,2.2vw,32px);font-weight:600;letter-spacing:-0.025em;line-height:1.15;max-width:34ch;text-wrap:balance">A cost model first, a product second.</h2>
         <p style="margin:0 0 clamp(26px,3vw,34px);max-width:64ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">CostGrid began as research into why AI bills rise while token prices fall &mdash; six modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact, driven from a single assumptions sheet. The routing maths in the product is that model. The difference is that the product measures your real numbers instead of assuming them.</p>
@@ -818,5 +858,6 @@ npm run gateway
   });
 })();
 </script>
+<script src="./topology.js"></script>
 </body>
 </html>
