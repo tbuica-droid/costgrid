@@ -25,6 +25,7 @@
     violations: "violations",
     policies: "policies",
     history: "history",
+    topology: "topology",
     statement: "statement",
   };
 

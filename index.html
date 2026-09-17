@@ -418,7 +418,8 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           shape out of your own traffic instead: which agents call which models, which tools they
           can invoke, and who hands work to whom. Not from your documentation &mdash; from what your
           software actually did this week.</p>
-        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Once the map exists, a policy can name a boundary rather than a budget:
+        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Tool <em>names</em> only &mdash; arguments are never stored. Once the map exists, a
+          policy can name a boundary rather than a budget:
           <em>this agent may not reach <code style="font-family:'Fragment Mono',monospace;font-size:13px">refund_customer</code>,
           directly or through anything it delegates to.</em></p>
 
@@ -435,10 +436,10 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           <div id="topology-panel" style="border:1px solid rgba(15,20,17,0.28);background:#f5f2e9;padding:20px;font-size:14.5px;line-height:1.6;min-height:200px"></div>
         </div>
 
-        <p style="margin:18px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.7;color:rgba(15,20,17,0.55);max-width:78ch">Agents, models and spend above are extracted from the demo&rsquo;s real metered
-          calls &mdash; solid edges. Tool and delegation edges are drawn dashed because they need the
-          run and tool-call extraction shipping in the next release; they are an example of the
-          shape, not a measurement. CostGrid labels the difference everywhere it reports one.</p>
+        <p style="margin:18px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.7;color:rgba(15,20,17,0.55);max-width:78ch">This diagram is laid out by hand for legibility. The real thing is in the
+          product: <a href="./demo/">open the demo and pick Topology</a> to see the same graph built
+          from metered calls, where solid edges were exercised and dashed ones are capability an
+          agent holds and has not used. CostGrid labels that difference everywhere it reports one.</p>
       </div>
     </div>
   </section>
