@@ -494,12 +494,38 @@ async function renderPolicies() {
         ? `${cap}, then fall back to ${escapeHtml(rule.fallbackModel)}`
         : cap;
     }
+    if (rule.kind === "run-budget") {
+      const cap = `${money(rule.limitUsd)} per run`;
+      return rule.fallbackModel
+        ? `${cap}, then fall back to ${escapeHtml(rule.fallbackModel)}`
+        : cap;
+    }
+    if (rule.kind === "run-steps") return `stop a run after ${count(rule.limit)} call(s)`;
+    if (rule.kind === "run-depth") return `at most ${count(rule.limit)} delegation hop(s)`;
     if (rule.kind === "max-output-tokens") return `max_tokens ≤ ${count(rule.limit)}`;
     if (rule.kind === "route") {
       const from = rule.from?.length ? rule.from.map(escapeHtml).join(", ") : "any model";
       return `route ${from} → ${escapeHtml(rule.toModel)}`;
     }
-    return `${rule.kind}: ${(rule.models ?? []).map(escapeHtml).join(", ")}`;
+    // Tool boundaries say who they cover, because "and everyone it delegates
+    // to" is the half that makes the rule hold.
+    if (rule.kind === "tool-denylist") {
+      const tools = (rule.tools ?? []).map(escapeHtml).join(", ");
+      const reach = rule.transitive === false ? "this agent only" : "and any agent it delegates to";
+      return `may not be given ${tools} — ${reach}`;
+    }
+    if (rule.kind === "tool-allowlist") {
+      return `may only be given ${(rule.tools ?? []).map(escapeHtml).join(", ")}`;
+    }
+    if (rule.kind === "model-allowlist") {
+      return `may only use ${(rule.models ?? []).map(escapeHtml).join(", ")}`;
+    }
+    if (rule.kind === "model-denylist") {
+      return `may not use ${(rule.models ?? []).map(escapeHtml).join(", ")}`;
+    }
+    // An unknown kind is a newer gateway than this page. Say so rather than
+    // rendering an empty rule that reads like a rule with nothing in it.
+    return `${escapeHtml(rule.kind)} (not shown by this dashboard version)`;
   };
 
   const scopeOf = (scope) =>

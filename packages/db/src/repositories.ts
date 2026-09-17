@@ -372,6 +372,49 @@ export class CostGridRepository {
   }
 
   /**
+   * The agents further up this run's delegation chain, nearest first.
+   *
+   * Walked one indexed lookup at a time rather than in a recursive CTE,
+   * because the walk needs two guards that are awkward to express in SQL and
+   * essential here: a visited set, so a cycle in the delegation graph cannot
+   * spin this query on the request path, and a hard hop cap, so a pathological
+   * chain costs a bounded number of reads before a call is forwarded. This
+   * runs before every request that carries a parent-run header, so its worst
+   * case is a latency number, not a background job.
+   *
+   * A parent run nobody metered ends the walk. That understates the chain
+   * rather than inventing one, which is the right way for a boundary to fail:
+   * `policy list` reports run coverage so the gap is visible.
+   */
+  delegationChain(tenantId: string, parentRunId: string, maxHops = 32): string[] {
+    const lookup = this.#db.prepare(
+      `SELECT agent_id AS agentId, parent_run_id AS parentRunId
+       FROM calls
+       WHERE tenant_id = ? AND run_id = ?
+       ORDER BY started_at LIMIT 1`,
+    );
+
+    const chain: string[] = [];
+    const seen = new Set<string>();
+    let runId: string | undefined = parentRunId;
+
+    for (let hop = 0; hop < maxHops && runId !== undefined; hop += 1) {
+      if (seen.has(runId)) break;
+      seen.add(runId);
+
+      const row = lookup.get(tenantId, runId) as
+        | { agentId: string; parentRunId: string | null }
+        | undefined;
+      if (row === undefined) break;
+
+      if (!chain.includes(row.agentId)) chain.push(row.agentId);
+      runId = row.parentRunId ?? undefined;
+    }
+
+    return chain;
+  }
+
+  /**
    * Record the tools a call touched.
    *
    * `invoked` is what the model asked to run, kept per call so a run can be
@@ -518,6 +561,26 @@ export class CostGridRepository {
         Date.now(),
       );
     return id;
+  }
+
+  /**
+   * Names of enabled tool rules across every tenant.
+   *
+   * Used once, at boot, to refuse to start a gateway that carries tool
+   * boundaries it cannot enforce. Matching on the serialised rule rather than
+   * parsing every policy keeps this to one indexed-free scan of a small table
+   * at a moment when nothing is serving traffic yet.
+   */
+  toolPolicyNames(): string[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT name FROM policies
+         WHERE enabled = 1
+           AND (rule_json LIKE '%"tool-denylist"%' OR rule_json LIKE '%"tool-allowlist"%')
+         ORDER BY created_at`,
+      )
+      .all() as { name: string }[];
+    return rows.map((r) => r.name);
   }
 
   listPolicies(tenantId: string): Policy[] {

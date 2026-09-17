@@ -42,6 +42,13 @@ allowlists and denylists; output-token caps. Each rule runs in `monitor`
 (record only), `warn` (allow, annotate) or `block` (refuse before forwarding, so
 the call costs nothing).
 
+**Draws boundaries, not just budgets.** `costgrid policy deny-tool
+agent:support refund_customer` stops that agent — and every agent it delegates
+to — from being handed that tool. It holds because a model cannot call a tool it
+was never given: the tool list is part of the request, so the request is refused
+and there is nothing for your harness to execute. No change to your agent
+framework, and no trusting the model to respect an instruction.
+
 **Degrades instead of breaking.** A cap with `--fallback` downgrades
 over-budget traffic to a cheaper model rather than returning 403, so the
 customer's product keeps answering. It refuses to make a substitution it cannot

@@ -81,6 +81,45 @@ export type PolicyRule =
       readonly kind: "run-depth";
       readonly limit: number;
     }
+  | {
+      /**
+       * Tools this scope may not hand to a model.
+       *
+       * This is the first rule that governs an *action* rather than a cost,
+       * and it works because of where CostGrid sits: a model cannot invoke a
+       * tool it was never given. The tool list is part of the request, so
+       * refusing the request refuses the capability outright — no agreement
+       * from the customer's harness required, and nothing to execute even if
+       * the model hallucinates the call.
+       *
+       * `transitive` (the default) extends the boundary across delegation: if
+       * this agent hands work to another, the other may not reach the tool on
+       * its behalf either. A boundary that stops at the first hop is exactly
+       * the boundary that does not hold, because delegating is how an agent
+       * gets around it. Turning it off needs `--direct-only` and is a
+       * deliberate act.
+       *
+       * The transitive half depends on `x-costgrid-parent-run` being
+       * propagated. Where it is not, the chain is invisible and only the
+       * direct rule can fire — `costgrid policy list` reports that coverage
+       * rather than letting the rule look stronger than it is.
+       */
+      readonly kind: "tool-denylist";
+      readonly tools: readonly string[];
+      readonly transitive?: boolean;
+    }
+  | {
+      /**
+       * The only tools this scope may hand to a model.
+       *
+       * Direct-only by design. Inheriting an allowlist down a delegation chain
+       * would silently forbid a delegate's own legitimate tools, which turns
+       * one narrow rule into an outage two hops away. Deny travels; allow
+       * does not.
+       */
+      readonly kind: "tool-allowlist";
+      readonly tools: readonly string[];
+    }
   | { readonly kind: "model-allowlist"; readonly models: readonly string[] }
   | { readonly kind: "model-denylist"; readonly models: readonly string[] }
   | { readonly kind: "max-output-tokens"; readonly limit: number }
@@ -125,6 +164,24 @@ export interface RequestContext {
   readonly model: string;
   /** `max_tokens` from the request body. */
   readonly maxOutputTokens: number;
+  /**
+   * Tool names the request offers the model, or `undefined` when CostGrid did
+   * not look (`COSTGRID_EXTRACT_TOOLS=false`).
+   *
+   * The distinction is load-bearing. `[]` means we read the request and it
+   * offered no tools; `undefined` means we cannot see, and a rule that cannot
+   * see must not pretend to enforce. The gateway refuses to start with tool
+   * rules configured and extraction off, so this case is a misconfiguration
+   * caught at boot rather than a boundary that quietly does nothing.
+   */
+  readonly declaredTools?: readonly string[];
+  /**
+   * Agents further up this run's delegation chain, nearest first.
+   *
+   * Empty when the caller propagates no parent-run header, which is also the
+   * case where a transitive rule cannot fire.
+   */
+  readonly delegatedFrom?: readonly string[];
 }
 
 /**
@@ -243,12 +300,47 @@ function scopeMatches(scope: PolicyScope, context: RequestContext): boolean {
   }
 }
 
+/**
+ * Does this rule reach the request through a delegation chain rather than
+ * directly?
+ *
+ * Returns the ancestor agent the rule is scoped to, which the reason string
+ * needs — "you may not do this" and "the agent that asked you to may not do
+ * this" are different facts, and a customer reading a blocked call deserves
+ * the second one spelled out.
+ *
+ * Only agent-scoped deny rules travel. A tenant scope already matches
+ * everything, and a department scope cannot: nothing records which department
+ * an ancestor run belonged to, and inferring it would be a guess presented as
+ * a boundary.
+ */
+function delegatedMatch(rule: PolicyRule, scope: PolicyScope, context: RequestContext): string | undefined {
+  if (rule.kind !== "tool-denylist") return undefined;
+  if (rule.transitive === false) return undefined;
+  if (scope.kind !== "agent") return undefined;
+  return context.delegatedFrom?.includes(scope.agentId) ? scope.agentId : undefined;
+}
+
+/** The tools a rule bites on, or `undefined` when the request was not read. */
+function offendingTools(
+  declared: readonly string[] | undefined,
+  predicate: (tool: string) => boolean,
+): readonly string[] | undefined {
+  if (declared === undefined) return undefined;
+  return declared.filter(predicate);
+}
+
+function list(tools: readonly string[]): string {
+  return tools.join(", ");
+}
+
 /** Returns a reason string when the rule is violated, otherwise `undefined`. */
 function evaluateRule(
   rule: PolicyRule,
   context: RequestContext,
   spend: SpendSnapshot,
   run: RunSnapshot | undefined,
+  via: string | undefined,
 ): string | undefined {
   switch (rule.kind) {
     case "budget": {
@@ -266,6 +358,21 @@ function evaluateRule(
         `${rule.window}ly spend $${toUsdString(spent, 2)} has reached ` +
         `${pct.toFixed(0)}% of the $${toUsdString(rule.limit, 2)} ${rule.window}ly budget`
       );
+    }
+
+    case "tool-denylist": {
+      const hit = offendingTools(context.declaredTools, (t) => rule.tools.includes(t));
+      if (hit === undefined || hit.length === 0) return undefined;
+      const what = `tool ${list(hit)} is denied`;
+      return via === undefined
+        ? `${what} for this scope`
+        : `${what} for ${via}, which delegated this work`;
+    }
+
+    case "tool-allowlist": {
+      const hit = offendingTools(context.declaredTools, (t) => !rule.tools.includes(t));
+      if (hit === undefined || hit.length === 0) return undefined;
+      return `tool ${list(hit)} is not on the allowlist for this scope`;
     }
 
     case "model-allowlist":
@@ -409,7 +516,17 @@ export function evaluatePolicies(
 
   for (const policy of policies) {
     if (!policy.enabled) continue;
-    if (!scopeMatches(policy.scope, context)) continue;
+
+    /*
+     * A rule reaches a request either directly, or — for a transitive tool
+     * denial — because an agent further up the delegation chain is the one
+     * under the rule. `via` carries which, so the reason can say so.
+     */
+    let via: string | undefined;
+    if (!scopeMatches(policy.scope, context)) {
+      via = delegatedMatch(policy.rule, policy.scope, context);
+      if (via === undefined) continue;
+    }
 
     if (policy.rule.kind === "route") {
       // First match wins, so overlapping rules cannot chain a request through
@@ -421,7 +538,7 @@ export function evaluatePolicies(
     // Budget rules are the only ones that read spend, so the resolver is
     // called lazily — scoped spend queries are not free.
     const scopedSpend = policy.rule.kind === "budget" ? resolve(policy.scope) : ZERO_SPEND;
-    const reason = evaluateRule(policy.rule, context, scopedSpend, run);
+    const reason = evaluateRule(policy.rule, context, scopedSpend, run, via);
     if (reason === undefined) continue;
 
     const fallbackModel =

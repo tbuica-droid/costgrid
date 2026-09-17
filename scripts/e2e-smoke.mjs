@@ -299,7 +299,45 @@ check("granted tool extracted", edge("grants", "topo-parent", "refund_customer")
 check("delegation extracted", edge("delegates", "topo-parent", "topo-child"), true);
 check("no delegation loop reported", topo.cycles.length, 0);
 
-console.log("\n10. negotiated rate: figures reconcile with an invoice");
+console.log("\n10. tool boundary: the delegate is stopped too");
+/*
+ * Section 9 left topo-parent delegating to topo-child, so the chain this rule
+ * has to follow is real metered traffic rather than a fixture.
+ */
+await cli(["policy", "deny-tool", "agent:topo-parent", "refund_customer"]);
+
+res = await call(
+  { model: "claude-haiku-4-5", max_tokens: 100, tools: [{ name: "refund_customer" }] },
+  { "x-costgrid-agent": "topo-parent" },
+);
+check("denied tool is refused at the source", res.status, 403);
+const denied = await res.json();
+check("reason names the tool", /refund_customer/.test(denied.error.message), true);
+
+// The same request from the delegate, which no rule names directly.
+res = await call(
+  { model: "claude-haiku-4-5", max_tokens: 100, tools: [{ name: "refund_customer" }] },
+  {
+    "x-costgrid-agent": "topo-child",
+    "x-costgrid-run": "topo-sub-2",
+    "x-costgrid-parent-run": "topo-root",
+  },
+);
+check("delegate cannot reach it either", res.status, 403);
+check("reason names who delegated", /topo-parent/.test((await res.json()).error.message), true);
+
+// Everything else the same agents do is untouched.
+res = await call(
+  { model: "claude-haiku-4-5", max_tokens: 100, tools: [{ name: "search_kb" }] },
+  { "x-costgrid-agent": "topo-parent" },
+);
+check("other tools are unaffected", res.status, 200);
+await res.text();
+
+const boundaryOut = await cli(["policy", "list"]);
+check("boundary is listed", /may not use \[refund_customer\]/.test(boundaryOut), true);
+
+console.log("\n11. negotiated rate: figures reconcile with an invoice");
 await cli(["rates", "set", "anthropic", "--discount", "18"]);
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });
 check("discounted call still succeeds", res.status, 200);
@@ -317,7 +355,7 @@ const listVsPaid = await cli(["report", "--days", "1"]);
 check("report still renders under a rate", /Total spend/.test(listVsPaid), true);
 await cli(["rates", "clear", "anthropic"]);
 
-console.log("\n11. monthly statement, in every format it exports");
+console.log("\n12. monthly statement, in every format it exports");
 const statementText = await cli(["statement"]);
 check("statement names this month", /CostGrid statement — /.test(statementText), true);
 check("statement is marked month to date", /Month to date/.test(statementText), true);
@@ -341,7 +379,7 @@ const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
 // Money must survive as an exact decimal string, never a float.
 check("json money is a string", typeof statementJson.total, "string");
 
-console.log("\n12. CLI report\n");
+console.log("\n13. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

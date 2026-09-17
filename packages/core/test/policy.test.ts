@@ -427,3 +427,135 @@ describe("run rules", () => {
     expect(decision.allowed).toBe(true);
   });
 });
+
+describe("tool boundaries", () => {
+  const withTools = (tools: string[] | undefined, extra: Partial<RequestContext> = {}) => ({
+    ...context,
+    ...(tools === undefined ? {} : { declaredTools: tools }),
+    ...extra,
+  });
+
+  const denyRefunds = policy({
+    name: "no refunds",
+    scope: { kind: "agent", agentId: "support-triage" },
+    rule: { kind: "tool-denylist", tools: ["refund_customer"] },
+  });
+
+  it("blocks a request that offers the denied tool", () => {
+    const decision = evaluatePolicies(
+      [denyRefunds],
+      withTools(["search_docs", "refund_customer"]),
+      noSpend,
+    );
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.reason).toContain("refund_customer");
+  });
+
+  it("allows a request that offers only other tools", () => {
+    const decision = evaluatePolicies([denyRefunds], withTools(["search_docs"]), noSpend);
+    expect(decision.allowed).toBe(true);
+  });
+
+  it("names every denied tool in one reason, not just the first", () => {
+    const rule = policy({
+      scope: { kind: "tenant" },
+      rule: { kind: "tool-denylist", tools: ["refund_customer", "delete_account"] },
+    });
+    const decision = evaluatePolicies(
+      [rule],
+      withTools(["delete_account", "refund_customer"]),
+      noSpend,
+    );
+    // Reported in the order the request declared them, so the message lines up
+    // with what the caller sent rather than with how the rule was written.
+    expect(decision.blockedBy?.reason).toContain("delete_account, refund_customer");
+  });
+
+  /*
+   * The transitive half is the reason the rule holds. Without it, an agent
+   * under a boundary reaches the tool by asking another agent to.
+   */
+  it("follows the boundary across a delegation hop", () => {
+    const decision = evaluatePolicies(
+      [denyRefunds],
+      withTools(["refund_customer"], {
+        agentId: "billing-worker",
+        delegatedFrom: ["support-triage"],
+      }),
+      noSpend,
+    );
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.reason).toContain("support-triage, which delegated this work");
+  });
+
+  it("does not follow it when the rule is direct-only", () => {
+    const direct = policy({
+      scope: { kind: "agent", agentId: "support-triage" },
+      rule: { kind: "tool-denylist", tools: ["refund_customer"], transitive: false },
+    });
+    const decision = evaluatePolicies(
+      [direct],
+      withTools(["refund_customer"], {
+        agentId: "billing-worker",
+        delegatedFrom: ["support-triage"],
+      }),
+      noSpend,
+    );
+    expect(decision.allowed).toBe(true);
+  });
+
+  it("leaves an unrelated agent alone even when it declares the tool", () => {
+    const decision = evaluatePolicies(
+      [denyRefunds],
+      withTools(["refund_customer"], { agentId: "billing-worker", delegatedFrom: ["reporting"] }),
+      noSpend,
+    );
+    expect(decision.allowed).toBe(true);
+  });
+
+  /*
+   * With extraction off the request was never read. Firing would block traffic
+   * on a guess; not firing is caught at boot instead, where an operator is
+   * watching — see the gateway's startup check.
+   */
+  it("does not fire when the tool list was never read", () => {
+    const decision = evaluatePolicies([denyRefunds], withTools(undefined), noSpend);
+    expect(decision.allowed).toBe(true);
+    expect(decision.violations).toHaveLength(0);
+  });
+
+  it("allows an allowlisted tool and blocks anything else", () => {
+    const only = policy({
+      scope: { kind: "agent", agentId: "support-triage" },
+      rule: { kind: "tool-allowlist", tools: ["search_docs", "create_ticket"] },
+    });
+    expect(evaluatePolicies([only], withTools(["search_docs"]), noSpend).allowed).toBe(true);
+
+    const decision = evaluatePolicies([only], withTools(["search_docs", "wire_funds"]), noSpend);
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.reason).toContain("wire_funds");
+  });
+
+  it("does not inherit an allowlist down a delegation chain", () => {
+    const only = policy({
+      scope: { kind: "agent", agentId: "support-triage" },
+      rule: { kind: "tool-allowlist", tools: ["search_docs"] },
+    });
+    // The delegate's own tools are its own business; inheriting would turn one
+    // narrow rule into an outage two hops away.
+    const decision = evaluatePolicies(
+      [only],
+      withTools(["run_query"], { agentId: "analytics", delegatedFrom: ["support-triage"] }),
+      noSpend,
+    );
+    expect(decision.allowed).toBe(true);
+  });
+
+  it("monitors without blocking, like every other rule", () => {
+    const watching = policy({ ...denyRefunds, action: "monitor" });
+    const decision = evaluatePolicies([watching], withTools(["refund_customer"]), noSpend);
+    expect(decision.allowed).toBe(true);
+    expect(decision.violations).toHaveLength(1);
+    expect(decision.violations[0]?.action).toBe("monitor");
+  });
+});

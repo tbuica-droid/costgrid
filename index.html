@@ -418,10 +418,21 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           shape out of your own traffic instead: which agents call which models, which tools they
           can invoke, and who hands work to whom. Not from your documentation &mdash; from what your
           software actually did this week.</p>
-        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Tool <em>names</em> only &mdash; arguments are never stored. Once the map exists, a
-          policy can name a boundary rather than a budget:
+        <p style="margin:14px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Tool <em>names</em> only &mdash; arguments are never stored. Once the map exists, a
+          rule can name a boundary rather than a budget:
           <em>this agent may not reach <code style="font-family:'Fragment Mono',monospace;font-size:13px">refund_customer</code>,
           directly or through anything it delegates to.</em></p>
+        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">That is one command, and it holds for a reason worth understanding:
+          <strong>a model cannot use a tool it was never given.</strong> The tool list is part of the
+          request, so CostGrid refuses the request and there is nothing for your code to run &mdash; no
+          change to your agent framework, and no trusting the model to behave.</p>
+
+        <div style="margin:0 0 clamp(26px,3vw,34px);border-left:2px solid #9d7b1f;padding:2px 0 2px 16px">
+          <pre style="margin:0;font-family:'Fragment Mono',monospace;font-size:12.5px;line-height:1.7;color:#0f1411;white-space:pre-wrap">costgrid policy deny-tool agent:support refund_customer</pre>
+          <p style="margin:8px 0 0;font-size:13.5px;line-height:1.55;color:rgba(15,20,17,0.6)">Covers every agent <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">support</code> hands work to, not just
+            <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">support</code> itself &mdash; delegating is how an agent would otherwise walk around
+            the rule. Start it in <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">--action monitor</code> to watch what it would have stopped.</p>
+        </div>
 
         <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(20px,2.4vw,32px);align-items:start" class="grid topo-grid">
           <div style="border:1px solid rgba(15,20,17,0.28);background:#f5f2e9">
@@ -661,7 +672,7 @@ npm run gateway
   <!-- ===================================================== close -->
   <section style="background:#0f1411;color:#f5f2e9">
     <div style="padding:clamp(46px,6vw,92px) clamp(20px,3.5vw,56px)">
-      <p style="margin:0;max-width:26ch;font-size:clamp(26px,3.4vw,50px);font-weight:500;letter-spacing:-0.03em;line-height:1.08;text-wrap:balance">Tokens are cheap. Trust is not. Govern the substitution.</p>
+      <p style="margin:0;max-width:26ch;font-size:clamp(26px,3.4vw,50px);font-weight:500;letter-spacing:-0.03em;line-height:1.08;text-wrap:balance">Tokens are cheap. Trust is not. Govern what your agents can reach.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:clamp(30px,3.5vw,46px)">
         <a href="#trial" style="display:inline-flex;align-items:center;gap:10px;background:#f5f2e9;color:#0f1411;padding:15px 24px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" class="hv11">START THE FREE TRIAL &#8594;</a>
         <a href="./demo/" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(245,242,233,0.4);color:#f5f2e9;padding:15px 24px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" class="hv12">SEE THE DASHBOARD</a>

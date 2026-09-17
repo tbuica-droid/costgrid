@@ -173,6 +173,36 @@ function headerSafe(value: string): string {
   return value.replace(/[^\x20-\x7e]/g, "?");
 }
 
+/**
+ * Refuse to serve tool boundaries that cannot be enforced.
+ *
+ * A tool rule reads the tool list out of each request. With extraction off it
+ * reads nothing, so it would sit in `policy list` looking like protection
+ * while stopping nothing at all.
+ *
+ * Throwing is the harsher option and the right one. This is a control someone
+ * configured deliberately, its failure mode is silent by nature, and boot is
+ * the one moment an operator is watching. The message names both ways out, so
+ * the fix is one line whichever they choose.
+ */
+export function assertToolPoliciesEnforceable(
+  config: Pick<GatewayConfig, "extractTools">,
+  repository: Pick<CostGridRepository, "toolPolicyNames">,
+): void {
+  if (config.extractTools) return;
+
+  const names = repository.toolPolicyNames();
+  if (names.length === 0) return;
+
+  throw new Error(
+    `COSTGRID_EXTRACT_TOOLS=false, but ${names.length} enabled tool ` +
+      `${names.length === 1 ? "policy" : "policies"} would silently stop enforcing: ` +
+      `${names.join(", ")}. Tool rules read the tool names out of each request, so they ` +
+      "cannot work with extraction off. Either remove COSTGRID_EXTRACT_TOOLS=false, or " +
+      'disable those policies with "costgrid policy disable <policy-id>".',
+  );
+}
+
 export function createServer(deps: ServerDeps): FastifyInstance {
   const { config, repository, analytics, accounts, imports } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
@@ -304,11 +334,26 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       );
       const streaming = adapter.isStreaming(request.body);
 
+      const declaredTools = config.extractTools ? adapter.declaredTools(request.body) : undefined;
+      const declaredRun = runIdOf(request, RUN_HEADER);
+      const parentRun = runIdOf(request, PARENT_RUN_HEADER);
+
+      /*
+       * Who handed this work down.
+       *
+       * Only read when a parent-run header is present, so a fleet that does
+       * not propagate run context pays nothing for a feature it cannot use.
+       */
+      const delegatedFrom =
+        parentRun === undefined ? [] : repository.delegationChain(caller.tenantId, parentRun);
+
       const context: RequestContext = {
         agentId: caller.agentId,
         department: caller.department,
         model: requestedModel,
         maxOutputTokens: adapter.maxOutputTokensOf(request.body),
+        ...(declaredTools === undefined ? {} : { declaredTools }),
+        delegatedFrom,
       };
 
       repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
@@ -336,9 +381,6 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         return rateCache.get(provider);
       };
 
-      const declaredTools = config.extractTools ? adapter.declaredTools(request.body) : [];
-      const declaredRun = runIdOf(request, RUN_HEADER);
-      const parentRun = runIdOf(request, PARENT_RUN_HEADER);
       const callId = randomUUID();
       const runId = declaredRun ?? callId;
       const runStats =
@@ -593,7 +635,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
               runId,
               agentId: caller.agentId,
               invoked: over.invokedTools ?? [],
-              granted: declaredTools,
+              granted: declaredTools ?? [],
               at: startedAt,
             });
           } catch (error) {

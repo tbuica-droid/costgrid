@@ -42,6 +42,13 @@ Usage:
                                           downgraded to that model instead of being
                                           refused, so a cap stops breaking production.
   costgrid policy allow <model...>        Restrict the tenant to these models
+  costgrid policy deny-tool <scope> <tool...> [--direct-only]
+                                          This agent may not be given these tools.
+                                          Covers agents it delegates to unless
+                                          --direct-only. A model cannot call a
+                                          tool it was never offered.
+  costgrid policy allow-tool <scope> <tool...>
+                                          The only tools this agent may be given.
   costgrid policy run-budget <scope> <usd> [--fallback <model>] [--action ...]
                                           Ceiling on a single run, not a window.
   costgrid policy run-steps <scope> <n>   Stop a run after n calls (loop guard)
@@ -105,6 +112,13 @@ function describeRule(rule: Policy["rule"], action: string): string {
         `route ${rule.from?.length ? rule.from.join(",") : "*"} -> ${rule.toModel}` +
         (action === "monitor" ? "  (dry run)" : "")
       );
+    case "tool-denylist":
+      return (
+        `may not use [${rule.tools.join(", ")}]` +
+        (rule.transitive === false ? "  (direct only)" : "  (incl. delegates)")
+      );
+    case "tool-allowlist":
+      return `may only use [${rule.tools.join(", ")}]`;
     case "model-allowlist":
     case "model-denylist":
       return `${rule.kind} [${rule.models.join(", ")}]`;
@@ -599,6 +613,46 @@ async function main(): Promise<void> {
           enabled: true,
         });
         console.log(`Created policy ${id}.`);
+        break;
+      }
+
+      if (sub === "deny-tool" || sub === "allow-tool") {
+        const scope = parseScope(argv[2] ?? fail(`policy ${sub} needs a scope`));
+        const tools = argv.slice(3).filter((a) => !a.startsWith("--"));
+        if (tools.length === 0) fail(`policy ${sub} needs at least one tool name`);
+
+        const directOnly = argv.includes("--direct-only");
+        const id = repository.createPolicy(tenantId, {
+          name: sub === "deny-tool" ? `deny ${tools.join(",")}` : `allow only ${tools.join(",")}`,
+          scope,
+          rule:
+            sub === "deny-tool"
+              ? { kind: "tool-denylist", tools, ...(directOnly ? { transitive: false } : {}) }
+              : { kind: "tool-allowlist", tools },
+          action: parseAction(flag(argv, "action")),
+          enabled: true,
+        });
+        console.log(`Created policy ${id}.`);
+
+        /*
+         * A boundary is only as good as the request it can read. Saying this
+         * at creation is the difference between a customer who knows the rule
+         * needs tool extraction and a customer who finds out when it failed
+         * to stop something.
+         */
+        console.log(
+          "\n  This rule reads the tool list out of each request, so it stops the\n" +
+            "  model being offered the tool at all — there is nothing to execute.",
+        );
+        if (sub === "deny-tool" && !directOnly) {
+          const coverage = analytics.runCoverage(tenantId, trailingWindow(30));
+          console.log(
+            "\n  It also covers agents this one delegates to, which needs the\n" +
+              "  x-costgrid-parent-run header. Over the last 30 days, " +
+              `${coverage.declared} of ${coverage.total} call(s) carried run context;\n` +
+              "  work that does not is governed directly only.",
+          );
+        }
         break;
       }
 

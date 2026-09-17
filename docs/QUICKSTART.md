@@ -325,7 +325,70 @@ reachability policy needs. Arguments are content, and content is forwarded and
 never kept. Set `COSTGRID_EXTRACT_TOOLS=false` to switch the path off entirely
 if your tool names are themselves sensitive.
 
-## 12. Bedrock and Vertex
+## 12. Boundaries: what an agent may not touch
+
+Every rule so far governs money. This one governs an action.
+
+```bash
+npx tsx packages/cli/src/main.ts policy deny-tool agent:support refund_customer
+```
+
+`support` may no longer be given that tool — and neither may any agent `support`
+hands work to. A delegate is how an agent would otherwise walk straight around
+the rule, so transitive is the default; `--direct-only` turns it off and has to
+be typed on purpose.
+
+### Why this holds
+
+**A model cannot call a tool it was never given.** The tool list is part of the
+request, so CostGrid refuses the request before it is forwarded. There is no
+`tool_use` block in the response, nothing for your harness to execute, and
+nothing to trust the model about. You do not change your agent framework, and
+you are not relying on the model to respect an instruction.
+
+That is a stronger guarantee than it first looks, and it is available to CostGrid
+because of *where it sits* rather than because of anything clever it does.
+
+### What it does not cover
+
+A tool your code calls **without asking a model first** never appears in a
+request, so nothing here sees it. This governs what your agents can decide to
+do, not everything your software can do.
+
+The transitive half needs `x-costgrid-parent-run` propagated. Without it the
+delegation chain is invisible and only the direct rule can fire. Creating the
+rule prints your run coverage for the last 30 days for exactly this reason — a
+boundary that cannot see the chain should not be assumed to be holding it.
+
+### The allowlist form
+
+```bash
+npx tsx packages/cli/src/main.ts policy allow-tool agent:support search_docs create_ticket
+```
+
+Direct-only by design. Inheriting an allowlist down a chain would silently
+forbid a delegate's own legitimate tools, turning one narrow rule into an outage
+two hops away. **Deny travels; allow does not.**
+
+### Start in monitor
+
+```bash
+npx tsx packages/cli/src/main.ts policy deny-tool agent:support refund_customer --action monitor
+```
+
+Records what it would have stopped and changes nothing, exactly like every other
+rule here.
+
+### One thing the gateway will not let you do
+
+Tool rules read the tool names out of each request. With
+`COSTGRID_EXTRACT_TOOLS=false` they can read nothing, so they would sit in
+`policy list` looking like protection while stopping nothing at all. **The
+gateway refuses to start** in that state, naming the policies and both ways out.
+A boundary that silently stops holding is worse than no boundary, because you
+stop watching the thing you believe is covered.
+
+## 13. Bedrock and Vertex
 
 Claude through AWS or Google is the same model, reached differently. CostGrid
 proxies both.
@@ -394,7 +457,7 @@ npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 
 That figure comes from your AWS bill, so it absorbs the channel's pricing and
 any committed-use discount in one number.
 
-## 13. If you buy off list
+## 14. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
 agreement — the catalog only knows list prices, so without telling CostGrid
@@ -449,7 +512,7 @@ Traffic CostGrid cannot price is excluded from the comparison and reported as a
 warning, because it would otherwise make the derived discount look deeper than
 it is.
 
-## 14. The monthly statement
+## 15. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

@@ -12,7 +12,7 @@ import {
   openDatabase,
 } from "@costgrid/db";
 import { loadConfig } from "./config.js";
-import { createServer } from "./server.js";
+import { assertToolPoliciesEnforceable, createServer } from "./server.js";
 
 /**
  * Gateway entry point.
@@ -35,6 +35,8 @@ async function main(): Promise<void> {
   if (config.allowAnonymous && !repository.getTenant("local")) {
     repository.createTenant("Local", "local");
   }
+
+  assertToolPoliciesEnforceable(config, repository);
 
   const app = createServer({ config, repository, analytics, accounts, imports });
 

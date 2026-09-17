@@ -142,17 +142,17 @@ export function formatReport(
   // The routing model, now anchored to a measured share rather than an assumed one.
   const routing = analyzeRouting(share);
   out.push("");
-  out.push("  Routing");
-  out.push(`    observed share   ${(share * 100).toFixed(1)}%`);
-  out.push(`    modelled optimum ${(routing.optimalShare * 100).toFixed(1)}%`);
+  out.push("  Room to move");
+  out.push(`    on cheaper models  ${(share * 100).toFixed(1)}% of tokens today`);
+  out.push(`    best modelled      ${(routing.optimalShare * 100).toFixed(1)}%`);
   if (routing.savingFraction > 0.01) {
     const projected = toUsdNumber(summary.totalCost) * routing.savingFraction;
     out.push(
-      `    headroom         ${(routing.savingFraction * 100).toFixed(0)}% ` +
-        `(~$${projected.toFixed(2)} over this window, on model assumptions)`,
+      `    could save         ${(routing.savingFraction * 100).toFixed(0)}% ` +
+        `(~$${projected.toFixed(2)} over this window, if the model's assumptions hold)`,
     );
   } else {
-    out.push("    headroom         at or past the modelled optimum");
+    out.push("    could save         nothing more — already at the modelled best");
   }
 
   if (violations.length > 0) {
