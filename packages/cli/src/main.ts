@@ -24,11 +24,11 @@ import { formatPreflight, preflight } from "@costgrid/gateway";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
-const USAGE = `costgrid — LLM inference cost governance
+const USAGE = `costgrid — see, split and cap what your software spends on AI
 
 Usage:
   costgrid init [name]                    Create the local tenant and a first API key
-  costgrid key create <agent-name>        Mint an API key (shown once)
+  costgrid key create <agent-name>        Create an API key (shown once, never again)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
   costgrid statement [--month YYYY-MM] [--format text|csv|json] [--out FILE]
@@ -66,11 +66,12 @@ Usage:
                                           which were built without an account to test on.
   costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
-Scope is "tenant", "dept:<name>" or "agent:<id>".
+Scope is who a rule applies to: "tenant" (everything you run), "dept:<name>"
+(one team) or "agent:<id>" (one service or bot).
 
 Environment:
   COSTGRID_DB        Database path (default ./costgrid.db)
-  COSTGRID_TENANT    Tenant id (default "local")
+  COSTGRID_TENANT    Which organisation's data to read (default "local")
 `;
 
 

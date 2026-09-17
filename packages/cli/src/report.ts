@@ -85,9 +85,9 @@ export function formatReport(
   out.push(`  Calls              ${summary.calls}`);
   out.push(
     `  Cache hit ratio    ${(summary.cacheHitRatio * 100).toFixed(1)}%  ` +
-      `(${summary.cacheReadTokens.toLocaleString("en-US")} tokens served from cache)`,
+      `(${summary.cacheReadTokens.toLocaleString("en-US")} tokens reused, billed at a fraction of the input rate)`,
   );
-  out.push(`  Substitution share ${(share * 100).toFixed(1)}% of tokens off the frontier tier`);
+  out.push(`  Cheaper models     ${(share * 100).toFixed(1)}% of tokens, vs the most expensive tier`);
 
   if (summary.blockedCalls > 0) out.push(`  Blocked            ${summary.blockedCalls} by policy`);
   if (summary.erroredCalls > 0) out.push(`  Errored            ${summary.erroredCalls}`);

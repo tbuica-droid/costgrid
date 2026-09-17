@@ -73,7 +73,10 @@ export function formatStatement(statement: Statement): string {
     out.push(`  Projected month    ${money(statement.projected)}  (run rate so far)`);
   }
   out.push(`  Calls              ${statement.calls.toLocaleString("en-US")}`);
-  out.push(`  Cache hit ratio    ${(statement.cacheHitRatio * 100).toFixed(1)}%`);
+  out.push(
+    `  Cache hit ratio    ${(statement.cacheHitRatio * 100).toFixed(1)}%` +
+      "   (input reused from cache, billed at a fraction of the normal rate)",
+  );
 
   if (statement.routing.routedCalls > 0) {
     out.push(

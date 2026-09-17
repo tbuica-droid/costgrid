@@ -134,7 +134,7 @@
   <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 clamp(20px,3.5vw,56px);height:58px;background:rgba(245,242,233,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(15,20,17,0.16)">
     <div style="display:flex;align-items:baseline;gap:14px;min-width:0">
       <span style="font-size:17px;font-weight:700;letter-spacing:-0.02em">CostGrid</span>
-      <span class="hdr-tagline" style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);white-space:nowrap">Agentic FinOps &amp; AI governance</span>
+      <span class="hdr-tagline" style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);white-space:nowrap">See and control what your AI spends</span>
     </div>
     <nav style="display:flex;align-items:center;gap:clamp(12px,2vw,30px);font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em">
       <a href="#how" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv1 hdr-links">How it works</a>
@@ -149,7 +149,7 @@
   <!-- ===================================================== hero -->
   <section style="border-bottom:1px solid rgba(15,20,17,0.16)" class="hero-grid">
     <div style="padding:clamp(38px,5vw,74px) clamp(20px,3.5vw,56px) clamp(34px,4vw,58px);border-right:1px solid rgba(15,20,17,0.16)">
-      <div style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9d7b1f;margin-bottom:clamp(20px,3vw,34px)">LLM inference cost governance &amp; unit economics</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9d7b1f;margin-bottom:clamp(20px,3vw,34px)">Cost control for the AI inside your software</div>
       <h1 style="margin:0;font-size:clamp(34px,4.6vw,70px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;text-wrap:balance;max-width:16ch">Per-token prices are collapsing.</h1>
       <h1 style="margin:0.12em 0 0;font-size:clamp(34px,4.6vw,70px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;color:#a8452a;text-wrap:balance;max-width:20ch">Your AI bill is going up anyway.</h1>
       <p style="margin:clamp(24px,3vw,38px) 0 0;max-width:58ch;font-size:clamp(16px,1.25vw,19px);line-height:1.5;color:rgba(15,20,17,0.72)">Unit price is the wrong thing to watch. Spend is price multiplied by volume, and volume wins. CostGrid sits in front of your LLM API calls: it prices every one from the provider&rsquo;s own token counts, bills it back to the team that made it, and enforces your budgets <em>before</em> the money is spent.</p>
@@ -212,7 +212,7 @@
   base_url=<span style="color:#9d7b1f">"https://costgrid.acme.dev"</span>,
   api_key=<span style="color:#9d7b1f">"unused"</span>,
 )</pre>
-            <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Your provider key lives in the gateway, so the services calling through it never hold one. Anthropic and OpenAI today.</p>
+            <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Your provider key lives in the gateway, so the services calling through it never hold one. Anthropic, OpenAI, AWS Bedrock and Google Vertex.</p>
           </div>
           <div>
             <div style="height:2px;background:#9d7b1f;width:34px;margin-bottom:16px"></div>
@@ -266,7 +266,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
               <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Savings you can audit</div>
-              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A routing rule moves matching traffic to a cheaper model and records the counterfactual: what those exact tokens would have cost on the model the caller asked for. Realised savings are reported separately from dry-run ones, so the number can be checked rather than believed.</p>
+              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A routing rule moves matching traffic to a cheaper model and records what those exact tokens would have cost on the model the caller originally asked for. Realised savings are reported separately from dry-run ones, so the number can be checked rather than believed.</p>
             </div>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">measured</div>
           </div>
@@ -291,27 +291,27 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
       <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">03 &mdash; The dial</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:36ch;text-wrap:balance">Stop forecasting vendor prices. Forecast your routing.</h2>
-        <p style="margin:18px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Substitution share is the percentage of traffic routed from frontier models down to the open-weight floor. It is the one input you fully control. Move the slider to see what it does to a fleet burning 12 billion tokens a month &mdash; then let CostGrid <em>measure your real share</em> and move it for you.</p>
+        <p style="margin:18px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Most calls do not need your most expensive model. The share you move down to a cheaper one is the single number you control &mdash; you do not set vendor prices. Move the slider to see what that share does to a company running 12 billion tokens a month, then let CostGrid <em>measure your real share</em> and move it for you.</p>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(26px,3vw,48px);margin-top:clamp(30px,3.5vw,46px);align-items:start" class="grid">
           <div>
             <div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(15,20,17,0.16);padding-bottom:12px">
-              <span style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Substitution share</span>
+              <span style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Sent to cheaper models</span>
               <span style="font-family:'Fragment Mono',monospace;font-size:30px;letter-spacing:-0.02em;color:#0f1411"><span id="shareLabel">15%</span></span>
             </div>
-            <input type="range" min="0" max="99" step="1" id="shareInput" value="15" aria-label="Substitution share" style="width:100%;margin:22px 0 6px;height:22px" />
+            <input type="range" min="0" max="99" step="1" id="shareInput" value="15" aria-label="Share of traffic sent to cheaper models" style="width:100%;margin:22px 0 6px;height:22px" />
             <div style="display:flex;justify-content:space-between;font-family:'Fragment Mono',monospace;font-size:10.5px;color:rgba(15,20,17,0.5)">
               <span>0%</span>
               <span>99%</span>
             </div>
             <div style="display:flex;gap:10px;margin-top:18px">
               <button type="button" id="btnToday" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid rgba(15,20,17,0.3);background:transparent;color:#0f1411;cursor:pointer" class="hv8">TODAY &middot; 15%</button>
-              <button type="button" id="btnOptimum" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid #9d7b1f;background:transparent;color:#9d7b1f;cursor:pointer" class="hv9">OPTIMUM &middot; 83%</button>
+              <button type="button" id="btnOptimum" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid #9d7b1f;background:transparent;color:#9d7b1f;cursor:pointer" class="hv9">BEST &middot; 83%</button>
             </div>
 
             <div style="margin-top:26px;border-top:1px solid rgba(15,20,17,0.16)">
               <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
-                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Blended cost / M tokens</span>
+                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Average cost per million tokens</span>
                 <span style="font-family:'Fragment Mono',monospace;font-size:19px"><span id="blended"></span></span>
               </div>
               <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
@@ -327,8 +327,8 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           </div>
 
           <div>
-            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);margin-bottom:14px">Blended cost curve &middot; $/Mtok</div>
-            <svg viewBox="0 0 600 288" style="width:100%;height:auto;display:block;overflow:visible" role="img" aria-label="Blended cost per million tokens as substitution share rises">
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);margin-bottom:14px">Average cost per million tokens</div>
+            <svg viewBox="0 0 600 288" style="width:100%;height:auto;display:block;overflow:visible" role="img" aria-label="Average cost per million tokens as more traffic moves to cheaper models">
               <line x1="0" y1="20" x2="600" y2="20" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
               <line x1="0" y1="130" x2="600" y2="130" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
               <line x1="0" y1="240" x2="600" y2="240" stroke="rgba(15,20,17,0.28)" stroke-width="1"></line>
@@ -338,14 +338,14 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
               <line x1="90" y1="20" x2="90" y2="240" stroke="rgba(15,20,17,0.22)" stroke-width="1" stroke-dasharray="3 4"></line>
               <line x1="498" y1="20" x2="498" y2="240" stroke="#9d7b1f" stroke-width="1" stroke-dasharray="3 4"></line>
               <text x="94" y="34" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.55)">today 15%</text>
-              <text x="494" y="34" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="#9d7b1f">optimum 83%</text>
+              <text x="494" y="34" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="#9d7b1f">best 83%</text>
               <path d="M0,45.9 L6,48.4 L12,50.9 L18,53.4 L24,55.9 L30,58.4 L36,60.9 L42,63.4 L48,65.9 L54,68.4 L60,70.9 L66,73.4 L72,75.9 L78,78.4 L84,80.8 L90,83.3 L96,85.8 L102,88.3 L108,90.8 L114,93.3 L120,95.8 L126,98.3 L132,100.8 L138,103.3 L144,105.8 L150,108.3 L156,110.8 L162,113.3 L168,115.8 L174,118.3 L180,120.8 L186,123.3 L192,125.8 L198,128.3 L204,130.8 L210,133.3 L216,135.8 L222,138.3 L228,140.7 L234,143.2 L240,145.7 L246,148.2 L252,150.7 L258,153.1 L264,155.6 L270,158.1 L276,160.5 L282,163 L288,165.4 L294,167.9 L300,170.3 L306,172.7 L312,175.1 L318,177.5 L324,179.9 L330,182.3 L336,184.6 L342,187 L348,189.3 L354,191.6 L360,193.8 L366,196 L372,198.2 L378,200.4 L384,202.5 L390,204.6 L396,206.6 L402,208.6 L408,210.5 L414,212.3 L420,214.1 L426,215.8 L432,217.4 L438,218.9 L444,220.4 L450,221.7 L456,222.9 L462,224 L468,224.9 L474,225.7 L480,226.4 L486,226.9 L492,227.2 L498,227.3 L504,227.2 L510,226.8 L516,226.2 L522,225.4 L528,224.3 L534,222.9 L540,221.1 L546,219.1 L552,216.6 L558,213.8 L564,210.5 L570,206.8 L576,202.6 L582,198 L588,192.8 L594,187" fill="none" stroke="#0f1411" stroke-width="2"></path>
               <line id="markerLine" x1="90" y1="0" x2="90" y2="240" stroke="#a8452a" stroke-width="1"></line>
               <circle id="markerDot" cx="90" cy="0" r="5.5" fill="#a8452a"></circle>
               <text x="0" y="278" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 0%</text>
               <text x="600" y="278" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 99%</text>
             </svg>
-            <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Cost falls as routing shifts to the open floor, then the s<sup>8</sup> misrouting-risk penalty bends it back up past ~90%. The optimum is where the marginal token saving equals the marginal risk penalty &mdash; not wherever the cheapest vendor sits. <a href="./thesis.html">The full thesis &#8594;</a></p>
+            <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Cost falls as more traffic moves to cheaper models, then climbs again past about 90% &mdash; because the last calls you move are the ones that genuinely needed the expensive model, and getting those wrong costs more than the tokens saved. The best share is where those two effects cancel. It is a fact about your traffic, not about whichever vendor is cheapest this month. <a href="./thesis.html">The full thesis &#8594;</a></p>
             <p style="margin:14px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.65;color:rgba(15,20,17,0.55)">Modelled from stated assumptions, on an illustrative 12,000M tokens a month. The product measures your real share from real traffic instead of assuming it.</p>
           </div>
         </div>
@@ -470,7 +470,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           </div>
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.28)">
             <div style="font-size:16px;font-weight:600;margin-bottom:8px">What is it bad at?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Bedrock and Vertex are not supported yet &mdash; direct Anthropic and OpenAI only. It governs API spend, not seat licences: if your AI bill is people using a chat product in a browser, there is nothing here to meter. And it is one node on SQLite today, which is fine for a team and not yet a high-availability deployment.</p>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Bedrock and Vertex went in last and neither has yet run against a live AWS or Google account &mdash; <code style="font-family:'Fragment Mono',monospace;font-size:13px">costgrid preflight bedrock</code> makes one real call and tells you in a minute whether it works on yours. It governs what your <em>software</em> spends on AI, not what your staff spend on chat subscriptions: if your AI bill is people typing into a browser, there is nothing here to meter. And it runs as a single server with a local database today &mdash; fine for a team, not yet a setup that survives losing that server.</p>
           </div>
         </div>
       </div>
@@ -701,10 +701,10 @@ npm run gateway
     var pct = ((base - c) / base) * 100;
     var y = Math.max(6, Math.min(240, 240 - ((c - 2.5) / 8.5) * 220));
     var verdict;
-    if (s < 12) verdict = 'Frontier-default routing. Every commodity request is paying the accountability premium.';
-    else if (s < 40) verdict = 'Where most organizations sit. The saving is available and untaken.';
-    else if (s <= 90) verdict = 'Inside the risk-adjusted band. Marginal token saving still exceeds marginal risk.';
-    else verdict = 'Past the optimum. The s⁸ misrouting penalty now costs more than the tokens saved.';
+    if (s < 12) verdict = 'Almost everything runs on the expensive model. Routine requests are paying top rate for no reason.';
+    else if (s < 40) verdict = 'Where most companies sit. The saving is sitting there untaken.';
+    else if (s <= 90) verdict = 'A sensible range. You are still saving more than the occasional wrong answer costs you.';
+    else verdict = 'Too far. The calls you are still moving down needed the better model, and the mistakes now cost more than the tokens saved.';
 
     elShare.textContent = s + '%';
     elBlend.textContent = '$' + c.toFixed(2);

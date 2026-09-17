@@ -142,7 +142,7 @@ function importedSection(history) {
     <div class="grid cols-4">
       ${card("Historical spend", money(history.effectiveCostUsd), `over the last ${history.days} days`)}
       ${card("Requests", history.requests ? count(history.requests) : "not reported", "as counted by the provider")}
-      ${card("Cache hit ratio", pct(history.cacheHitRatio), "of readable input tokens",
+      ${card("Cache hit ratio", pct(history.cacheHitRatio), "of input that could be reused",
         history.cacheHitRatio > 0.3 ? "accent-green" : "")}
       ${card("Tokens", count(history.inputTokens + history.outputTokens), "input plus output")}
     </div>
@@ -300,10 +300,10 @@ async function renderOverview() {
     card("Calls", count(overview.calls),
       `${count(overview.blockedCalls)} blocked · ${count(overview.erroredCalls)} errored`),
     card("Cache hit ratio", pct(overview.cacheHitRatio),
-      `${count(overview.cacheReadTokens)} tokens served from cache`,
+      `${count(overview.cacheReadTokens)} tokens reused, billed at a fraction of the input rate`,
       overview.cacheHitRatio > 0.3 ? "accent-green" : ""),
-    card("Substitution share", pct(overview.substitutionShare),
-      `modelled optimum ${pct(overview.routing.optimalShare, 0)}`, "accent-gold"),
+    card("Sent to cheaper models", pct(overview.substitutionShare),
+      `best modelled share ${pct(overview.routing.optimalShare, 0)}`, "accent-gold"),
   ].join("");
 
   return `
