@@ -379,6 +379,52 @@ npx tsx packages/cli/src/main.ts policy deny-tool agent:support refund_customer 
 Records what it would have stopped and changes nothing, exactly like every other
 rule here.
 
+### The second line: a tool the model invents
+
+The rule above works because a model cannot call a tool it was never given.
+That covers the tool list you send. It does not cover a model *inventing* a
+tool name it was never offered — which is rare, and does happen, and a harness
+that dispatches by name can find it.
+
+So the same rule is checked again on the way back, against the tool calls the
+response actually asks for. Nothing extra to configure.
+
+**On a buffered response** the guarantee is complete: the whole body is checked
+before any of it is forwarded, so a denied tool call never reaches you. You get
+a `403` with `costgrid_tool_blocked`.
+
+**On a streamed response** it is weaker, and the difference is worth knowing.
+Anthropic announces a tool by name in `content_block_start` and streams its
+arguments afterwards. CostGrid cuts at the name, so:
+
+- the arguments are never sent
+- the stream ends with an `error` event naming the policy, which every official
+  SDK raises as an exception
+- the tool *name* has already reached you, in the chunk the cut lands on
+
+A tool call with no arguments is not executable, and no harness should try. But
+"should" is doing real work in that sentence. **Where the guarantee has to be
+absolute, do not stream that traffic** — a buffered response is checked in full
+before a byte of it moves.
+
+Under a tool rule, streamed chunks are decoded before being forwarded rather
+than after, because a flushed byte cannot be recalled. The decode was already
+happening for metering; only the order changes, and only for callers a tool
+rule actually reaches.
+
+### These calls cost money, and are recorded as such
+
+A request-side block costs nothing — the call was never made. A response-side
+block is different: the provider ran it and will invoice you for it. Those rows
+are recorded as normal spend, so your budgets and your monthly statement
+reconcile with the bill. What CostGrid did is in the violation feed and in the
+403 your caller received, not hidden in a row that reads as free.
+
+For a cut stream the recorded usage is *short*: whatever the model generated
+after the cut was never reported back. It understates rather than invents,
+which is the right direction for a number that has to reconcile with an
+invoice.
+
 ### One thing the gateway will not let you do
 
 Tool rules read the tool names out of each request. With

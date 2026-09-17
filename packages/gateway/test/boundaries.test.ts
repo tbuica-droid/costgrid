@@ -243,3 +243,233 @@ describe("tool boundaries end to end", () => {
     });
   });
 });
+
+/**
+ * Response-side gating: the second line, for a `tool_use` the request never
+ * declared. Narrower than the request-side rule by design — that one prevents,
+ * this one intercepts — and the two halves have genuinely different strength,
+ * which these tests are written to pin.
+ */
+describe("gating a tool the model asked for but was never given", () => {
+  let db: ReturnType<typeof openDatabase>;
+  let repository: CostGridRepository;
+  let analytics: Analytics;
+  let app: FastifyInstance;
+  let apiKey: string;
+  let upstream: () => Response;
+
+  const boot = () => {
+    app = createServer({
+      config: CONFIG,
+      repository,
+      analytics,
+      imports: new ImportsRepository(db),
+      fetchImpl: (async () => upstream()) as unknown as typeof fetch,
+    });
+  };
+
+  const send = (over: { agent?: string; stream?: boolean; run?: string; parent?: string } = {}) =>
+    app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: {
+        "x-costgrid-key": apiKey,
+        "x-costgrid-agent": over.agent ?? "support",
+        ...(over.run ? { "x-costgrid-run": over.run } : {}),
+        ...(over.parent ? { "x-costgrid-parent-run": over.parent } : {}),
+      },
+      // Note what is NOT here: no `tools`. The request declares nothing, so the
+      // request-side rule has nothing to bite on. This is the case only
+      // response-side gating can reach.
+      payload: {
+        model: "claude-haiku-4-5",
+        max_tokens: 100,
+        ...(over.stream ? { stream: true } : {}),
+      },
+    });
+
+  /** A buffered reply in which the model invents a tool call. */
+  const invents = (tool: string) =>
+    new Response(
+      JSON.stringify({
+        model: "claude-haiku-4-5",
+        stop_reason: "tool_use",
+        usage: USAGE,
+        content: [{ type: "tool_use", id: "t1", name: tool, input: { amount_usd: 420 } }],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+  /** The same, streamed, with the name and its arguments in separate chunks. */
+  const inventsStreaming = (tool: string) => {
+    const chunks = [
+      `event: message_start\ndata: ${JSON.stringify({
+        type: "message_start",
+        message: { model: "claude-haiku-4-5", usage: { input_tokens: 1000, output_tokens: 1 } },
+      })}\n\n`,
+      `data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"t1","name":"${tool}"}}\n\n`,
+      `data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"amount_usd\\":420}"}}\n\n`,
+      `data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":9}}\n\n`,
+    ];
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  };
+
+  beforeEach(() => {
+    db = openDatabase({ path: ":memory:" });
+    repository = new CostGridRepository(db);
+    analytics = new Analytics(db);
+    repository.createTenant("Acme", "t1");
+    apiKey = repository.createApiKey("t1", "svc").plaintext;
+    upstream = () => invents("refund_customer");
+    boot();
+  });
+
+  afterEach(async () => {
+    await app?.close();
+    db.close();
+  });
+
+  const deny = (action: "monitor" | "warn" | "block" = "block") =>
+    repository.createPolicy("t1", {
+      name: "no refunds",
+      scope: { kind: "agent", agentId: "support" },
+      rule: { kind: "tool-denylist", tools: ["refund_customer"] },
+      action,
+      enabled: true,
+    });
+
+  // ------------------------------------------------------------- buffered
+
+  it("withholds a buffered response that invents a denied tool", async () => {
+    deny();
+    const response = await send();
+
+    expect(response.statusCode).toBe(403);
+    const body = JSON.parse(response.body);
+    expect(body.error.type).toBe("costgrid_tool_blocked");
+    // The arguments never reach the caller, so there is nothing to execute.
+    expect(response.body).not.toContain("420");
+  });
+
+  it("tells the caller the call was billed, because it was", async () => {
+    deny();
+    const response = await send();
+    expect(JSON.parse(response.body).error.message).toContain("billed");
+
+    // And the row agrees: real usage, real cost, not a free block.
+    const summary = analytics.summary("t1", { from: 0, to: Date.now() + 1000 });
+    expect(summary.totalCost).toBeGreaterThan(0n);
+  });
+
+  it("records it in the same violation feed as everything else", async () => {
+    deny();
+    await send();
+
+    const violations = analytics.recentViolations("t1", 10);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]?.reason).toContain("the model asked to use refund_customer");
+  });
+
+  it("lets it through under monitor, and still records it", async () => {
+    deny("monitor");
+    const response = await send();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("refund_customer");
+    expect(analytics.recentViolations("t1", 10)).toHaveLength(1);
+  });
+
+  it("leaves a tool nobody denied alone", async () => {
+    deny();
+    upstream = () => invents("search_docs");
+    const response = await send();
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("follows the delegation chain here too", async () => {
+    deny();
+    // A parent run belonging to `support`, then the denied call from a delegate
+    // that no rule names directly.
+    await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { "x-costgrid-key": apiKey, "x-costgrid-agent": "support", "x-costgrid-run": "r1" },
+      payload: { model: "claude-haiku-4-5", max_tokens: 100 },
+    });
+
+    upstream = () => invents("refund_customer");
+    const response = await send({ agent: "billing", run: "r2", parent: "r1" });
+    expect(response.statusCode).toBe(403);
+    expect(JSON.parse(response.body).error.message).toContain("support");
+  });
+
+  // ------------------------------------------------------------ streaming
+
+  it("cuts a stream before the tool arguments are sent", async () => {
+    deny();
+    upstream = () => inventsStreaming("refund_customer");
+    const response = await send({ stream: true });
+
+    // The name is already out — it arrives in the same chunk we cut on. The
+    // arguments are not, and that is the difference that matters: a tool call
+    // with no input is not executable.
+    expect(response.body).not.toContain("420");
+    expect(response.body).not.toContain("input_json_delta");
+    expect(response.body).toContain("costgrid_tool_blocked");
+    expect(response.body).toContain("no refunds");
+  });
+
+  it("streams an allowed tool through untouched", async () => {
+    deny();
+    upstream = () => inventsStreaming("search_docs");
+    const response = await send({ stream: true });
+
+    expect(response.body).toContain("input_json_delta");
+    expect(response.body).toContain("420");
+    expect(response.body).not.toContain("costgrid_tool_blocked");
+  });
+
+  it("streams normally when no tool rule is in force", async () => {
+    upstream = () => inventsStreaming("refund_customer");
+    const response = await send({ stream: true });
+
+    expect(response.body).toContain("420");
+    expect(response.body).not.toContain("costgrid_tool_blocked");
+  });
+
+  /*
+   * The money is the point. A response-side block still cost the customer,
+   * unlike a request-side one, and only `ok` rows are summed as spend — so
+   * filing these as `blocked` would quietly drop real spend out of every
+   * budget and every statement.
+   */
+  it("counts a cut stream as spend, because the provider will bill for it", async () => {
+    deny();
+    upstream = () => inventsStreaming("refund_customer");
+    await send({ stream: true });
+
+    const summary = analytics.summary("t1", { from: 0, to: Date.now() + 1000 });
+    expect(summary.totalCost).toBeGreaterThan(0n);
+    expect(summary.blockedCalls).toBe(0);
+    expect(analytics.recentViolations("t1", 10)).toHaveLength(1);
+  });
+
+  it("does not cut under monitor", async () => {
+    deny("monitor");
+    upstream = () => inventsStreaming("refund_customer");
+    const response = await send({ stream: true });
+
+    expect(response.body).toContain("420");
+    expect(analytics.recentViolations("t1", 10)).toHaveLength(1);
+  });
+});

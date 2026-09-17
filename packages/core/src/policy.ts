@@ -497,6 +497,78 @@ function evaluateFallback(
 }
 
 /**
+ * Checks tool names a *response* asked to run, one at a time.
+ *
+ * Request-side denial is the strong control: a tool that was never offered
+ * cannot be called. This is the second line, for the case that control cannot
+ * reach — a model returning a `tool_use` for a tool the request never declared.
+ * It is rarer and it is real: models do occasionally invent a tool name, and a
+ * harness that looks the call up by name can find it.
+ *
+ * Built once per request rather than per tool, because the scope and delegation
+ * matching is the expensive part and it does not change between blocks in one
+ * response.
+ */
+export interface ToolGuard {
+  /** The violation this tool name triggers, or `undefined` when it is allowed. */
+  check(tool: string): PolicyViolation | undefined;
+}
+
+/**
+ * A guard for this request, or `undefined` when no tool rule reaches it.
+ *
+ * Returning `undefined` rather than a guard that always passes lets the caller
+ * skip the whole path — including, in the streaming case, a reordering of the
+ * hot loop that no traffic should pay for unless a rule is actually in force.
+ */
+export function toolGuardFor(
+  policies: readonly Policy[],
+  context: RequestContext,
+): ToolGuard | undefined {
+  const matched: { policy: Policy; via: string | undefined }[] = [];
+
+  for (const policy of policies) {
+    if (!policy.enabled) continue;
+    if (policy.rule.kind !== "tool-denylist" && policy.rule.kind !== "tool-allowlist") continue;
+
+    let via: string | undefined;
+    if (!scopeMatches(policy.scope, context)) {
+      via = delegatedMatch(policy.rule, policy.scope, context);
+      if (via === undefined) continue;
+    }
+    matched.push({ policy, via });
+  }
+
+  if (matched.length === 0) return undefined;
+
+  return {
+    check(tool: string): PolicyViolation | undefined {
+      for (const { policy, via } of matched) {
+        const rule = policy.rule;
+        const forbidden =
+          rule.kind === "tool-denylist"
+            ? rule.tools.includes(tool)
+            : rule.kind === "tool-allowlist"
+              ? !rule.tools.includes(tool)
+              : false;
+        if (!forbidden) continue;
+
+        const whose = via === undefined ? "this scope" : `${via}, which delegated this work`;
+        return {
+          policyId: policy.id,
+          policyName: policy.name,
+          action: policy.action,
+          // Says the model *asked*, not that it ran: by the time this fires
+          // nothing has executed, and the difference is the whole point.
+          reason: `the model asked to use ${tool}, which is denied for ${whose}`,
+        };
+      }
+      return undefined;
+    },
+  };
+}
+
+/**
  * Evaluate every policy against one pending request.
  *
  * All matching policies are evaluated even after a block is found, so the

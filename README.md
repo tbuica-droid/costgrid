@@ -47,7 +47,11 @@ agent:support refund_customer` stops that agent — and every agent it delegates
 to — from being handed that tool. It holds because a model cannot call a tool it
 was never given: the tool list is part of the request, so the request is refused
 and there is nothing for your harness to execute. No change to your agent
-framework, and no trusting the model to respect an instruction.
+framework, and no trusting the model to respect an instruction. The same rule
+is checked again on the way back, for a model that invents a tool name it was
+never offered — airtight on a buffered reply, and on a streamed one it cuts
+before the arguments are sent. `docs/QUICKSTART.md` states exactly how far each
+half goes.
 
 **Degrades instead of breaking.** A cap with `--fallback` downgrades
 over-budget traffic to a cheaper model rather than returning 403, so the

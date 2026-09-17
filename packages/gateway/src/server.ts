@@ -6,9 +6,12 @@ import {
   evaluatePolicies,
   planFor,
   type PolicyScope,
+  type PolicyViolation,
   priceUsage,
   type RateOverride,
   type RequestContext,
+  type ToolGuard,
+  toolGuardFor,
   toUsdString,
   ZERO_COST,
   ZERO_USAGE,
@@ -72,7 +75,15 @@ interface Caller {
  * `invokedTools` is not a column on the call row — it fans out into its own
  * table — so it rides here rather than widening `CallRecord`.
  */
-type RecordOverrides = Partial<CallRecord> & { invokedTools?: readonly string[] };
+type RecordOverrides = Partial<CallRecord> & {
+  invokedTools?: readonly string[];
+  /**
+   * Violations found after the request was allowed — a forbidden tool in the
+   * response. They are recorded against the same call row as the request-side
+   * ones, so "what did CostGrid do to my traffic" stays one list.
+   */
+  extraViolations?: readonly PolicyViolation[];
+};
 
 function headerValue(request: FastifyRequest, name: string): string | undefined {
   const raw = request.headers[name];
@@ -399,6 +410,16 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           : { ...runStats, declared: true },
       );
 
+      /*
+       * The second line of defence, for a `tool_use` the request never
+       * declared — a model inventing a tool name.
+       *
+       * `undefined` when no tool rule reaches this caller, which is the common
+       * case and costs nothing: neither the buffered check below nor the
+       * stream reordering happens at all.
+       */
+      const toolGuard = config.extractTools ? toolGuardFor(policies, context) : undefined;
+
       const baseRecord = {
         tenantId: caller.tenantId,
         agentId: caller.agentId,
@@ -643,8 +664,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           }
         }
 
-        if (decision.violations.length > 0) {
-          repository.recordViolations(caller.tenantId, id, decision.violations, startedAt);
+        const allViolations = [...decision.violations, ...(over.extraViolations ?? [])];
+        if (allViolations.length > 0) {
+          repository.recordViolations(caller.tenantId, id, allViolations, startedAt);
         }
         if (route !== undefined) {
           // Routing shows in the same feed as everything else, so a customer
@@ -666,7 +688,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       };
 
       if (streaming && upstream.ok && upstream.body) {
-        return streamThrough(adapter, reply, upstream, record, app.log);
+        return streamThrough(adapter, reply, upstream, record, app.log, toolGuard);
       }
 
       // --- Buffered response ------------------------------------------------
@@ -687,8 +709,41 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       const parsed = adapter.parseBufferedResponse(payload);
+
+      /*
+       * A forbidden tool call in a buffered response never reaches the caller.
+       *
+       * Unlike a request-side block, this one costs money: the call ran, the
+       * tokens are spent, and the row records that faithfully. What the caller
+       * gets is an error rather than a response they would act on — and a
+       * distinct error type, because "refused before spending" and "refused
+       * after" need different retry behaviour from their code.
+       */
+      const gated =
+        toolGuard === undefined
+          ? []
+          : parsed.invokedTools
+              .map((tool) => toolGuard.check(tool))
+              .filter((v): v is PolicyViolation => v !== undefined);
+      const gateBlock = gated.find((v) => v.action === "block");
+
       record({
         invokedTools: parsed.invokedTools,
+        ...(gated.length > 0 ? { extraViolations: gated } : {}),
+        /*
+         * Recorded as `ok` even though the caller received a 403, because
+         * `blocked` means "cost nothing" everywhere downstream — every spend
+         * query, every budget and the monthly statement sum only `ok` rows.
+         * This call reached the provider and will appear on their invoice, so
+         * filing it as blocked would hide real money from the one product
+         * whose job is to not hide money.
+         *
+         * The fact that CostGrid withheld the response is not lost: it is in
+         * the status code, the error message and the violation feed.
+         */
+        ...(gateBlock !== undefined
+          ? { statusCode: 403, errorMessage: gateBlock.reason }
+          : {}),
         // Bill the model that actually ran, which a server-side fallback can change.
         ...(parsed.model !== undefined ? { model: parsed.model } : {}),
         usage: parsed.usage ?? ZERO_USAGE,
@@ -699,6 +754,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           : {}),
         outcome: "ok",
       });
+
+      if (gateBlock !== undefined) {
+        return reply.code(403).send({
+          type: "error",
+          error: {
+            type: "costgrid_tool_blocked",
+            message:
+              `Blocked by CostGrid policy "${gateBlock.policyName}": ${gateBlock.reason}. ` +
+              "The call was made and is billed; the response was withheld.",
+            policy_id: gateBlock.policyId,
+          },
+        });
+      }
 
       return reply.code(upstream.status).send(payload);
     };
@@ -762,6 +830,7 @@ async function streamThrough(
   upstream: Response,
   record: (over: RecordOverrides) => void,
   log: FastifyInstance["log"],
+  toolGuard: ToolGuard | undefined,
 ): Promise<void> {
   const collector: StreamUsageCollector = adapter.createStreamCollector();
   const decoder = new TextDecoder();
@@ -774,11 +843,55 @@ async function streamThrough(
 
   const reader = upstream.body!.getReader();
   let aborted = false;
+  let gateBlock: PolicyViolation | undefined;
+  const gated: PolicyViolation[] = [];
+  let checkedTools = 0;
 
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+
+      /*
+       * Metering before forwarding, but only when a tool rule is in force.
+       *
+       * Ordinarily a chunk is written first and metered afterwards, because
+       * metering must never delay a byte. A stream that has to be cut cannot
+       * afford that order: once a chunk is flushed the caller has it, and
+       * there is no un-sending it. So under a guard the chunk is decoded
+       * first, and a chunk that carries a forbidden tool is never written.
+       *
+       * The cut lands where it does because of the wire format. Anthropic
+       * announces a tool by name in `content_block_start`, and streams its
+       * arguments afterwards as `input_json_delta`. Cutting on the name means
+       * the arguments never arrive, so what the caller holds is a tool call
+       * with no input, followed by an error event.
+       *
+       * Say what that is and is not. CostGrid guarantees the arguments are
+       * never sent and the stream ends in an error. It cannot guarantee what a
+       * given harness does with a name and no arguments — no harness should
+       * execute an incomplete tool call, but "should" is doing work in that
+       * sentence. Where the guarantee has to be absolute, do not stream: a
+       * buffered response is checked in full before any of it is forwarded.
+       */
+      if (toolGuard !== undefined) {
+        collector.feed(decoder.decode(value, { stream: true }));
+
+        const seen = collector.invokedTools;
+        for (; checkedTools < seen.length; checkedTools += 1) {
+          const violation = toolGuard.check(seen[checkedTools]!);
+          if (violation === undefined) continue;
+          gated.push(violation);
+          if (violation.action === "block") gateBlock = violation;
+        }
+
+        if (gateBlock !== undefined) break;
+
+        if (!reply.raw.write(Buffer.from(value))) {
+          await new Promise<void>((resolve) => reply.raw.once("drain", resolve));
+        }
+        continue;
+      }
 
       if (!reply.raw.write(Buffer.from(value))) {
         // Respect backpressure rather than buffering the whole stream in memory.
@@ -791,6 +904,15 @@ async function streamThrough(
     aborted = true;
     log.warn({ err: error }, "stream interrupted; usage may be partial");
   } finally {
+    if (gateBlock !== undefined) {
+      // A stream that simply stops leaves the caller debugging a network fault
+      // that never happened.
+      const event = adapter.streamError?.(
+        `Blocked by CostGrid policy "${gateBlock.policyName}": ${gateBlock.reason}. ` +
+          "The tool arguments were not sent.",
+      );
+      if (event !== undefined) reply.raw.write(event);
+    }
     reply.raw.end();
   }
 
@@ -805,7 +927,23 @@ async function streamThrough(
     usage: collector.usage,
     modifiers: collector.modifiers,
     ...(collector.stopReason !== undefined ? { stopReason: collector.stopReason } : {}),
-    outcome: untrustworthy ? "error" : "ok",
-    ...(untrustworthy ? { priced: false, errorMessage: reason } : {}),
+    ...(gated.length > 0 ? { extraViolations: gated } : {}),
+    /*
+     * A cut stream stays `ok`, for the same reason as the buffered case: the
+     * provider produced those tokens and will bill for them whether or not we
+     * forwarded them, and only `ok` rows are counted as spend.
+     *
+     * The usage is genuinely partial — whatever the model generated after the
+     * cut was never reported to us — so this understates the call. It
+     * understates rather than invents, which is the right direction for a
+     * figure that has to reconcile with an invoice, and the violation on the
+     * row says why the number is short.
+     */
+    ...(gateBlock !== undefined
+      ? { statusCode: 403, errorMessage: gateBlock.reason }
+      : {
+          outcome: untrustworthy ? ("error" as const) : ("ok" as const),
+          ...(untrustworthy ? { priced: false, errorMessage: reason } : {}),
+        }),
   });
 }

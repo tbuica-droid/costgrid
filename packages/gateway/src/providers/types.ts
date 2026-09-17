@@ -64,6 +64,17 @@ export interface ProviderAdapter {
   createStreamCollector(): StreamUsageCollector;
 
   /**
+   * A final event explaining why a stream was cut short, in this channel's own
+   * wire format — or `undefined` where there is no safe way to say it.
+   *
+   * A stream that simply stops leaves the caller debugging a network fault
+   * that never happened. Bedrock is the `undefined` case: its body is a binary
+   * framing with per-frame checksums, and appending text to it would turn a
+   * clear cut into a corrupt stream, which is worse than silence.
+   */
+  streamError?(message: string): string | undefined;
+
+  /**
    * Tool *names* the request declares the model may call.
    *
    * Names only, never definitions: a tool's description and schema are the

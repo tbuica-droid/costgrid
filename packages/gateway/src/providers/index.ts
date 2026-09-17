@@ -11,12 +11,14 @@ import { OpenAiStreamCollector } from "./openai-stream.js";
 import { vertexAdapter } from "./vertex.js";
 import type { ParsedResponse, ProviderAdapter } from "./types.js";
 import { cappedTools, toolName } from "./tools.js";
+import { sseError } from "./sse.js";
 
 export * from "./types.js";
 export { AnthropicStreamCollector } from "./anthropic-stream.js";
 export { OpenAiStreamCollector } from "./openai-stream.js";
 export { bedrockAdapter, BedrockStreamCollector } from "./bedrock.js";
 export { vertexAdapter } from "./vertex.js";
+export { sseError } from "./sse.js";
 
 function record(body: unknown): Record<string, unknown> | undefined {
   return typeof body === "object" && body !== null && !Array.isArray(body)
@@ -107,6 +109,7 @@ export const anthropicAdapter: ProviderAdapter = {
   },
 
   createStreamCollector: () => new AnthropicStreamCollector(),
+  streamError: sseError,
 };
 
 export const openaiAdapter: ProviderAdapter = {
@@ -223,6 +226,7 @@ export const openaiAdapter: ProviderAdapter = {
   },
 
   createStreamCollector: () => new OpenAiStreamCollector(),
+  streamError: sseError,
 };
 
 export const ADAPTERS: readonly ProviderAdapter[] = [

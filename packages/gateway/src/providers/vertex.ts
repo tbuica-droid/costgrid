@@ -3,6 +3,7 @@ import { NO_MODIFIERS, parseAnthropicModifiers, parseAnthropicUsage } from "@cos
 import { AnthropicStreamCollector } from "./anthropic-stream.js";
 import { cappedTools, toolName } from "./tools.js";
 import type { AuthContext, ParsedResponse, ProviderAdapter } from "./types.js";
+import { sseError } from "./sse.js";
 
 /**
  * Google Vertex AI, carrying Anthropic models.
@@ -207,4 +208,6 @@ export const vertexAdapter: ProviderAdapter = {
 
   // A Vertex stream is Anthropic's SSE, event for event.
   createStreamCollector: () => new AnthropicStreamCollector(),
+  // Vertex speaks Anthropic's SSE format, so it can carry the same final event.
+  streamError: sseError,
 };
