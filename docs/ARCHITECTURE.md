@@ -32,6 +32,7 @@ caller's response.
 packages/
   core/                 Pure domain. No I/O, no framework, no database.
   db/                   Schema, repositories, and read-side analytics.
+    analytics.ts        Includes topology extraction and cycle detection.
     statement.ts        Calendar-month statements, and their CSV export.
   gateway/              The proxy: auth, enforcement, metering, passthrough.
     providers/          One adapter per upstream; the handler is generic.
@@ -274,6 +275,32 @@ Run budgets share the windowed budget's eventual consistency — committed rows
 only — so a run fanning out in parallel can overshoot by about one round trip.
 Sequential runs, which is most agent loops, are exact.
 
+### The topology is extracted, never configured
+
+Which agents call which models, which tools they can reach, who delegates to
+whom — all read off the wire. The alternative, a customer-maintained manifest,
+is stale the day after it is written, and the gap between the diagram and the
+deployment is the entire reason this view exists.
+
+Tool **names** are stored; arguments never are. A name is structural, like a
+table name, and it is all a reachability rule needs. Arguments are a refund
+amount, a customer id, a SQL fragment — content, which is forwarded and not
+kept. Names are length- and count-capped so a malformed or hostile response
+cannot push unbounded text into the database through this path, and
+`COSTGRID_EXTRACT_TOOLS=false` removes the path altogether.
+
+Two tables, because the two facts have different shapes. An *invocation* is
+sparse — most responses call nothing — and is kept per call so a run can be
+audited step by step. A *grant* repeats on every request declaring the same
+toolset, so it is aggregated: the thousandth identical declaration is not a
+thousandth fact. Grants are also unwindowed, because a capability does not
+lapse for going unused this week; that is precisely the tool a reachability
+rule must still account for.
+
+Cycle detection walks iteratively rather than recursively. The depth of a
+delegation chain is decided by customer data, and a deep or adversarial one
+must not overflow the stack of the process metering everyone's traffic.
+
 ### A budget can degrade instead of refusing
 
 A hard cap protects the bill by breaking the customer's product, which is why
@@ -420,7 +447,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-327 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+349 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

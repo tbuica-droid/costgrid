@@ -318,6 +318,48 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_calls_parent_run ON calls(tenant_id, parent_run_id);
     `,
   },
+  {
+    version: 7,
+    name: "tool-topology",
+    // Which tools an agent can reach, and which it actually used.
+    //
+    // Names only. Tool *arguments* are content — a refund amount, a customer
+    // id, a SQL fragment — and the promise is that content is forwarded and
+    // never stored. A tool name is structural, like a table name, and it is
+    // the whole of what a reachability policy needs.
+    //
+    // Two tables because the two facts have different shapes. An invocation is
+    // sparse (most responses call nothing) and worth keeping per call, so a
+    // run can be audited step by step. A grant repeats on every request that
+    // declares the same toolset, so it is aggregated: the thousandth identical
+    // declaration is not a thousandth fact.
+    sql: `
+      CREATE TABLE tool_invocations (
+        id           TEXT PRIMARY KEY,
+        tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        call_id      TEXT NOT NULL,
+        run_id       TEXT NOT NULL,
+        agent_id     TEXT NOT NULL,
+        tool_name    TEXT NOT NULL,
+        occurred_at  INTEGER NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_tool_inv_tenant ON tool_invocations(tenant_id, occurred_at);
+      CREATE INDEX idx_tool_inv_run ON tool_invocations(tenant_id, run_id);
+      CREATE INDEX idx_tool_inv_name ON tool_invocations(tenant_id, tool_name);
+
+      CREATE TABLE tool_grants (
+        tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        agent_id     TEXT NOT NULL,
+        tool_name    TEXT NOT NULL,
+        first_seen   INTEGER NOT NULL,
+        last_seen    INTEGER NOT NULL,
+        PRIMARY KEY (tenant_id, agent_id, tool_name)
+      ) STRICT;
+
+      CREATE INDEX idx_tool_grants_tenant ON tool_grants(tenant_id, last_seen);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

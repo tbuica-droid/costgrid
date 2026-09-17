@@ -349,6 +349,57 @@ export class CostGridRepository {
     return { spend: row.spend, steps: Number(row.steps), depth };
   }
 
+  /**
+   * Record the tools a call touched.
+   *
+   * `invoked` is what the model asked to run, kept per call so a run can be
+   * audited step by step. `granted` is what the request said it *may* run,
+   * aggregated because the thousandth identical declaration is not a
+   * thousandth fact — and because capability is worth seeing before it is
+   * first exercised, not after.
+   *
+   * One transaction, after the response has already gone back to the caller.
+   */
+  recordTools(input: {
+    tenantId: string;
+    callId: string;
+    runId: string;
+    agentId: string;
+    invoked: readonly string[];
+    granted: readonly string[];
+    at: number;
+  }): void {
+    if (input.invoked.length === 0 && input.granted.length === 0) return;
+
+    const insertInvocation = this.#db.prepare(
+      `INSERT INTO tool_invocations (id, tenant_id, call_id, run_id, agent_id, tool_name, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const upsertGrant = this.#db.prepare(
+      `INSERT INTO tool_grants (tenant_id, agent_id, tool_name, first_seen, last_seen)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (tenant_id, agent_id, tool_name)
+       DO UPDATE SET last_seen = excluded.last_seen`,
+    );
+
+    this.#db.transaction(() => {
+      for (const tool of input.invoked) {
+        insertInvocation.run(
+          randomUUID(),
+          input.tenantId,
+          input.callId,
+          input.runId,
+          input.agentId,
+          tool,
+          input.at,
+        );
+      }
+      for (const tool of input.granted) {
+        upsertGrant.run(input.tenantId, input.agentId, tool, input.at, input.at);
+      }
+    })();
+  }
+
   // --------------------------------------------------------------- policies
 
   createPolicy(tenantId: string, policy: Omit<Policy, "id"> & { id?: string }): string {

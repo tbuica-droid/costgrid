@@ -8,6 +8,7 @@ import {
 import { AnthropicStreamCollector } from "./anthropic-stream.js";
 import { OpenAiStreamCollector } from "./openai-stream.js";
 import type { ParsedResponse, ProviderAdapter } from "./types.js";
+import { cappedTools, toolName } from "./tools.js";
 
 export * from "./types.js";
 export { AnthropicStreamCollector } from "./anthropic-stream.js";
@@ -60,15 +61,41 @@ export const anthropicAdapter: ProviderAdapter = {
   // Anthropic reports usage on every response, streamed or not.
   prepareBody: (body) => ({ body, injectedUsageRequest: false }),
 
+  declaredTools(body): readonly string[] {
+    const request = record(body);
+    const tools = request?.["tools"];
+    if (!Array.isArray(tools)) return [];
+    return cappedTools(tools.map((tool) => toolName(record(tool)?.["name"])));
+  },
+
   parseBufferedResponse(payload): ParsedResponse {
     const message = record(payload);
-    if (!message) return { model: undefined, usage: undefined, modifiers: NO_MODIFIERS, stopReason: undefined };
+    if (!message) {
+      return {
+        model: undefined,
+        usage: undefined,
+        modifiers: NO_MODIFIERS,
+        stopReason: undefined,
+        invokedTools: [],
+      };
+    }
+
+    const content = message["content"];
+    const invokedTools = Array.isArray(content)
+      ? cappedTools(
+          content.map((block) => {
+            const b = record(block);
+            return b?.["type"] === "tool_use" ? toolName(b["name"]) : undefined;
+          }),
+        )
+      : [];
 
     return {
       model: typeof message["model"] === "string" ? message["model"] : undefined,
       usage: message["usage"] !== undefined ? parseAnthropicUsage(message["usage"]) : undefined,
       modifiers: parseAnthropicModifiers(message["usage"]),
       stopReason: typeof message["stop_reason"] === "string" ? message["stop_reason"] : undefined,
+      invokedTools,
     };
   },
 
@@ -129,9 +156,31 @@ export const openaiAdapter: ProviderAdapter = {
     };
   },
 
+  declaredTools(body): readonly string[] {
+    const request = record(body);
+    const tools = request?.["tools"];
+    if (!Array.isArray(tools)) return [];
+    return cappedTools(
+      tools.map((tool) => {
+        const t = record(tool);
+        // Function tools nest the name; newer built-in tools name themselves
+        // by type alone.
+        return toolName(record(t?.["function"])?.["name"] ?? t?.["name"] ?? t?.["type"]);
+      }),
+    );
+  },
+
   parseBufferedResponse(payload): ParsedResponse {
     const message = record(payload);
-    if (!message) return { model: undefined, usage: undefined, modifiers: NO_MODIFIERS, stopReason: undefined };
+    if (!message) {
+      return {
+        model: undefined,
+        usage: undefined,
+        modifiers: NO_MODIFIERS,
+        stopReason: undefined,
+        invokedTools: [],
+      };
+    }
 
     const choices = message["choices"];
     const finishReason =
@@ -139,10 +188,21 @@ export const openaiAdapter: ProviderAdapter = {
         ? (choices[0] as Record<string, unknown> | undefined)?.["finish_reason"]
         : undefined;
 
+    const invokedTools = Array.isArray(choices)
+      ? cappedTools(
+          choices.flatMap((choice) => {
+            const calls = record(record(choice)?.["message"])?.["tool_calls"];
+            if (!Array.isArray(calls)) return [];
+            return calls.map((c) => toolName(record(record(c)?.["function"])?.["name"]));
+          }),
+        )
+      : [];
+
     return {
       model: typeof message["model"] === "string" ? message["model"] : undefined,
       usage: message["usage"] != null ? parseOpenAiUsage(message["usage"]) : undefined,
       modifiers: NO_MODIFIERS,
+      invokedTools,
       stopReason:
         typeof finishReason === "string"
           ? finishReason

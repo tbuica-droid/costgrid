@@ -269,7 +269,37 @@ const runOut = await cli(["run", "smoke-loop"]);
 check("run detail numbers its steps", /  1\./.test(runOut) && /  4\./.test(runOut), true);
 check("blocked step is shown in the run", /blocked/.test(runOut), true);
 
-console.log("\n9. monthly statement, in every format it exports");
+console.log("\n9. topology: tools and delegation, read off the wire");
+res = await call(
+  {
+    model: "claude-haiku-4-5",
+    max_tokens: 100,
+    tools: [{ name: "search_kb" }, { name: "refund_customer" }],
+  },
+  { "x-costgrid-agent": "topo-parent", "x-costgrid-run": "topo-root" },
+);
+check("tool-declaring call succeeds", res.status, 200);
+await res.text();
+
+res = await call(
+  { model: "claude-haiku-4-5", max_tokens: 100, tools: [{ name: "query_db" }] },
+  {
+    "x-costgrid-agent": "topo-child",
+    "x-costgrid-run": "topo-sub",
+    "x-costgrid-parent-run": "topo-root",
+  },
+);
+await res.text();
+
+const topo = await (await fetch(`${base}/api/topology?days=1`)).json();
+const edge = (kind, from, to) =>
+  topo.edges.some((e) => e.kind === kind && e.from === from && e.to === to);
+check("agent -> model edge extracted", edge("invokes", "topo-parent", "claude-haiku-4-5"), true);
+check("granted tool extracted", edge("grants", "topo-parent", "refund_customer"), true);
+check("delegation extracted", edge("delegates", "topo-parent", "topo-child"), true);
+check("no delegation loop reported", topo.cycles.length, 0);
+
+console.log("\n10. monthly statement, in every format it exports");
 const statementText = await cli(["statement"]);
 check("statement names this month", /CostGrid statement — /.test(statementText), true);
 check("statement is marked month to date", /Month to date/.test(statementText), true);
@@ -293,7 +323,7 @@ const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
 // Money must survive as an exact decimal string, never a float.
 check("json money is a string", typeof statementJson.total, "string");
 
-console.log("\n10. CLI report\n");
+console.log("\n11. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

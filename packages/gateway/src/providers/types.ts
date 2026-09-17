@@ -38,6 +38,15 @@ export interface ProviderAdapter {
 
   parseBufferedResponse(payload: unknown): ParsedResponse;
   createStreamCollector(): StreamUsageCollector;
+
+  /**
+   * Tool *names* the request declares the model may call.
+   *
+   * Names only, never definitions: a tool's description and schema are the
+   * customer's content. The name is structural and is all a reachability
+   * policy needs.
+   */
+  declaredTools(body: unknown): readonly string[];
 }
 
 export interface ParsedResponse {
@@ -45,6 +54,8 @@ export interface ParsedResponse {
   readonly usage: TokenUsage | undefined;
   readonly modifiers: PriceModifiers;
   readonly stopReason: string | undefined;
+  /** Tool names the model asked to run. Arguments are never read. */
+  readonly invokedTools: readonly string[];
 }
 
 /**
@@ -63,6 +74,8 @@ export interface StreamUsageCollector {
   readonly stopReason: string | undefined;
   readonly modifiers: PriceModifiers;
   readonly parseErrors: number;
+  /** Tool names seen in the stream. Names only; argument deltas are ignored. */
+  readonly invokedTools: readonly string[];
 
   /**
    * True when the stream did not yield trustworthy usage — it was truncated,

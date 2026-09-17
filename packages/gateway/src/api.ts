@@ -265,6 +265,29 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       .send(statementToCsv(statement));
   });
 
+  /**
+   * The fleet's shape, extracted from traffic.
+   *
+   * Money crosses as decimal strings here like everywhere else, and every edge
+   * says how it was learned — the view draws capability differently from
+   * history, and it can only do that if the API keeps them apart.
+   */
+  app.get("/api/topology", async (request) => {
+    const range = rangeFor(parseDays(request));
+    const topo = analytics.topology(tenant(request), range);
+    return {
+      nodes: topo.nodes.map((n) => ({
+        id: n.id,
+        kind: n.kind,
+        department: n.department ?? null,
+        costUsd: money(n.cost),
+        calls: n.calls,
+      })),
+      edges: topo.edges,
+      cycles: topo.cycles,
+    };
+  });
+
   app.get("/api/spend/daily", async (request) => {
     const days = parseDays(request);
     const buckets = analytics.dailySpend(tenant(request), rangeFor(days));

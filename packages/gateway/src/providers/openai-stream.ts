@@ -1,5 +1,6 @@
 import { NO_MODIFIERS, parseOpenAiUsage, type PriceModifiers, type TokenUsage, ZERO_USAGE } from "@costgrid/core";
 import type { StreamUsageCollector } from "./types.js";
+import { MAX_TOOLS_PER_CALL, toolName } from "./tools.js";
 
 /**
  * Accumulates usage from an OpenAI streamed response.
@@ -24,6 +25,7 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
   #model: string | undefined;
   #stopReason: string | undefined;
   #parseErrors = 0;
+  #tools: string[] = [];
   #sawUsage = false;
   #sawAnyChunk = false;
 
@@ -103,6 +105,24 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
       const first = choices[0] as Record<string, unknown> | undefined;
       const reason = first?.["finish_reason"];
       if (typeof reason === "string") this.#stopReason = reason;
+
+      // A streamed tool call names itself in the first delta for its index;
+      // later deltas carry only argument fragments, which are content and are
+      // not read here.
+      for (const choice of choices) {
+        const delta = (choice as Record<string, unknown> | undefined)?.["delta"];
+        if (typeof delta !== "object" || delta === null) continue;
+        const calls = (delta as Record<string, unknown>)["tool_calls"];
+        if (!Array.isArray(calls)) continue;
+        for (const call of calls) {
+          const fn = (call as Record<string, unknown> | undefined)?.["function"];
+          if (typeof fn !== "object" || fn === null) continue;
+          const name = toolName((fn as Record<string, unknown>)["name"]);
+          if (name !== undefined && !this.#tools.includes(name) && this.#tools.length < MAX_TOOLS_PER_CALL) {
+            this.#tools.push(name);
+          }
+        }
+      }
     }
   }
 
@@ -133,6 +153,10 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
       ? "stream carried no usage — the request omitted stream_options.include_usage, " +
           "so this call's cost could not be established"
       : "stream ended before any chunk arrived; usage is unknown";
+  }
+
+  get invokedTools(): readonly string[] {
+    return this.#tools;
   }
 
   get parseErrors(): number {

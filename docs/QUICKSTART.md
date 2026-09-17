@@ -288,7 +288,44 @@ npx tsx packages/cli/src/main.ts run <run-id>      # every call, in order
        run has made 8 call(s), at its cap of 8
 ```
 
-## 11. The monthly statement
+## 11. The topology
+
+With runs flowing, CostGrid reads the shape of your fleet out of the traffic
+itself — no config file, no diagram to keep current:
+
+- **agent → model**, from metered calls
+- **agent → tool**, from the `tool_use` blocks in responses and the `tools` your
+  requests declare
+- **agent → agent**, from `x-costgrid-parent-run`
+
+The **Topology** tab draws it. Click an agent and it reports what that agent
+reaches *directly* and what it reaches *through a delegation* — the second being
+the thing a flat policy cannot express and a reachability question has to
+answer.
+
+Solid edges were exercised in the window. Dashed edges are capability an agent
+holds and has not used: a tool declared on every request but never called is
+still reachable, and still the thing a policy has to account for.
+
+Delegation loops are reported rather than judged. An agent that transitively
+delegates back to itself is either designed recursion or a runaway, and nothing
+here can tell which — a `run-depth` policy bounds it either way.
+
+### What is stored
+
+Tool **names** only. Never arguments.
+
+| Stored | Not stored |
+|---|---|
+| `refund_customer` | `{"customer_id": "cus_884412", "amount_usd": 420}` |
+| `query_db` | the SQL |
+
+A tool name is structural, like a table name, and it is the whole of what a
+reachability policy needs. Arguments are content, and content is forwarded and
+never kept. Set `COSTGRID_EXTRACT_TOOLS=false` to switch the path off entirely
+if your tool names are themselves sensitive.
+
+## 12. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

@@ -144,6 +144,47 @@ export interface RunStep {
   readonly parentRunId: string | undefined;
 }
 
+/** A node in the extracted topology. */
+export interface TopologyNode {
+  readonly id: string;
+  readonly kind: "agent" | "model" | "tool";
+  readonly department: string | undefined;
+  readonly cost: Nanodollars;
+  readonly calls: number;
+}
+
+/**
+ * An edge, with how it was learned.
+ *
+ * `invokes` — the agent called this model (from metered calls).
+ * `uses` — the model asked to run this tool (from responses).
+ * `grants` — the request declared the agent may run this tool, whether or not
+ *   it ever did. Capability rather than history, which is what a reachability
+ *   policy has to reason about.
+ * `delegates` — one run named another as its parent.
+ *
+ * All four are extracted: every one was read off the wire, none inferred.
+ */
+export interface TopologyEdge {
+  readonly from: string;
+  readonly to: string;
+  readonly kind: "invokes" | "uses" | "grants" | "delegates";
+  readonly calls: number;
+}
+
+export interface Topology {
+  readonly nodes: readonly TopologyNode[];
+  readonly edges: readonly TopologyEdge[];
+  /**
+   * Delegation cycles, as agent-id loops.
+   *
+   * An agent that transitively delegates back to itself is either a designed
+   * recursion or a runaway loop, and CostGrid cannot tell which. It reports
+   * the cycle and leaves the judgement where it belongs.
+   */
+  readonly cycles: readonly (readonly string[])[];
+}
+
 export class Analytics {
   readonly #db: Db;
 
@@ -560,6 +601,157 @@ export class Analytics {
     return { declared: row.declared, total: row.total };
   }
 
+  /**
+   * The fleet as it actually ran, over one window.
+   *
+   * Every edge here was read off the wire. Nothing is inferred, and nothing is
+   * read from a config file a customer wrote six months ago — that gap is the
+   * entire reason this view exists.
+   */
+  topology(tenantId: string, range: TimeRange): Topology {
+    const agents = this.#db
+      .prepare(
+        `SELECT agent_id AS id, MIN(department) AS department,
+                COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS cost,
+                COUNT(*) AS calls
+         FROM calls
+         WHERE tenant_id = ? AND started_at >= ? AND started_at < ?
+         GROUP BY agent_id`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to) as Record<string, bigint | string>[];
+
+    const models = this.#db
+      .prepare(
+        `SELECT model AS id,
+                COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS cost,
+                COUNT(*) AS calls
+         FROM calls
+         WHERE tenant_id = ? AND outcome != 'blocked' AND started_at >= ? AND started_at < ?
+         GROUP BY model`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to) as Record<string, bigint | string>[];
+
+    const invokes = this.#db
+      .prepare(
+        `SELECT agent_id AS "from", model AS "to", COUNT(*) AS calls
+         FROM calls
+         WHERE tenant_id = ? AND outcome != 'blocked' AND started_at >= ? AND started_at < ?
+         GROUP BY agent_id, model`,
+      )
+      .all(tenantId, range.from, range.to) as { from: string; to: string; calls: number }[];
+
+    const uses = this.#db
+      .prepare(
+        `SELECT agent_id AS "from", tool_name AS "to", COUNT(*) AS calls
+         FROM tool_invocations
+         WHERE tenant_id = ? AND occurred_at >= ? AND occurred_at < ?
+         GROUP BY agent_id, tool_name`,
+      )
+      .all(tenantId, range.from, range.to) as { from: string; to: string; calls: number }[];
+
+    // Grants are not windowed: a capability the agent held does not stop being
+    // one because it went unused this week. That is exactly the tool a
+    // reachability rule must still account for.
+    const grants = this.#db
+      .prepare(
+        `SELECT agent_id AS "from", tool_name AS "to" FROM tool_grants WHERE tenant_id = ?`,
+      )
+      .all(tenantId) as { from: string; to: string }[];
+
+    /*
+     * A delegation edge joins the agent of a child run to the agent of its
+     * parent run. Self-delegation is dropped: an agent handing work to itself
+     * is a step, not a hop.
+     *
+     * The parent is collapsed to one row per run before the join. Joining call
+     * rows directly produces a cartesian product — nine parent calls against
+     * four child calls reported thirty-six delegations where there was one —
+     * and the number looks plausible enough to go unnoticed.
+     */
+    const delegates = this.#db
+      .prepare(
+        `SELECT parent.agent_id AS "from", child.agent_id AS "to",
+                COUNT(DISTINCT child.id) AS calls
+         FROM calls child
+         JOIN (
+           SELECT tenant_id, run_id, MIN(agent_id) AS agent_id
+           FROM calls GROUP BY tenant_id, run_id
+         ) parent ON parent.tenant_id = child.tenant_id
+                 AND parent.run_id = child.parent_run_id
+         WHERE child.tenant_id = ? AND child.parent_run_id IS NOT NULL
+           AND child.started_at >= ? AND child.started_at < ?
+           AND parent.agent_id != child.agent_id
+         GROUP BY parent.agent_id, child.agent_id`,
+      )
+      .all(tenantId, range.from, range.to) as { from: string; to: string; calls: number }[];
+
+    const nodes: TopologyNode[] = [
+      ...agents.map((a) => ({
+        id: a["id"] as string,
+        kind: "agent" as const,
+        department: a["department"] as string,
+        cost: a["cost"] as bigint,
+        calls: Number(a["calls"]),
+      })),
+      ...models.map((m) => ({
+        id: m["id"] as string,
+        kind: "model" as const,
+        department: undefined,
+        cost: m["cost"] as bigint,
+        calls: Number(m["calls"]),
+      })),
+    ];
+
+    const toolNames = new Set([...uses.map((u) => u.to), ...grants.map((g) => g.to)]);
+    const usedCalls = new Map(uses.map((u) => [u.to, u.calls]));
+    for (const tool of toolNames) {
+      nodes.push({
+        id: tool,
+        kind: "tool",
+        department: undefined,
+        cost: 0n,
+        calls: usedCalls.get(tool) ?? 0,
+      });
+    }
+
+    const edges: TopologyEdge[] = [
+      ...invokes.map((e) => ({ ...e, kind: "invokes" as const })),
+      ...uses.map((e) => ({ ...e, kind: "uses" as const })),
+      // A tool that was used is also granted; the grant edge is only
+      // interesting where no invocation exists to imply it.
+      ...grants
+        .filter((g) => !uses.some((u) => u.from === g.from && u.to === g.to))
+        .map((g) => ({ ...g, kind: "grants" as const, calls: 0 })),
+      ...delegates.map((e) => ({ ...e, kind: "delegates" as const })),
+    ];
+
+    return { nodes, edges, cycles: findCycles(delegates) };
+  }
+
+  /**
+   * Everything an agent can reach, following edges forward.
+   *
+   * The query a flat policy cannot answer: a rule naming a tool has to account
+   * for agents that reach it *through* a delegation, not only those that call
+   * it directly.
+   */
+  reachableFrom(tenantId: string, range: TimeRange, start: string): string[] {
+    const { edges } = this.topology(tenantId, range);
+    const seen = new Set<string>();
+    const queue = [start];
+    while (queue.length > 0) {
+      const at = queue.shift()!;
+      for (const edge of edges) {
+        if (edge.from !== at || seen.has(edge.to)) continue;
+        seen.add(edge.to);
+        queue.push(edge.to);
+      }
+    }
+    return [...seen];
+  }
+
   recentViolations(tenantId: string, limit = 50) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
       throw new RangeError(`limit must be an integer 1..1000, got ${limit}`);
@@ -585,4 +777,65 @@ export class Analytics {
       model: string | null;
     }[];
   }
+}
+
+/**
+ * Delegation cycles, found with an iterative depth-first walk.
+ *
+ * Iterative rather than recursive because the input is customer data: a deep
+ * or adversarial delegation chain should not be able to overflow the stack of
+ * the process that meters everyone's traffic.
+ */
+function findCycles(edges: readonly { from: string; to: string }[]): string[][] {
+  const out = new Map<string, string[]>();
+  for (const edge of edges) {
+    const list = out.get(edge.from) ?? [];
+    list.push(edge.to);
+    out.set(edge.from, list);
+  }
+
+  const cycles: string[][] = [];
+  const seenCycle = new Set<string>();
+  const colour = new Map<string, "grey" | "black">();
+
+  for (const start of out.keys()) {
+    if (colour.get(start) === "black") continue;
+
+    const stack: { node: string; next: number }[] = [{ node: start, next: 0 }];
+    const path: string[] = [start];
+    colour.set(start, "grey");
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1]!;
+      const neighbours = out.get(frame.node) ?? [];
+
+      if (frame.next >= neighbours.length) {
+        colour.set(frame.node, "black");
+        stack.pop();
+        path.pop();
+        continue;
+      }
+
+      const next = neighbours[frame.next++]!;
+      if (colour.get(next) === "grey") {
+        // Back edge: the cycle is the path from that node onward.
+        const loop = path.slice(path.indexOf(next));
+        // Normalise rotation so A->B->A and B->A->B are reported once.
+        const lowest = loop.indexOf([...loop].sort()[0]!);
+        const key = [...loop.slice(lowest), ...loop.slice(0, lowest)].join(">");
+        if (!seenCycle.has(key)) {
+          seenCycle.add(key);
+          cycles.push(key.split(">"));
+        }
+        continue;
+      }
+      if (colour.get(next) === "black") continue;
+
+      colour.set(next, "grey");
+      path.push(next);
+      stack.push({ node: next, next: 0 });
+    }
+  }
+
+  return cycles;
 }

@@ -8,6 +8,7 @@ import {
   ZERO_USAGE,
 } from "@costgrid/core";
 import type { StreamUsageCollector } from "./types.js";
+import { MAX_TOOLS_PER_CALL, toolName } from "./tools.js";
 
 /**
  * Extracts usage and model from an Anthropic SSE stream as it passes through.
@@ -32,6 +33,7 @@ export class AnthropicStreamCollector implements StreamUsageCollector {
   #modifiers: PriceModifiers = NO_MODIFIERS;
   #parseErrors = 0;
   #sawMessageStart = false;
+  #tools: string[] = [];
 
   /** Feed a raw chunk of the response body. Safe to call with partial lines. */
   feed(chunk: string): void {
@@ -88,6 +90,20 @@ export class AnthropicStreamCollector implements StreamUsageCollector {
 
   #handleEvent(event: Record<string, unknown>): void {
     switch (event["type"]) {
+      case "content_block_start": {
+        // A tool call announces its name here; the arguments arrive later as
+        // input_json_delta, which this collector never looks at.
+        const block = event["content_block"];
+        if (typeof block !== "object" || block === null) return;
+        const b = block as Record<string, unknown>;
+        if (b["type"] !== "tool_use") return;
+        const name = toolName(b["name"]);
+        if (name !== undefined && !this.#tools.includes(name) && this.#tools.length < MAX_TOOLS_PER_CALL) {
+          this.#tools.push(name);
+        }
+        return;
+      }
+
       case "message_start": {
         const message = event["message"];
         if (typeof message !== "object" || message === null) return;
@@ -151,6 +167,10 @@ export class AnthropicStreamCollector implements StreamUsageCollector {
 
   get incompleteReason(): string | undefined {
     return this.#sawMessageStart ? undefined : "stream ended before message_start; usage is partial";
+  }
+
+  get invokedTools(): readonly string[] {
+    return this.#tools;
   }
 
   get parseErrors(): number {

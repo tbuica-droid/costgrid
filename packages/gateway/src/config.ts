@@ -30,6 +30,13 @@ export interface GatewayConfig {
    */
   readonly injectUsageRequest: boolean;
   /**
+   * Record tool *names* seen in requests and responses, for the topology view.
+   *
+   * Names only — never arguments, which are content. Off switches the whole
+   * path, for anyone whose tool names are themselves sensitive.
+   */
+  readonly extractTools: boolean;
+  /**
    * When true, a request presenting no valid CostGrid key is attributed to the
    * single local tenant instead of being rejected. For solo/self-hosted use;
    * must stay false in any multi-tenant deployment.
@@ -125,6 +132,7 @@ export function loadConfig(): GatewayConfig {
     providerBaseUrls,
     upstreamTimeoutMs: integer("COSTGRID_UPSTREAM_TIMEOUT_MS", 15 * 60 * 1000),
     injectUsageRequest: boolean("COSTGRID_OPENAI_INJECT_USAGE", true),
+    extractTools: boolean("COSTGRID_EXTRACT_TOOLS", true),
     allowAnonymous: boolean("COSTGRID_ALLOW_ANONYMOUS", false),
     logLevel: process.env["COSTGRID_LOG_LEVEL"]?.trim() || "info",
   };

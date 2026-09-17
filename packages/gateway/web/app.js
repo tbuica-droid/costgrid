@@ -10,6 +10,8 @@
  * exact arithmetic already happened server-side in integer nanodollars.
  */
 
+import { drawTopology } from "./topology-view.js";
+
 // `month` is null for "the current one", resolved server-side so the browser's
 // clock cannot disagree with the meter's about which month a call belongs to.
 const state = { view: "overview", days: 30, month: null };
@@ -809,11 +811,66 @@ async function renderStatement() {
     }`;
 }
 
+/**
+ * Held between render and mount: the view returns a markup string, but the
+ * graph cannot lay out until that markup is in the document. Stashing the
+ * response beats fetching the same topology twice.
+ */
+let pendingTopology = null;
+
+async function renderTopology() {
+  const topo = await api("topology");
+  pendingTopology = topo;
+  if (topo.nodes.length === 0) return emptyState();
+
+  const agents = topo.nodes.filter((n) => n.kind === "agent").length;
+  const tools = topo.nodes.filter((n) => n.kind === "tool").length;
+  const granted = topo.edges.filter((e) => e.kind === "grants").length;
+  const delegations = topo.edges.filter((e) => e.kind === "delegates").length;
+
+  // A delegation loop is either designed recursion or a runaway, and nothing
+  // here can tell which. Report it and leave the judgement where it belongs.
+  const cycleBanner = topo.cycles.length
+    ? `<div class="banner"><strong>${topo.cycles.length} delegation loop${
+        topo.cycles.length === 1 ? "" : "s"
+      }.</strong>
+       ${topo.cycles.map((c) => escapeHtml([...c, c[0]].join(" → "))).join("; ")}.
+       An agent that delegates back to itself is either designed recursion or a
+       runaway; CostGrid cannot tell which. A <code>run-depth</code> policy bounds it
+       either way.</div>`
+    : "";
+
+  const kpis = [
+    card("Agents", count(agents), `${count(topo.nodes.length)} nodes in total`),
+    card("Tools reachable", count(tools),
+      granted ? `${count(granted)} granted but unused in this window` : "all of them exercised"),
+    card("Delegations", count(delegations),
+      delegations ? "agent hands work to agent" : "no run named a parent"),
+    card("Loops", count(topo.cycles.length), "delegation cycles",
+      topo.cycles.length ? "accent-rust" : ""),
+  ].join("");
+
+  return `
+    ${cycleBanner}
+    <h2>Topology</h2>
+    <p class="section-note">Read out of metered traffic: which agents called which
+      models, which tools they invoked, and who delegated to whom. Nothing here comes
+      from a config file — solid edges were exercised in this window, dashed ones are
+      capability an agent holds and has not used. Tool <em>names</em> only; arguments
+      are never stored.</p>
+    <div class="grid cols-4">${kpis}</div>
+    <div class="grid cols-2" style="margin-top:18px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
+      <div class="card"><div id="topo-graph"></div></div>
+      <div class="card" id="topo-panel"></div>
+    </div>`;
+}
+
 // --------------------------------------------------------------------- shell
 
 const VIEWS = {
   overview: renderOverview,
   statement: renderStatement,
+  topology: renderTopology,
   agents: renderAgents,
   routing: renderRouting,
   policies: renderPolicies,
@@ -824,6 +881,18 @@ async function render() {
   const main = document.getElementById("main");
   try {
     main.innerHTML = await VIEWS[state.view]();
+
+    // The layout measures its container, so it runs once the markup is in the
+    // document rather than while it is still a string.
+    const graphMount = document.getElementById("topo-graph");
+    if (graphMount && pendingTopology) {
+      drawTopology(graphMount, document.getElementById("topo-panel"), pendingTopology, {
+        escapeHtml,
+        money,
+        count,
+      });
+      pendingTopology = null;
+    }
     // The statement is a calendar month, so saying "last 30 days" under it
     // would contradict the numbers directly above.
     const scope =

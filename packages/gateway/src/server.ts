@@ -63,6 +63,14 @@ interface Caller {
   readonly department: string;
 }
 
+/**
+ * What a response path hands back for recording.
+ *
+ * `invokedTools` is not a column on the call row — it fans out into its own
+ * table — so it rides here rather than widening `CallRecord`.
+ */
+type RecordOverrides = Partial<CallRecord> & { invokedTools?: readonly string[] };
+
 function headerValue(request: FastifyRequest, name: string): string | undefined {
   const raw = request.headers[name];
   const value = Array.isArray(raw) ? raw[0] : raw;
@@ -306,6 +314,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * configuration, and a control that demands code changes is a control
        * most fleets never turn on.
        */
+      const declaredTools = config.extractTools ? adapter.declaredTools(request.body) : [];
       const declaredRun = runIdOf(request, RUN_HEADER);
       const parentRun = runIdOf(request, PARENT_RUN_HEADER);
       const callId = randomUUID();
@@ -456,7 +465,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         reply.header("x-costgrid-warnings", headerSafe(warnings.join("; ")));
       }
 
-      const record = (over: Partial<CallRecord>): void => {
+      const record = (over: RecordOverrides): void => {
         const usage = over.usage ?? ZERO_USAGE;
         const model = over.model ?? requestedModel;
         const modifiers = over.modifiers ?? {};
@@ -508,6 +517,27 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           statusCode: over.statusCode ?? upstream.status,
         } as CallRecord);
 
+        /*
+         * Tool names, after the row exists and after the caller has their
+         * response. Nothing here is on the critical path, and a failure to
+         * record a name must never affect a call that already succeeded.
+         */
+        if (config.extractTools) {
+          try {
+            repository.recordTools({
+              tenantId: caller.tenantId,
+              callId: id,
+              runId,
+              agentId: caller.agentId,
+              invoked: over.invokedTools ?? [],
+              granted: declaredTools,
+              at: startedAt,
+            });
+          } catch (error) {
+            app.log.warn({ err: error }, "tool extraction failed");
+          }
+        }
+
         if (decision.violations.length > 0) {
           repository.recordViolations(caller.tenantId, id, decision.violations, startedAt);
         }
@@ -553,6 +583,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
       const parsed = adapter.parseBufferedResponse(payload);
       record({
+        invokedTools: parsed.invokedTools,
         // Bill the model that actually ran, which a server-side fallback can change.
         ...(parsed.model !== undefined ? { model: parsed.model } : {}),
         usage: parsed.usage ?? ZERO_USAGE,
@@ -624,7 +655,7 @@ async function streamThrough(
   adapter: ProviderAdapter,
   reply: FastifyReply,
   upstream: Response,
-  record: (over: Partial<CallRecord>) => void,
+  record: (over: RecordOverrides) => void,
   log: FastifyInstance["log"],
 ): Promise<void> {
   const collector: StreamUsageCollector = adapter.createStreamCollector();
@@ -664,6 +695,7 @@ async function streamThrough(
     : collector.incompleteReason;
 
   record({
+    invokedTools: collector.invokedTools,
     ...(collector.model !== undefined ? { model: collector.model } : {}),
     usage: collector.usage,
     modifiers: collector.modifiers,
