@@ -301,6 +301,42 @@ Cycle detection walks iteratively rather than recursively. The depth of a
 delegation chain is decided by customer data, and a deep or adversarial one
 must not overflow the stack of the process metering everyone's traffic.
 
+### Bedrock and Vertex are channels, not new models
+
+Both serve the models the catalog already knows. They are separate providers
+here because they bill separately, hold separate credentials, and must never be
+routed across — a Bedrock model id is not valid on the Anthropic API — but
+their ids normalise onto the same catalog entries rather than duplicating the
+table three times.
+
+What differs is packaging, and it drove two changes to the adapter contract.
+`authHeaders` is async and receives the method, URL and exact body bytes,
+because SigV4 signs all three and Vertex exchanges a key for a token.
+`upstreamPath(model, streaming)` replaces a fixed path, because both channels
+name the model in the URL and stream from a different endpoint than they buffer
+from. The order in the proxy handler follows from that: route, then body, then
+URL, then signature — anything that rewrites the body after signing invalidates
+it.
+
+SigV4 is implemented rather than imported: the gateway has three runtime
+dependencies and the AWS SDK would be the largest by an order of magnitude, for
+one signature. Bedrock's streams are binary event-stream frames rather than
+SSE, so they need their own decoder; the prelude CRC is checked on every frame
+so a real stream that disagrees with this implementation fails loudly instead of
+metering zero.
+
+**Neither has been verified against a live account.** The signature is checked
+against Amazon's documented example and the CRC against its canonical vector,
+which is as far as verification goes without credentials. `costgrid preflight
+<provider>` hands the rest to whoever has an account: one real call, naming the
+stage that failed. That command exists precisely because "it should work" is
+not something a cost tool gets to say.
+
+Channel *pricing* is the known approximation. Both publish their own per-region
+rates, which this catalog does not carry, so traffic prices at the direct-API
+list rate for the same model and `costgrid rates derive` against the AWS or GCP
+bill makes it exact.
+
 ### Negotiated rates are applied at record time, not at read time
 
 An enterprise buys off list, so reporting list to them means every figure
@@ -476,7 +512,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-368 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+409 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

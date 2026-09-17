@@ -1,6 +1,21 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": "./src", "outDir": "./dist" },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../core" }, { "path": "../db" }]
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../gateway"
+    }
+  ]
 }

@@ -325,7 +325,76 @@ reachability policy needs. Arguments are content, and content is forwarded and
 never kept. Set `COSTGRID_EXTRACT_TOOLS=false` to switch the path off entirely
 if your tool names are themselves sensitive.
 
-## 12. If you buy off list
+## 12. Bedrock and Vertex
+
+Claude through AWS or Google is the same model, reached differently. CostGrid
+proxies both.
+
+```bash
+# Bedrock. One compound credential, so a single secret rotates atomically.
+AWS_BEDROCK_CREDENTIAL=AKIA...:your-secret:us-east-1
+# With STS or SSO, append the session token:
+AWS_BEDROCK_CREDENTIAL=ASIA...:your-secret:us-east-1:your-session-token
+
+# Vertex. The service-account JSON, exactly as downloaded.
+GOOGLE_SERVICE_ACCOUNT_JSON='{"client_email":"...","private_key":"..."}'
+GOOGLE_CLOUD_PROJECT=acme-prod
+GOOGLE_CLOUD_LOCATION=us-east5
+```
+
+Clients keep the paths they already use, so it stays one line of configuration:
+
+```python
+# boto3
+client = boto3.client("bedrock-runtime", endpoint_url="http://127.0.0.1:8787")
+
+# Anthropic's Bedrock and Vertex SDKs
+AnthropicBedrock(base_url="http://127.0.0.1:8787")
+AnthropicVertex(base_url="http://127.0.0.1:8787", project_id=..., region=...)
+```
+
+### Run the preflight first
+
+**These two channels were built without an AWS or GCP account to test
+against.** The AWS signature is verified against Amazon's published example and
+the stream decoder against the canonical CRC vector, but nothing in this
+project has ever spoken to Bedrock or Vertex. So verify it against your account
+before you route anything real through it:
+
+```bash
+npx tsx packages/cli/src/main.ts preflight bedrock
+npx tsx packages/cli/src/main.ts preflight vertex
+```
+
+```text
+  PASS  pricing      anthropic.claude-haiku-4-5-v1:0 prices as claude-haiku-4-5 ($1.00/Mtok in, $5.00/Mtok out)
+  PASS  route        POST https://bedrock-runtime.us-east-1.amazonaws.com/model/...
+  PASS  credentials  built host, x-amz-content-sha256, x-amz-date, authorization
+  PASS  request      200 in one call
+  PASS  usage        read 42 in / 7 out
+```
+
+One real call, naming the exact stage that fails. If `usage` or `route` fails,
+that is a bug here rather than in your setup — the output is written to be
+pasted straight into an issue.
+
+### Pricing on these channels
+
+**Bedrock and Vertex publish their own rates, per region, and this catalog does
+not carry them.** Traffic is priced at the direct-API list rate for the same
+model, which is close but not exact.
+
+Make it exact the same way an enterprise discount is made exact — derive it
+from the bill:
+
+```bash
+npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 30
+```
+
+That figure comes from your AWS bill, so it absorbs the channel's pricing and
+any committed-use discount in one number.
+
+## 13. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
 agreement — the catalog only knows list prices, so without telling CostGrid
@@ -380,7 +449,7 @@ Traffic CostGrid cannot price is excluded from the comparison and reported as a
 warning, because it would otherwise make the derived discount look deeper than
 it is.
 
-## 13. The monthly statement
+## 14. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

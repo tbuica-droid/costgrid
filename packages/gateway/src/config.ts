@@ -95,6 +95,33 @@ export function loadConfig(): GatewayConfig {
   const openaiBase = optional("OPENAI_BASE_URL");
   if (openaiBase !== undefined) providerBaseUrls.openai = openaiBase;
 
+  /*
+   * Bedrock takes one compound credential rather than four env vars, so a
+   * single secret rotates atomically — half-rotated AWS keys are a classic
+   * way to take an integration down.
+   */
+  const bedrockKey = optional("AWS_BEDROCK_CREDENTIAL");
+  if (bedrockKey !== undefined) providerKeys.bedrock = bedrockKey;
+  const bedrockBase = optional("AWS_BEDROCK_BASE_URL");
+  if (bedrockBase !== undefined) {
+    providerBaseUrls.bedrock = bedrockBase;
+  } else if (bedrockKey !== undefined) {
+    // The runtime endpoint is regional, and the region is already in the
+    // credential. Deriving it beats asking for the same fact twice.
+    const region = bedrockKey.split(":")[2];
+    if (region) providerBaseUrls.bedrock = `https://bedrock-runtime.${region}.amazonaws.com`;
+  }
+
+  const vertexKey = optional("GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (vertexKey !== undefined) providerKeys.vertex = vertexKey;
+  const vertexBase = optional("GOOGLE_VERTEX_BASE_URL");
+  if (vertexBase !== undefined) {
+    providerBaseUrls.vertex = vertexBase;
+  } else if (vertexKey !== undefined) {
+    const location = optional("GOOGLE_CLOUD_LOCATION") ?? "us-east5";
+    providerBaseUrls.vertex = `https://${location}-aiplatform.googleapis.com`;
+  }
+
   const hosted = boolean("COSTGRID_HOSTED", false);
   const masterKeySecret = optional("COSTGRID_MASTER_KEY");
 

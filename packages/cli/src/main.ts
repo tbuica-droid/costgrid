@@ -20,6 +20,7 @@ import {
   statementToCsv,
   trailingWindow,
 } from "@costgrid/db";
+import { formatPreflight, preflight } from "@costgrid/gateway";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
@@ -59,6 +60,10 @@ Usage:
   costgrid rates derive <provider> --invoiced <usd> [--days N]
                                           Derive the rate from an actual invoice total
   costgrid rates clear <provider>
+  costgrid preflight <provider> [--model ID]
+                                          One real call to a provider, reporting exactly
+                                          which stage fails. Use it for bedrock and vertex,
+                                          which were built without an account to test on.
   costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
 Scope is "tenant", "dept:<name>" or "agent:<id>".
@@ -316,6 +321,39 @@ async function main(): Promise<void> {
         if (step.errorMessage) console.log(`       ${step.errorMessage}`);
       }
       console.log("");
+      break;
+    }
+
+    case "preflight": {
+      const provider = argv[1] ?? fail("preflight needs a provider");
+      const envVar = {
+        anthropic: "ANTHROPIC_API_KEY",
+        openai: "OPENAI_API_KEY",
+        bedrock: "AWS_BEDROCK_CREDENTIAL",
+        vertex: "GOOGLE_SERVICE_ACCOUNT_JSON",
+      }[provider];
+      if (envVar === undefined) fail(`unknown provider ${JSON.stringify(provider)}`);
+
+      const credential = process.env[envVar];
+      if (credential === undefined || credential.trim() === "") {
+        fail(`${envVar} is not set, so there is no credential to test with.`);
+      }
+
+      const defaultModel = {
+        anthropic: "claude-haiku-4-5",
+        openai: "gpt-5-nano",
+        bedrock: "anthropic.claude-haiku-4-5-v1:0",
+        vertex: "claude-haiku-4-5@20251001",
+      }[provider]!;
+
+      const result = await preflight({
+        provider,
+        credential,
+        model: flag(argv, "model") ?? defaultModel,
+        ...(flag(argv, "base-url") !== undefined ? { baseUrl: flag(argv, "base-url") } : {}),
+      });
+      console.log(formatPreflight(result));
+      if (!result.ok) process.exitCode = 1;
       break;
     }
 

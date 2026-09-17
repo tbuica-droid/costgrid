@@ -102,9 +102,10 @@ costs more trust than it saves time.
 
 Stated up front, because finding out in week three wastes your time:
 
-- **Bedrock and Vertex are not supported.** Direct Anthropic and OpenAI only.
-  Both are partner-operated with their own auth and pricing, and each needs its
-  own adapter.
+- **Bedrock and Vertex are supported but unproven.** Both adapters exist and are
+  tested, but neither has run against a live AWS or GCP account — I did not have
+  one. Run `costgrid preflight bedrock` (or `vertex`) before routing anything
+  real, and tell me if it fails.
 - **It governs API spend, not seat licences.** If your AI bill is people using a
   chat product in a browser, there is nothing here to meter — that spend is flat
   and predictable, which is why it does not need governing.

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/main.js",
+  "main": "./dist/index.js",
   "dependencies": {
     "@costgrid/core": "1.0.0",
     "@costgrid/db": "1.0.0",

@@ -296,7 +296,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       }
 
-      const requestedModel = adapter.modelOf(request.body);
+      // Bedrock names the model in the path, so the route parameters are part
+      // of the request as much as the body is.
+      const requestedModel = adapter.modelOf(
+        request.body,
+        request.params as Record<string, string | undefined> | undefined,
+      );
       const streaming = adapter.isStreaming(request.body);
 
       const context: RequestContext = {
@@ -394,17 +399,6 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
       // --- Forward upstream -------------------------------------------------
       const { apiKey, baseUrl } = upstreamCredential;
-      const upstreamHeaders: Record<string, string> = {
-        "content-type": "application/json",
-        ...adapter.authHeaders(apiKey),
-      };
-      for (const name of adapter.forwardedRequestHeaders) {
-        const value = headerValue(request, name);
-        if (value !== undefined) upstreamHeaders[name] = value;
-      }
-      if (adapter.id === "anthropic" && upstreamHeaders["anthropic-version"] === undefined) {
-        upstreamHeaders["anthropic-version"] = "2023-06-01";
-      }
 
       /*
        * Apply a route rule, if one matched and is not a dry run.
@@ -441,12 +435,47 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         ? adapter.prepareBody(outgoingBody)
         : { body: outgoingBody, injectedUsageRequest: false };
 
+      const outgoingBytes = JSON.stringify(prepared.body);
+
+      /*
+       * The served model decides the upstream path, not only the body.
+       *
+       * Bedrock and Vertex put the model in the URL and stream from a
+       * different path than they buffer from, so this is resolved after
+       * routing has chosen which model actually runs. For the direct APIs it
+       * is one fixed path whatever the model.
+       */
+      const servedModel = route?.applied === true ? route.toModel : requestedModel;
+      const upstreamUrl = new URL(adapter.upstreamPath(servedModel, streaming), baseUrl);
+
+      /*
+       * Authentication is resolved last, because two channels need the final
+       * request to produce it: SigV4 signs the method, the path and the exact
+       * body bytes, so anything that rewrites the body — routing, usage
+       * injection — has to happen first or the signature will not verify.
+       */
+      const upstreamHeaders: Record<string, string> = {
+        "content-type": "application/json",
+        ...(await adapter.authHeaders(apiKey, {
+          method: "POST",
+          url: upstreamUrl,
+          body: outgoingBytes,
+        })),
+      };
+      for (const name of adapter.forwardedRequestHeaders) {
+        const value = headerValue(request, name);
+        if (value !== undefined) upstreamHeaders[name] = value;
+      }
+      if (adapter.id === "anthropic" && upstreamHeaders["anthropic-version"] === undefined) {
+        upstreamHeaders["anthropic-version"] = "2023-06-01";
+      }
+
       let upstream: Response;
       try {
-        upstream = await doFetch(new URL(adapter.path, baseUrl), {
+        upstream = await doFetch(upstreamUrl, {
           method: "POST",
           headers: upstreamHeaders,
-          body: JSON.stringify(prepared.body),
+          body: outgoingBytes,
           signal: AbortSignal.timeout(config.upstreamTimeoutMs),
         });
       } catch (error) {

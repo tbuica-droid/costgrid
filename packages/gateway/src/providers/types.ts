@@ -16,13 +16,37 @@ export interface ProviderAdapter {
   /** Env var holding this provider's credential. */
   readonly apiKeyEnvVar: string;
 
-  authHeaders(apiKey: string): Record<string, string>;
+  /**
+   * Headers that authenticate one upstream request.
+   *
+   * Async and context-carrying because two channels need more than a static
+   * token: Bedrock signs the method, path and body with SigV4, and Vertex
+   * exchanges a service-account key for a short-lived OAuth token. A bearer
+   * header ignores the context and stays a one-liner.
+   */
+  authHeaders(credential: string, context: AuthContext): Promise<Record<string, string>>;
+
+  /**
+   * The upstream path for one model.
+   *
+   * Bedrock and Vertex put the model in the URL rather than the body, and
+   * stream from a different path than they buffer from. Taking the model here
+   * is what lets a route rule rewrite the destination without the proxy
+   * handler knowing which channel it is talking to.
+   */
+  upstreamPath(model: string, streaming: boolean): string;
   /** Request headers worth forwarding upstream, lower-cased. */
   readonly forwardedRequestHeaders: readonly string[];
   /** Response headers worth passing back to the caller, lower-cased. */
   readonly forwardedResponseHeaders: readonly string[];
 
-  modelOf(body: unknown): string;
+  /**
+   * The model this request asks for.
+   *
+   * `params` carries the route parameters, because a channel that puts the
+   * model in the path has nothing useful in the body.
+   */
+  modelOf(body: unknown, params?: Record<string, string | undefined>): string;
   /** Return a copy of the body with a different model. Never mutates the input. */
   withModel(body: unknown, model: string): unknown;
   maxOutputTokensOf(body: unknown): number;
@@ -47,6 +71,15 @@ export interface ProviderAdapter {
    * policy needs.
    */
   declaredTools(body: unknown): readonly string[];
+}
+
+/** What an adapter needs in order to authenticate one request. */
+export interface AuthContext {
+  readonly method: string;
+  /** The fully-resolved upstream URL, including host and path. */
+  readonly url: URL;
+  /** The exact body bytes that will be sent, which SigV4 signs. */
+  readonly body: string;
 }
 
 export interface ParsedResponse {

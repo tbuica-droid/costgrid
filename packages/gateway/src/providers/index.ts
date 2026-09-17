@@ -6,13 +6,17 @@ import {
   type Provider,
 } from "@costgrid/core";
 import { AnthropicStreamCollector } from "./anthropic-stream.js";
+import { bedrockAdapter } from "./bedrock.js";
 import { OpenAiStreamCollector } from "./openai-stream.js";
+import { vertexAdapter } from "./vertex.js";
 import type { ParsedResponse, ProviderAdapter } from "./types.js";
 import { cappedTools, toolName } from "./tools.js";
 
 export * from "./types.js";
 export { AnthropicStreamCollector } from "./anthropic-stream.js";
 export { OpenAiStreamCollector } from "./openai-stream.js";
+export { bedrockAdapter, BedrockStreamCollector } from "./bedrock.js";
+export { vertexAdapter } from "./vertex.js";
 
 function record(body: unknown): Record<string, unknown> | undefined {
   return typeof body === "object" && body !== null && !Array.isArray(body)
@@ -36,7 +40,7 @@ export const anthropicAdapter: ProviderAdapter = {
   defaultBaseUrl: "https://api.anthropic.com",
   apiKeyEnvVar: "ANTHROPIC_API_KEY",
 
-  authHeaders: (apiKey) => ({ "x-api-key": apiKey }),
+  authHeaders: async (apiKey) => ({ "x-api-key": apiKey }),
 
   // Beta flags are semantically part of the request; dropping one silently
   // changes behaviour, so they are forwarded verbatim.
@@ -54,6 +58,9 @@ export const anthropicAdapter: ProviderAdapter = {
   ],
 
   modelOf: (body) => stringField(body, "model", "unknown"),
+  upstreamPath(): string {
+    return this.path;
+  },
   withModel: (body, model) => ({ ...(record(body) ?? {}), model }),
   maxOutputTokensOf: (body) => numberField(body, "max_tokens"),
   isStreaming: (body) => record(body)?.["stream"] === true,
@@ -108,7 +115,7 @@ export const openaiAdapter: ProviderAdapter = {
   defaultBaseUrl: "https://api.openai.com",
   apiKeyEnvVar: "OPENAI_API_KEY",
 
-  authHeaders: (apiKey) => ({ authorization: `Bearer ${apiKey}` }),
+  authHeaders: async (apiKey) => ({ authorization: `Bearer ${apiKey}` }),
 
   forwardedRequestHeaders: ["openai-organization", "openai-project", "openai-beta"],
   forwardedResponseHeaders: [
@@ -124,6 +131,9 @@ export const openaiAdapter: ProviderAdapter = {
   ],
 
   modelOf: (body) => stringField(body, "model", "unknown"),
+  upstreamPath(): string {
+    return this.path;
+  },
   withModel: (body, model) => ({ ...(record(body) ?? {}), model }),
   // Chat Completions renamed max_tokens to max_completion_tokens; accept both,
   // because an output cap that silently reads zero would never fire.
@@ -215,7 +225,12 @@ export const openaiAdapter: ProviderAdapter = {
   createStreamCollector: () => new OpenAiStreamCollector(),
 };
 
-export const ADAPTERS: readonly ProviderAdapter[] = [anthropicAdapter, openaiAdapter];
+export const ADAPTERS: readonly ProviderAdapter[] = [
+  anthropicAdapter,
+  openaiAdapter,
+  bedrockAdapter,
+  vertexAdapter,
+];
 
 export function adapterFor(provider: Provider): ProviderAdapter {
   const adapter = ADAPTERS.find((a) => a.id === provider);
