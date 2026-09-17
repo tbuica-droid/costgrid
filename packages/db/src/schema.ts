@@ -286,6 +286,38 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_calls_routed ON calls(tenant_id, routed, started_at);
     `,
   },
+  {
+    version: 6,
+    name: "runs",
+    // An agent run is many calls. Metering them individually answers "what did
+    // this call cost" and cannot answer "what did this *run* cost", which is
+    // the question a runaway loop poses at 3am.
+    //
+    // `run_id` is always set. When the caller propagates the header it is their
+    // id and `run_declared` is 1; otherwise the call is its own run of one and
+    // `run_declared` is 0. The distinction is load-bearing rather than
+    // cosmetic: a run-scoped budget can never fire on synthetic runs, and a
+    // customer whose rule silently does nothing deserves to know why.
+    //
+    // Historical rows are backfilled to their own id — each past call really
+    // was a run of one, as far as anything here can know.
+    //
+    // `run_depth` is stored rather than walked. Depth is set once at insert
+    // from the parent's depth, which is one indexed lookup; recomputing it by
+    // recursing the parent chain on the metering path would put a recursive
+    // CTE between the caller and their provider.
+    sql: `
+      ALTER TABLE calls ADD COLUMN run_id TEXT;
+      ALTER TABLE calls ADD COLUMN parent_run_id TEXT;
+      ALTER TABLE calls ADD COLUMN run_depth INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE calls ADD COLUMN run_declared INTEGER NOT NULL DEFAULT 0 CHECK (run_declared IN (0, 1));
+
+      UPDATE calls SET run_id = id WHERE run_id IS NULL;
+
+      CREATE INDEX idx_calls_run ON calls(tenant_id, run_id, started_at);
+      CREATE INDEX idx_calls_parent_run ON calls(tenant_id, parent_run_id);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

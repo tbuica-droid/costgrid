@@ -246,7 +246,30 @@ check("block reason", (await res.json()).error.type, "costgrid_policy_blocked");
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "ticket-classifier" });
 check("allowlisted model still passes", res.status, 200);
 
-console.log("\n8. monthly statement, in every format it exports");
+console.log("\n8. runs: a loop that stops itself");
+await cli(["policy", "run-steps", "tenant", "3"]);
+const runStatuses = [];
+for (let i = 0; i < 5; i += 1) {
+  const r = await call(
+    { model: "claude-haiku-4-5", max_tokens: 100 },
+    { "x-costgrid-agent": "loop-agent", "x-costgrid-run": "smoke-loop" },
+  );
+  runStatuses.push(r.status);
+  await r.text();
+}
+check("loop ran three times then stopped", runStatuses.join(","), "200,200,200,403,403");
+
+// Traffic without the header is untouched — the rule cannot see it.
+res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "no-run" });
+check("unlabelled traffic is unaffected", res.status, 200);
+
+const runsOut = await cli(["runs", "--days", "1"]);
+check("run is listed", /smoke-loop/.test(runsOut), true);
+const runOut = await cli(["run", "smoke-loop"]);
+check("run detail numbers its steps", /  1\./.test(runOut) && /  4\./.test(runOut), true);
+check("blocked step is shown in the run", /blocked/.test(runOut), true);
+
+console.log("\n9. monthly statement, in every format it exports");
 const statementText = await cli(["statement"]);
 check("statement names this month", /CostGrid statement — /.test(statementText), true);
 check("statement is marked month to date", /Month to date/.test(statementText), true);
@@ -270,7 +293,7 @@ const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
 // Money must survive as an exact decimal string, never a float.
 check("json money is a string", typeof statementJson.total, "string");
 
-console.log("\n9. CLI report\n");
+console.log("\n10. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

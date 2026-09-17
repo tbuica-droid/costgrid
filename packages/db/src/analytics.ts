@@ -114,6 +114,36 @@ export interface FleetSummary {
   readonly cacheHitRatio: number;
 }
 
+export interface RunSummary {
+  readonly runId: string;
+  readonly agentId: string;
+  readonly department: string;
+  readonly startedAt: number;
+  readonly endedAt: number;
+  readonly calls: number;
+  readonly blockedCalls: number;
+  readonly cost: Nanodollars;
+  readonly depth: number;
+  readonly models: number;
+}
+
+export interface RunStep {
+  /** Position in the run, one-based. Derived from order, not stored. */
+  readonly step: number;
+  readonly id: string;
+  readonly agentId: string;
+  readonly model: string;
+  readonly requestedModel: string | undefined;
+  readonly startedAt: number;
+  readonly durationMs: number;
+  readonly cost: Nanodollars;
+  readonly outcome: string;
+  readonly stopReason: string | undefined;
+  readonly errorMessage: string | undefined;
+  readonly depth: number;
+  readonly parentRunId: string | undefined;
+}
+
 export class Analytics {
   readonly #db: Db;
 
@@ -432,6 +462,102 @@ export class Analytics {
 
     const days = rows.map((r) => ({ day: r.day, cost: r.cost }));
     return { total: days.reduce((sum, d) => sum + d.cost, 0n), days };
+  }
+
+  /**
+   * Runs in a window, most expensive first.
+   *
+   * Only runs the caller actually declared appear. Every other call is a run
+   * of one, and listing thousands of those would bury the handful of real
+   * multi-step runs this view exists to show.
+   */
+  runsSummary(tenantId: string, range: TimeRange, limit = 50): RunSummary[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT run_id                                   AS runId,
+                MIN(started_at)                          AS startedAt,
+                MAX(started_at + duration_ms)            AS endedAt,
+                COUNT(*)                                 AS calls,
+                COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS cost,
+                COALESCE(SUM(CASE WHEN outcome = 'blocked' THEN 1 ELSE 0 END), 0)     AS blockedCalls,
+                MAX(run_depth)                           AS depth,
+                MIN(agent_id)                            AS agentId,
+                MIN(department)                          AS department,
+                COUNT(DISTINCT model)                    AS models
+         FROM calls
+         WHERE tenant_id = ? AND run_declared = 1
+           AND started_at >= ? AND started_at < ?
+         GROUP BY run_id
+         ORDER BY cost DESC
+         LIMIT ?`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to, limit) as Record<string, bigint | string>[];
+
+    return rows.map((r) => ({
+      runId: r["runId"] as string,
+      agentId: r["agentId"] as string,
+      department: r["department"] as string,
+      startedAt: Number(r["startedAt"]),
+      endedAt: Number(r["endedAt"]),
+      calls: Number(r["calls"]),
+      blockedCalls: Number(r["blockedCalls"]),
+      cost: r["cost"] as bigint,
+      depth: Number(r["depth"]),
+      models: Number(r["models"]),
+    }));
+  }
+
+  /** Every call in one run, in the order it happened. */
+  runDetail(tenantId: string, runId: string): RunStep[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT id, model, requested_model AS requestedModel, agent_id AS agentId,
+                started_at AS startedAt, duration_ms AS durationMs,
+                cost_total AS cost, outcome, stop_reason AS stopReason,
+                error_message AS errorMessage, run_depth AS depth,
+                parent_run_id AS parentRunId
+         FROM calls
+         WHERE tenant_id = ? AND run_id = ?
+         ORDER BY started_at, id`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, runId) as Record<string, bigint | string | null>[];
+
+    return rows.map((r, index) => ({
+      step: index + 1,
+      id: r["id"] as string,
+      agentId: r["agentId"] as string,
+      model: r["model"] as string,
+      requestedModel: (r["requestedModel"] as string | null) ?? undefined,
+      startedAt: Number(r["startedAt"]),
+      durationMs: Number(r["durationMs"]),
+      cost: r["cost"] as bigint,
+      outcome: r["outcome"] as string,
+      stopReason: (r["stopReason"] as string | null) ?? undefined,
+      errorMessage: (r["errorMessage"] as string | null) ?? undefined,
+      depth: Number(r["depth"]),
+      parentRunId: (r["parentRunId"] as string | null) ?? undefined,
+    }));
+  }
+
+  /**
+   * How much traffic carries a run id at all.
+   *
+   * Run policies cannot fire on undeclared runs, so a fleet at 0% has the
+   * rules configured and nothing enforcing them. That is worth showing rather
+   * than leaving someone to infer it from a feed that never fills.
+   */
+  runCoverage(tenantId: string, range: TimeRange): { declared: number; total: number } {
+    const row = this.#db
+      .prepare(
+        `SELECT COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN run_declared = 1 THEN 1 ELSE 0 END), 0) AS declared
+         FROM calls
+         WHERE tenant_id = ? AND started_at >= ? AND started_at < ?`,
+      )
+      .get(tenantId, range.from, range.to) as { total: number; declared: number };
+    return { declared: row.declared, total: row.total };
   }
 
   recentViolations(tenantId: string, limit = 50) {

@@ -37,10 +37,29 @@ export interface CallRecord {
   readonly routeDryRun?: boolean | undefined;
   /** Counterfactual: requested-model cost minus actual. Signed. */
   readonly savingEstimate?: Nanodollars | undefined;
+  /**
+   * The run this call belongs to. Omit and the call becomes a run of one.
+   *
+   * `runDeclared` records whether the caller supplied it or CostGrid invented
+   * it, because run-scoped policies are meaningless on an invented one.
+   */
+  readonly runId?: string | undefined;
+  readonly runDeclared?: boolean | undefined;
+  readonly parentRunId?: string | undefined;
+  readonly runDepth?: number | undefined;
   readonly outcome: CallOutcome;
   readonly statusCode?: number | undefined;
   readonly stopReason?: string | undefined;
   readonly errorMessage?: string | undefined;
+}
+
+/** A run's consumption so far, as read on the metering path. */
+export interface RunStats {
+  readonly spend: Nanodollars;
+  /** Calls already recorded for this run. Blocked calls do not count. */
+  readonly steps: number;
+  /** Delegation hops from the root run. Zero when there is no parent. */
+  readonly depth: number;
 }
 
 export interface CreatedApiKey {
@@ -203,7 +222,8 @@ export class CostGridRepository {
            cost_input, cost_output, cost_cache_write, cost_cache_read, cost_total, priced,
            outcome, status_code, stop_reason, error_message,
            speed, inference_geo, batch,
-           requested_model, routed, route_dry_run, saving_estimate
+           requested_model, routed, route_dry_run, saving_estimate,
+           run_id, parent_run_id, run_depth, run_declared
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -211,7 +231,8 @@ export class CostGridRepository {
            @costInput, @costOutput, @costCacheWrite, @costCacheRead, @costTotal, @priced,
            @outcome, @statusCode, @stopReason, @errorMessage,
            @speed, @inferenceGeo, @batch,
-           @requestedModel, @routed, @routeDryRun, @savingEstimate
+           @requestedModel, @routed, @routeDryRun, @savingEstimate,
+           @runId, @parentRunId, @runDepth, @runDeclared
          )`,
       )
       .run({
@@ -246,6 +267,12 @@ export class CostGridRepository {
         routed: call.routed === true ? 1 : 0,
         routeDryRun: call.routeDryRun === true ? 1 : 0,
         savingEstimate: call.savingEstimate ?? 0n,
+        // A call with no declared run is its own run, so every row joins to
+        // exactly one run and the analytics never need a null branch.
+        runId: call.runId ?? call.id,
+        parentRunId: call.parentRunId ?? null,
+        runDepth: call.runDepth ?? 0,
+        runDeclared: call.runDeclared === true ? 1 : 0,
       });
   }
 
@@ -282,6 +309,44 @@ export class CostGridRepository {
     const day = (query.get(tenantId, dayStart, ...scopeParams) as { total: bigint }).total;
     const month = (query.get(tenantId, monthStart, ...scopeParams) as { total: bigint }).total;
     return { day, month };
+  }
+
+  /**
+   * What a run has consumed so far, read before its next call is forwarded.
+   *
+   * Depth comes from the parent run rather than from a recursive walk: the
+   * parent already resolved its own depth when it ran, so one indexed lookup
+   * gives the answer that recursion would. A parent nobody metered reads as
+   * depth 0, which understates rather than invents.
+   *
+   * Like `spendFor`, this reads committed rows, so a run fanning out in
+   * parallel can overshoot its cap by roughly one round trip. Sequential runs
+   * — which is most agent loops — are exact.
+   */
+  runStats(tenantId: string, runId: string, parentRunId?: string): RunStats {
+    const row = this.#db
+      .prepare(
+        `SELECT COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS spend,
+                COALESCE(SUM(CASE WHEN outcome != 'blocked' THEN 1 ELSE 0 END), 0)    AS steps
+         FROM calls
+         WHERE tenant_id = ? AND run_id = ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, runId) as { spend: bigint; steps: bigint };
+
+    let depth = 0;
+    if (parentRunId !== undefined) {
+      const parent = this.#db
+        .prepare(
+          `SELECT run_depth AS depth FROM calls
+           WHERE tenant_id = ? AND run_id = ?
+           ORDER BY started_at LIMIT 1`,
+        )
+        .get(tenantId, parentRunId) as { depth: number } | undefined;
+      depth = (parent?.depth ?? 0) + 1;
+    }
+
+    return { spend: row.spend, steps: Number(row.steps), depth };
   }
 
   // --------------------------------------------------------------- policies
@@ -369,20 +434,39 @@ export class CostGridRepository {
 
 // Rules are stored as JSON because they are a discriminated union whose
 // variants have different shapes; a column per field would be mostly NULLs.
-// The `limit` on a budget rule is a bigint, which JSON cannot carry, so it is
-// written as a decimal string and restored on read.
+//
+// JSON cannot carry a bigint, and money here is always one. This used to name
+// the budget rule explicitly, which meant the first other rule to carry money
+// — the run budget — crashed on write. The encoding is self-describing
+// instead: any bigint, on any rule, present or future, round-trips without
+// anyone remembering to add it to a list.
+
+/** Marks a value that was a bigint before it met JSON. */
+interface NanoTag {
+  readonly __nano: string;
+}
+
+function isNanoTag(value: unknown): value is NanoTag {
+  return typeof value === "object" && value !== null && typeof (value as NanoTag).__nano === "string";
+}
 
 function serializeRule(rule: PolicyRule): string {
-  if (rule.kind === "budget") {
-    return JSON.stringify({ ...rule, limit: rule.limit.toString() });
-  }
-  return JSON.stringify(rule);
+  return JSON.stringify(rule, (_key, value: unknown) =>
+    typeof value === "bigint" ? ({ __nano: value.toString() } satisfies NanoTag) : value,
+  );
 }
 
 function deserializeRule(json: string): PolicyRule {
-  const parsed = JSON.parse(json) as Record<string, unknown>;
-  if (parsed["kind"] === "budget") {
-    return { ...parsed, limit: BigInt(parsed["limit"] as string) } as unknown as PolicyRule;
+  const parsed = JSON.parse(json, (_key, value: unknown) =>
+    isNanoTag(value) ? BigInt(value.__nano) : value,
+  ) as Record<string, unknown>;
+
+  // Rows written before the tagged encoding stored a budget's limit as a bare
+  // decimal string. Those rows are in customers' databases, so they are read
+  // here rather than migrated: a rewrite of live policy rows is a worse risk
+  // than three lines of compatibility.
+  if (parsed["kind"] === "budget" && typeof parsed["limit"] === "string") {
+    return { ...parsed, limit: BigInt(parsed["limit"]) } as unknown as PolicyRule;
   }
   return parsed as unknown as PolicyRule;
 }

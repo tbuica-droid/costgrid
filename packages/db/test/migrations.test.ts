@@ -135,6 +135,39 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("backfills every historical call into a run of its own", () => {
+    const db = buildAtVersion(5);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    for (const id of ["c1", "c2"]) {
+      db.prepare(
+        `INSERT INTO calls (
+           id, tenant_id, agent_id, department, provider, model,
+           started_at, duration_ms, streamed, cost_total, outcome
+         ) VALUES (?, 't1', 'a', 'Eng', 'anthropic', 'claude-opus-5', 1000, 5, 0, 77, 'ok')`,
+      ).run(id);
+    }
+
+    migrate(db);
+
+    const rows = db
+      .prepare("SELECT id, run_id, parent_run_id, run_depth, run_declared, cost_total FROM calls ORDER BY id")
+      .all() as Record<string, unknown>[];
+
+    // Every past call really was a run of one, as far as anything here can
+    // know. Leaving run_id null would force a null branch into every query
+    // that groups by run, forever.
+    expect(rows.map((r) => r["run_id"])).toEqual(["c1", "c2"]);
+    for (const row of rows) {
+      expect(row["parent_run_id"]).toBeNull();
+      expect(row["run_depth"]).toBe(0);
+      // Nobody declared these, and a run rule must not appear to cover them.
+      expect(row["run_declared"]).toBe(0);
+      expect(row["cost_total"]).toBe(77);
+    }
+
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

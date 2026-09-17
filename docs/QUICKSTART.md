@@ -228,7 +228,67 @@ a call that a block rule already refused.
 **Always start with `--action monitor`.** Routing is the only feature here that
 changes what your code asked for.
 
-## 10. The monthly statement
+## 10. Governing runs, not just calls
+
+An agent run is many calls. A daily budget tells you a team overspent hours
+after it happened; it cannot tell you that *this loop* is on its fortieth step
+and should stop now. That needs one more header:
+
+| Header | Meaning |
+|---|---|
+| `x-costgrid-run` | Groups calls into one run |
+| `x-costgrid-parent-run` | The run that delegated this one |
+
+```python
+headers = {"x-costgrid-run": run_id}                     # one per agent run
+headers = {"x-costgrid-run": sub_id,
+           "x-costgrid-parent-run": run_id}              # a delegated sub-run
+```
+
+Then the caps that matter for agents:
+
+```bash
+# Stop a loop. The 21st call in a run is refused; the first twenty are not.
+npx tsx packages/cli/src/main.ts policy run-steps tenant 20 --action block
+
+# A ceiling on one run, independent of the monthly budget.
+npx tsx packages/cli/src/main.ts policy run-budget agent:chat-bot 2.00 --action block
+
+# Keep it answering instead: over its ceiling, the run drops to a cheaper model.
+npx tsx packages/cli/src/main.ts policy run-budget tenant 5.00 \
+  --fallback claude-haiku-4-5 --action block
+
+# How deep delegation may go. 0 is a run nobody delegated to.
+npx tsx packages/cli/src/main.ts policy run-depth tenant 2 --action block
+```
+
+**The one thing to know before relying on any of this: run rules only apply to
+calls that carry `x-costgrid-run`.** A call without it is metered as a run of
+one, which no run rule can ever fire on. This is deliberate — the alternative is
+guessing which calls belong together and refusing traffic on a guess — but it
+means a rule can look enabled while covering nothing. `costgrid runs` prints how
+much of your traffic carries a run id, and says so plainly when the answer is
+none.
+
+Read them back:
+
+```bash
+npx tsx packages/cli/src/main.ts runs --days 7     # most expensive runs
+npx tsx packages/cli/src/main.ts run <run-id>      # every call, in order
+```
+
+```text
+  Run checkout-recovery-4471
+  ────────────────────────────────────────────────────────────
+  9 call(s) · $1.70 · depth 0
+
+    1.  claude-opus-5                        $0.425000  ok
+    …
+    9.  claude-opus-5                        $0.000000  blocked
+       run has made 8 call(s), at its cap of 8
+```
+
+## 11. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

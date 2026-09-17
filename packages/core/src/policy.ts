@@ -49,6 +49,38 @@ export type PolicyRule =
        */
       readonly fallbackModel?: string;
     }
+  | {
+      /**
+       * A ceiling on one *run* rather than on a window.
+       *
+       * A daily budget answers "did this team overspend today" hours after the
+       * fact. A run budget answers "is this loop still worth continuing" at
+       * step twelve, which is the only moment the answer is useful. It is the
+       * control an agent fleet actually needs and the one a per-window budget
+       * structurally cannot express.
+       *
+       * Like the budget rule, `fallbackModel` turns the ceiling into a
+       * downgrade rather than a refusal.
+       */
+      readonly kind: "run-budget";
+      readonly limit: Nanodollars;
+      readonly fallbackModel?: string;
+    }
+  | {
+      /** Maximum calls in a single run. The loop stopper. */
+      readonly kind: "run-steps";
+      readonly limit: number;
+    }
+  | {
+      /**
+       * Maximum delegation hops from the root run.
+       *
+       * Depth 0 is a run nobody delegated to. A rule of 2 permits an agent to
+       * hand work to another, and that one to a third, and stops there.
+       */
+      readonly kind: "run-depth";
+      readonly limit: number;
+    }
   | { readonly kind: "model-allowlist"; readonly models: readonly string[] }
   | { readonly kind: "model-denylist"; readonly models: readonly string[] }
   | { readonly kind: "max-output-tokens"; readonly limit: number }
@@ -124,6 +156,28 @@ export function constantSpend(snapshot: SpendSnapshot): SpendResolver {
   return () => snapshot;
 }
 
+/**
+ * What the current run has consumed, as measured before this call.
+ *
+ * `undefined` where a request carries no run context at all. Run rules then
+ * do not fire: refusing a call because a number is missing would turn an
+ * unpropagated header into an outage.
+ */
+export interface RunSnapshot {
+  readonly spend: Nanodollars;
+  readonly steps: number;
+  readonly depth: number;
+  /**
+   * False when CostGrid invented the run id because the caller sent none.
+   *
+   * Run rules are skipped for these. Every synthetic run has exactly one call,
+   * so a run budget would be unfireable and a step cap would be meaningless —
+   * and silently "enforcing" a rule that cannot bite is worse than not having
+   * it, because the customer believes they are covered.
+   */
+  readonly declared: boolean;
+}
+
 export interface PolicyViolation {
   readonly policyId: string;
   readonly policyName: string;
@@ -194,6 +248,7 @@ function evaluateRule(
   rule: PolicyRule,
   context: RequestContext,
   spend: SpendSnapshot,
+  run: RunSnapshot | undefined,
 ): string | undefined {
   switch (rule.kind) {
     case "budget": {
@@ -224,6 +279,29 @@ function evaluateRule(
     case "max-output-tokens":
       if (context.maxOutputTokens <= rule.limit) return undefined;
       return `max_tokens ${context.maxOutputTokens} exceeds the cap of ${rule.limit}`;
+
+    case "run-budget": {
+      if (run === undefined || !run.declared) return undefined;
+      if (run.spend < rule.limit) return undefined;
+      return (
+        `run has spent $${toUsdString(run.spend, 2)} of its ` +
+        `$${toUsdString(rule.limit, 2)} ceiling`
+      );
+    }
+
+    case "run-steps": {
+      if (run === undefined || !run.declared) return undefined;
+      // The step about to be made is the one that would exceed the cap, so the
+      // comparison is against calls already recorded.
+      if (run.steps < rule.limit) return undefined;
+      return `run has made ${run.steps} call(s), at its cap of ${rule.limit}`;
+    }
+
+    case "run-depth": {
+      if (run === undefined || !run.declared) return undefined;
+      if (run.depth <= rule.limit) return undefined;
+      return `run is ${run.depth} delegation hop(s) deep, past the limit of ${rule.limit}`;
+    }
 
     case "route":
       // Routing is handled separately; it transforms rather than permits.
@@ -322,6 +400,7 @@ export function evaluatePolicies(
   policies: readonly Policy[],
   context: RequestContext,
   spend: SpendSnapshot | SpendResolver,
+  run?: RunSnapshot,
 ): PolicyDecision {
   const resolve: SpendResolver = typeof spend === "function" ? spend : constantSpend(spend);
   const violations: PolicyViolation[] = [];
@@ -342,13 +421,17 @@ export function evaluatePolicies(
     // Budget rules are the only ones that read spend, so the resolver is
     // called lazily — scoped spend queries are not free.
     const scopedSpend = policy.rule.kind === "budget" ? resolve(policy.scope) : ZERO_SPEND;
-    const reason = evaluateRule(policy.rule, context, scopedSpend);
+    const reason = evaluateRule(policy.rule, context, scopedSpend, run);
     if (reason === undefined) continue;
 
-    const downgrade =
-      policy.rule.kind === "budget" && policy.rule.fallbackModel !== undefined
-        ? evaluateFallback(policy, policy.rule.fallbackModel, context)
+    const fallbackModel =
+      policy.rule.kind === "budget" || policy.rule.kind === "run-budget"
+        ? policy.rule.fallbackModel
         : undefined;
+    const downgrade =
+      fallbackModel === undefined
+        ? undefined
+        : evaluateFallback(policy, fallbackModel, context);
 
     if (downgrade === undefined) {
       violations.push({

@@ -337,3 +337,93 @@ describe("soft fallback", () => {
     expect(decision.violations).toHaveLength(2);
   });
 });
+
+describe("run rules", () => {
+  const run = (over: Partial<import("../src/policy.js").RunSnapshot> = {}) => ({
+    spend: 0n,
+    steps: 0,
+    depth: 0,
+    declared: true,
+    ...over,
+  });
+
+  const cap = (rule: Policy["rule"], action: Policy["action"] = "block"): Policy =>
+    policy({ id: "run-rule", name: "run rule", action, rule });
+
+  it("stops a run that has spent its ceiling", () => {
+    const p = cap({ kind: "run-budget", limit: usd("2.00") });
+
+    expect(evaluatePolicies([p], context, noSpend, run({ spend: usd("1.99") })).allowed).toBe(true);
+    const decision = evaluatePolicies([p], context, noSpend, run({ spend: usd("2.00") }));
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.reason).toContain("run has spent $2.00");
+  });
+
+  it("stops a run at its step cap", () => {
+    const p = cap({ kind: "run-steps", limit: 20 });
+
+    expect(evaluatePolicies([p], context, noSpend, run({ steps: 19 })).allowed).toBe(true);
+    // The 21st call is the one refused: twenty have already been recorded.
+    expect(evaluatePolicies([p], context, noSpend, run({ steps: 20 })).allowed).toBe(false);
+  });
+
+  it("limits delegation depth", () => {
+    const p = cap({ kind: "run-depth", limit: 2 });
+
+    expect(evaluatePolicies([p], context, noSpend, run({ depth: 2 })).allowed).toBe(true);
+    const decision = evaluatePolicies([p], context, noSpend, run({ depth: 3 }));
+    expect(decision.allowed).toBe(false);
+    expect(decision.blockedBy?.reason).toContain("3 delegation hop(s) deep");
+  });
+
+  it("downgrades instead of refusing when the run budget names a fallback", () => {
+    const p = cap({ kind: "run-budget", limit: usd("2.00"), fallbackModel: "claude-haiku-4-5" });
+    const decision = evaluatePolicies([p], context, noSpend, run({ spend: usd("5.00") }));
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.route).toMatchObject({ toModel: "claude-haiku-4-5", fallback: true });
+  });
+
+  /*
+   * The important one. A rule that cannot fire must not look like protection:
+   * every synthetic run has exactly one call, so a run budget on undeclared
+   * traffic would be permanently unfireable while appearing enabled.
+   */
+  it("does not fire on a run the caller never declared", () => {
+    const p = cap({ kind: "run-budget", limit: usd("0.01") });
+    const decision = evaluatePolicies([p], context, noSpend, run({ spend: usd("99.00"), declared: false }));
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.violations).toHaveLength(0);
+  });
+
+  it("does not fire when there is no run context at all", () => {
+    const p = cap({ kind: "run-steps", limit: 1 });
+    // A missing measurement must not be read as a breached one, or an
+    // unpropagated header becomes an outage.
+    expect(evaluatePolicies([p], context, noSpend).allowed).toBe(true);
+  });
+
+  it("respects scope like every other rule", () => {
+    const p = policy({
+      scope: { kind: "department", department: "Legal" },
+      rule: { kind: "run-steps", limit: 1 },
+    });
+    expect(evaluatePolicies([p], context, noSpend, run({ steps: 50 })).allowed).toBe(true);
+  });
+
+  it("leaves windowed budgets untouched", () => {
+    // A run rule and a monthly budget measure different things; neither should
+    // read the other's number.
+    const runRule = cap({ kind: "run-budget", limit: usd("1.00") });
+    const monthly = policy({ id: "m", rule: { kind: "budget", window: "month", limit: usd("100.00") } });
+
+    const decision = evaluatePolicies(
+      [runRule, monthly],
+      context,
+      { day: 0n, month: usd("50.00") },
+      run({ spend: usd("0.50") }),
+    );
+    expect(decision.allowed).toBe(true);
+  });
+});

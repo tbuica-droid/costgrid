@@ -242,6 +242,38 @@ blame their own code first. Four guards, enforced rather than advised:
   cannot chain a request through several models, and a refused call is not
   going anywhere to be rerouted.
 
+### A run is a first-class thing, and an undeclared one is not
+
+Metering a call answers "what did this cost". It cannot answer "what has this
+*run* cost", which is the only question a runaway loop poses while there is
+still time to act on it. `run_id` is therefore on every row, and three rules —
+`run-budget`, `run-steps`, `run-depth` — read it before the next call is
+forwarded.
+
+Three decisions worth keeping:
+
+**Every call has a run id.** A call with no `x-costgrid-run` header becomes its
+own run, and historical rows were backfilled to their own id. Nulls here would
+have forced a null branch into every query that groups by run, forever.
+
+**Run rules never fire on an undeclared run.** Every synthetic run has exactly
+one call, so a run budget on that traffic is unfireable and a step cap is
+meaningless — the rule would be permanently inert while appearing enabled. The
+alternative, stitching calls into runs by heuristic, means refusing a
+customer's traffic on a guess. So the header is the contract, its absence is
+recorded, and `costgrid runs` reports the coverage rather than leaving someone
+to infer it from a feed that never fills.
+
+**Depth is stored, not walked.** A run's depth is set once at insert from its
+parent's, which is one indexed lookup. Recomputing it by recursing the parent
+chain would put a recursive CTE between the caller and their provider. A parent
+CostGrid never metered reads as depth 0: understating is recoverable, and a
+fabricated depth would refuse traffic that breached nothing.
+
+Run budgets share the windowed budget's eventual consistency — committed rows
+only — so a run fanning out in parallel can overshoot by about one round trip.
+Sequential runs, which is most agent loops, are exact.
+
 ### A budget can degrade instead of refusing
 
 A hard cap protects the bill by breaking the customer's product, which is why
@@ -388,7 +420,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-304 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+327 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

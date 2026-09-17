@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeFileSync } from "node:fs";
-import { findModelPrice, toUsdString, usd } from "@costgrid/core";
+import { findModelPrice, type Policy, toUsdString, usd } from "@costgrid/core";
 import {
   Analytics,
   backupDatabase,
@@ -33,12 +33,18 @@ Usage:
                                           downgraded to that model instead of being
                                           refused, so a cap stops breaking production.
   costgrid policy allow <model...>        Restrict the tenant to these models
+  costgrid policy run-budget <scope> <usd> [--fallback <model>] [--action ...]
+                                          Ceiling on a single run, not a window.
+  costgrid policy run-steps <scope> <n>   Stop a run after n calls (loop guard)
+  costgrid policy run-depth <scope> <n>   Limit delegation hops from the root run
   costgrid policy route <scope> <to-model> [--from a,b] [--action monitor|warn|block]
                                           Send matching traffic to a cheaper model.
                                           Start with --action monitor: it is a dry
                                           run that records the saving without
                                           changing a single request.
   costgrid policy disable <policy-id>
+  costgrid runs [--days N] [--limit N]    Most expensive runs in the window
+  costgrid run <run-id>                   Every call in one run, in order
   costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
 Scope is "tenant", "dept:<name>" or "agent:<id>".
@@ -47,6 +53,43 @@ Environment:
   COSTGRID_DB        Database path (default ./costgrid.db)
   COSTGRID_TENANT    Tenant id (default "local")
 `;
+
+
+/**
+ * One line describing a rule, for `policy list`.
+ *
+ * A switch rather than a ternary chain because it is exhaustive: the next rule
+ * kind added to the union fails this function at compile time instead of
+ * reaching a customer's terminal as `[object Object]`.
+ */
+function describeRule(rule: Policy["rule"], action: string): string {
+  switch (rule.kind) {
+    case "budget":
+      return (
+        `budget $${toUsdString(rule.limit, 2)}/${rule.window}` +
+        (rule.fallbackModel ? ` -> ${rule.fallbackModel}` : "")
+      );
+    case "run-budget":
+      return (
+        `budget $${toUsdString(rule.limit, 2)}/run` +
+        (rule.fallbackModel ? ` -> ${rule.fallbackModel}` : "")
+      );
+    case "run-steps":
+      return `max ${rule.limit} call(s) per run`;
+    case "run-depth":
+      return `max ${rule.limit} delegation hop(s)`;
+    case "max-output-tokens":
+      return `max_tokens <= ${rule.limit}`;
+    case "route":
+      return (
+        `route ${rule.from?.length ? rule.from.join(",") : "*"} -> ${rule.toModel}` +
+        (action === "monitor" ? "  (dry run)" : "")
+      );
+    case "model-allowlist":
+    case "model-denylist":
+      return `${rule.kind} [${rule.models.join(", ")}]`;
+  }
+}
 
 function fail(message: string): never {
   console.error(`error: ${message}`);
@@ -188,6 +231,80 @@ async function main(): Promise<void> {
       break;
     }
 
+    case "runs": {
+      requireTenant();
+      const days = Number(flag(argv, "days") ?? 7);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) {
+        fail(`--days must be an integer 1..3650, got ${days}`);
+      }
+      const limit = Number(flag(argv, "limit") ?? 20);
+      const range = trailingWindow(days);
+      const runs = analytics.runsSummary(tenantId, range, limit);
+      const coverage = analytics.runCoverage(tenantId, range);
+
+      if (runs.length === 0) {
+        console.log(`\nNo multi-step runs recorded in the last ${days} day(s).`);
+        if (coverage.total > 0) {
+          // The most common cause by far, and invisible without saying it.
+          console.log(
+            "Callers are not sending the x-costgrid-run header, so every call is\n" +
+              "its own run and run-scoped policies cannot fire. See docs/QUICKSTART.md.",
+          );
+        }
+        break;
+      }
+
+      console.log(
+        `\n  Runs — last ${days} day(s) · ${coverage.declared} of ${coverage.total} ` +
+          `call(s) carry a run id\n`,
+      );
+      console.log(
+        `  ${"RUN".padEnd(26)}${"AGENT".padEnd(18)}${"COST".padStart(10)}` +
+          `${"CALLS".padStart(7)}${"DEPTH".padStart(7)}  STARTED`,
+      );
+      for (const r of runs) {
+        const started = new Date(r.startedAt).toISOString().replace("T", " ").slice(0, 16);
+        console.log(
+          `  ${r.runId.slice(0, 24).padEnd(26)}${r.agentId.slice(0, 16).padEnd(18)}` +
+            `${("$" + toUsdString(r.cost, 2)).padStart(10)}${String(r.calls).padStart(7)}` +
+            `${String(r.depth).padStart(7)}  ${started}` +
+            (r.blockedCalls > 0 ? `  (${r.blockedCalls} blocked)` : ""),
+        );
+      }
+      console.log("");
+      break;
+    }
+
+    case "run": {
+      requireTenant();
+      const runId = argv[1] ?? fail("run needs a run id");
+      const steps = analytics.runDetail(tenantId, runId);
+      if (steps.length === 0) fail(`no calls recorded for run ${runId}`);
+
+      const total = steps.reduce((sum, s2) => sum + s2.cost, 0n);
+      console.log(`\n  Run ${runId}`);
+      console.log(`  ${"─".repeat(68)}`);
+      console.log(
+        `  ${steps.length} call(s) · $${toUsdString(total, 2)} · depth ${steps[0]!.depth}` +
+          (steps[0]!.parentRunId ? ` · delegated by ${steps[0]!.parentRunId}` : ""),
+      );
+      console.log("");
+      for (const step of steps) {
+        const served =
+          step.requestedModel && step.requestedModel !== step.model
+            ? `${step.requestedModel} -> ${step.model}`
+            : step.model;
+        console.log(
+          `  ${String(step.step).padStart(3)}.  ${served.padEnd(34)}` +
+            `${("$" + toUsdString(step.cost, 6)).padStart(12)}  ${step.outcome}` +
+            (step.stopReason ? `  [${step.stopReason}]` : ""),
+        );
+        if (step.errorMessage) console.log(`       ${step.errorMessage}`);
+      }
+      console.log("");
+      break;
+    }
+
     case "policy": {
       requireTenant();
       const sub = argv[1];
@@ -205,16 +322,7 @@ async function main(): Promise<void> {
               : p.scope.kind === "agent"
                 ? `agent:${p.scope.agentId}`
                 : `dept:${p.scope.department}`;
-          const detail =
-            p.rule.kind === "budget"
-              ? `budget $${toUsdString(p.rule.limit, 2)}/${p.rule.window}` +
-                (p.rule.fallbackModel ? ` -> ${p.rule.fallbackModel}` : "")
-              : p.rule.kind === "max-output-tokens"
-                ? `max_tokens <= ${p.rule.limit}`
-                : p.rule.kind === "route"
-                  ? `route ${p.rule.from?.length ? p.rule.from.join(",") : "*"} -> ${p.rule.toModel}` +
-                    (p.action === "monitor" ? "  (dry run)" : "")
-                  : `${p.rule.kind} [${p.rule.models.join(", ")}]`;
+          const detail = describeRule(p.rule, p.action);
           console.log(
             `${p.enabled ? "on " : "off"}  ${p.action.padEnd(7)}  ${scope.padEnd(24)}  ${detail}`,
           );
@@ -265,6 +373,49 @@ async function main(): Promise<void> {
             );
           }
         }
+        break;
+      }
+
+      if (sub === "run-budget" || sub === "run-steps" || sub === "run-depth") {
+        const scope = parseScope(argv[2] ?? fail(`policy ${sub} needs a scope`));
+        const raw = argv[3] ?? fail(`policy ${sub} needs a limit`);
+
+        let rule;
+        if (sub === "run-budget") {
+          const fallbackModel = flag(argv, "fallback");
+          if (fallbackModel !== undefined && !findModelPrice(fallbackModel)) {
+            fail(`--fallback model ${fallbackModel} is not in the price catalog`);
+          }
+          rule = {
+            kind: "run-budget" as const,
+            limit: usd(raw),
+            ...(fallbackModel ? { fallbackModel } : {}),
+          };
+        } else {
+          const limit = Number(raw);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100_000) {
+            fail(`policy ${sub} limit must be an integer 1..100000, got ${raw}`);
+          }
+          rule =
+            sub === "run-steps"
+              ? { kind: "run-steps" as const, limit }
+              : { kind: "run-depth" as const, limit };
+        }
+
+        const id = repository.createPolicy(tenantId, {
+          name: sub === "run-budget" ? `run budget $${raw}` : `${sub} ${raw}`,
+          scope,
+          rule,
+          action: parseAction(flag(argv, "action")),
+          enabled: true,
+        });
+        console.log(`Created policy ${id}.`);
+        // Worth saying every time: the rule is inert until callers propagate
+        // the header, and nothing else in the product tells them so.
+        console.log(
+          "Run rules apply only to calls carrying the x-costgrid-run header.\n" +
+            "Traffic without it is metered as a run of one and is unaffected.",
+        );
         break;
       }
 

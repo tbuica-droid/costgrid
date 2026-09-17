@@ -29,6 +29,22 @@ import { RateLimiter } from "./ratelimit.js";
 const AGENT_HEADER = "x-costgrid-agent";
 const DEPARTMENT_HEADER = "x-costgrid-department";
 const KEY_HEADER = "x-costgrid-key";
+const RUN_HEADER = "x-costgrid-run";
+const PARENT_RUN_HEADER = "x-costgrid-parent-run";
+
+/**
+ * Run ids come from the caller and are therefore untrusted input: they land in
+ * an index, a URL and a terminal. Bound the length and keep them to characters
+ * that cannot be mistaken for anything else on the way through.
+ */
+const RUN_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+function runIdOf(request: FastifyRequest, name: string): string | undefined {
+  const value = headerValue(request, name);
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return RUN_ID_PATTERN.test(trimmed) ? trimmed : undefined;
+}
 
 export interface ServerDeps {
   readonly config: GatewayConfig;
@@ -281,10 +297,33 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
       repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
 
+      /*
+       * Run context.
+       *
+       * A caller that propagates `x-costgrid-run` gets run-scoped enforcement;
+       * one that does not gets a run of one and is metered exactly as before.
+       * The header is optional on purpose — the whole premise is one line of
+       * configuration, and a control that demands code changes is a control
+       * most fleets never turn on.
+       */
+      const declaredRun = runIdOf(request, RUN_HEADER);
+      const parentRun = runIdOf(request, PARENT_RUN_HEADER);
+      const callId = randomUUID();
+      const runId = declaredRun ?? callId;
+      const runStats =
+        declaredRun === undefined
+          ? undefined
+          : repository.runStats(caller.tenantId, declaredRun, parentRun);
+
       // --- Enforcement, before a single token is spent ---------------------
       const policies = repository.listPolicies(caller.tenantId);
-      const decision = evaluatePolicies(policies, context, (scope: PolicyScope) =>
-        repository.spendFor(caller.tenantId, scope, startedAt),
+      const decision = evaluatePolicies(
+        policies,
+        context,
+        (scope: PolicyScope) => repository.spendFor(caller.tenantId, scope, startedAt),
+        runStats === undefined
+          ? undefined
+          : { ...runStats, declared: true },
       );
 
       const baseRecord = {
@@ -294,10 +333,13 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         provider: adapter.id,
         startedAt,
         streamed: streaming,
+        runId,
+        runDeclared: declaredRun !== undefined,
+        ...(parentRun !== undefined ? { parentRunId: parentRun } : {}),
+        runDepth: runStats?.depth ?? 0,
       };
 
       if (!decision.allowed) {
-        const callId = randomUUID();
         const blocked = decision.blockedBy!;
 
         repository.recordCall({
@@ -441,11 +483,13 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         // surface as unpriced rather than as free traffic.
         const priced = over.priced === false ? false : computed.priced;
 
-        const callId = over.id ?? randomUUID();
+        // `record` runs at most once per request, so reusing the id minted
+        // above keeps a synthetic run_id pointing at a call that exists.
+        const id = over.id ?? callId;
         repository.recordCall({
           ...baseRecord,
           ...over,
-          id: callId,
+          id,
           model,
           durationMs: Date.now() - startedAt,
           usage,
@@ -465,14 +509,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         } as CallRecord);
 
         if (decision.violations.length > 0) {
-          repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
+          repository.recordViolations(caller.tenantId, id, decision.violations, startedAt);
         }
         if (route !== undefined) {
           // Routing shows in the same feed as everything else, so a customer
           // reviewing "what did CostGrid do to my traffic" sees one list.
           repository.recordViolations(
             caller.tenantId,
-            callId,
+            id,
             [
               {
                 policyId: route.policyId,
