@@ -5,3 +5,4 @@ export * from "./usage.js";
 export * from "./routing.js";
 export * from "./secrets.js";
 export * from "./policy.js";
+export * from "./rates.js";

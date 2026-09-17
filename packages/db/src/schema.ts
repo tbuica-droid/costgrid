@@ -360,6 +360,46 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_tool_grants_tenant ON tool_grants(tenant_id, last_seen);
     `,
   },
+  {
+    version: 8,
+    name: "negotiated-rates",
+    // What the customer actually pays, alongside what the catalog says.
+    //
+    // An enterprise buys off list. Reporting list to someone on 18% off means
+    // every figure disagrees with their invoice, which is fatal for a product
+    // selling cost truth. `cost_total` therefore becomes what the call really
+    // cost them, and `cost_list` preserves the catalog price so the discount
+    // stays provable rather than asserted.
+    //
+    // Putting the effective figure in the existing column is deliberate: every
+    // budget, statement and analytic already reads it, so none of them can be
+    // left behind reporting list. A missed one would be worse than no feature
+    // at all — numbers that reconcile in some places and not others.
+    //
+    // Historical rows are backfilled to equal cost_total, which is true: no
+    // discount was applied to them.
+    sql: `
+      ALTER TABLE calls ADD COLUMN cost_list INTEGER NOT NULL DEFAULT 0;
+      UPDATE calls SET cost_list = cost_total;
+
+      -- Rates are rationals, never floats. A manual 18% off is 8200/10000; a
+      -- derived one is the two observed totals themselves, so the override
+      -- carries its own evidence.
+      CREATE TABLE rate_overrides (
+        tenant_id         TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider          TEXT NOT NULL,
+        numerator         INTEGER NOT NULL,
+        denominator       INTEGER NOT NULL CHECK (denominator > 0),
+        source            TEXT NOT NULL CHECK (source IN ('manual', 'derived')),
+        evidence_from     INTEGER,
+        evidence_to       INTEGER,
+        evidence_reported INTEGER,
+        evidence_catalog  INTEGER,
+        updated_at        INTEGER NOT NULL,
+        PRIMARY KEY (tenant_id, provider)
+      ) STRICT;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

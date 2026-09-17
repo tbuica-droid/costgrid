@@ -301,6 +301,35 @@ Cycle detection walks iteratively rather than recursively. The depth of a
 delegation chain is decided by customer data, and a deep or adversarial one
 must not overflow the stack of the process metering everyone's traffic.
 
+### Negotiated rates are applied at record time, not at read time
+
+An enterprise buys off list, so reporting list to them means every figure
+disagrees with their invoice. `cost_total` is therefore what the call actually
+cost that customer, and `cost_list` preserves the catalog price beside it.
+
+Putting the effective figure in the *existing* column was the point. Every
+budget, statement and analytic already reads it, so none of them can be left
+behind reporting list prices — and a feature that reconciles in some places but
+not others is worse than not having it. The alternative, multiplying at read
+time, meant threading a rate through fifteen aggregate queries and trusting
+that none was missed.
+
+Rates are exact rationals. A manual discount of 18% is 8200/10000; a derived
+one is the two observed totals themselves, so the override carries its own
+evidence. Every multiplication goes through `mulDiv`, which rounds half away
+from zero, so a discounted bill cannot drift the way a float multiplier would.
+Percentages appear only in display, rounded at source — `1 - 8200/10000` is
+18.000000000000004 in floating point, and a statement saying that is not one
+anyone trusts.
+
+Every bucket is scaled and the total re-summed from the scaled buckets, so the
+parts still add to the whole. Scaling only the total would leave a breakdown
+that disagrees with itself.
+
+A derived ratio outside 5%–150% of list is refused. A mis-parsed invoice or a
+mismatched window would otherwise corrupt every figure; refusing is
+recoverable, silently mis-pricing a year of history is not.
+
 ### A budget can degrade instead of refusing
 
 A hard cap protects the bill by breaking the customer's product, which is why
@@ -447,7 +476,7 @@ single way to build one, and a regression test pins the boundary case.
 
 ## Testing
 
-349 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+368 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.

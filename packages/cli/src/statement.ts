@@ -113,6 +113,17 @@ export function formatStatement(statement: Statement): string {
     }
   }
 
+  if (statement.rates.length > 0) {
+    out.push("");
+    out.push("  Negotiated rates");
+    for (const rate of statement.rates) {
+      out.push(
+        `    ${rate.provider.padEnd(12)} ${rate.discountPercent.toFixed(2)}% off list ` +
+          `[${rate.source}] — figures above are what you pay, not catalog price`,
+      );
+    }
+  }
+
   // --- what these numbers do not include ---------------------------------
   const caveats: string[] = [];
   if (statement.unpricedCalls > 0) {

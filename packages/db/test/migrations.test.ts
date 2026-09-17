@@ -168,6 +168,29 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("backfills list price to equal what was charged before any rate existed", () => {
+    const db = buildAtVersion(7);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    db.prepare(
+      `INSERT INTO calls (
+         id, tenant_id, agent_id, department, provider, model,
+         started_at, duration_ms, streamed, cost_total, outcome
+       ) VALUES ('c1', 't1', 'a', 'Eng', 'anthropic', 'claude-opus-5', 1000, 5, 0, 4242, 'ok')`,
+    ).run();
+
+    migrate(db);
+
+    const row = db.prepare("SELECT cost_total, cost_list FROM calls WHERE id = 'c1'").get() as
+      Record<string, number>;
+    // No discount was applied to history, so list and charged are the same
+    // figure. Zeroing cost_list instead would make every past month look like
+    // a 100% discount.
+    expect(row["cost_total"]).toBe(4242);
+    expect(row["cost_list"]).toBe(4242);
+
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

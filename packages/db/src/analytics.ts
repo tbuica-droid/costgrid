@@ -185,6 +185,15 @@ export interface Topology {
   readonly cycles: readonly (readonly string[])[];
 }
 
+/** The list-price basis a derived rate is measured against. */
+export interface CatalogBasis {
+  readonly total: Nanodollars;
+  readonly meteredCalls: number;
+  readonly importedRows: number;
+  /** Calls or rows whose model the catalog cannot price. */
+  readonly unpriced: number;
+}
+
 export class Analytics {
   readonly #db: Db;
 
@@ -750,6 +759,52 @@ export class Analytics {
       }
     }
     return [...seen];
+  }
+
+  /**
+   * What CostGrid's catalog says a provider's traffic cost over a window,
+   * before any negotiated rate.
+   *
+   * This is the denominator when deriving an effective rate from an invoice.
+   * It spans both metered calls and imported history, because the invoice
+   * covers all of a customer's spend and the comparison has to be like for
+   * like — comparing a whole invoice against half the traffic would derive a
+   * discount that does not exist.
+   */
+  catalogTotal(tenantId: string, provider: string, range: TimeRange): CatalogBasis {
+    const metered = this.#db
+      .prepare(
+        `SELECT COALESCE(SUM(cost_list), 0) AS total,
+                COALESCE(SUM(CASE WHEN priced = 0 THEN 1 ELSE 0 END), 0) AS unpriced,
+                COUNT(*) AS calls
+         FROM calls
+         WHERE tenant_id = ? AND provider = ? AND outcome = 'ok'
+           AND started_at >= ? AND started_at < ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, provider, range.from, range.to) as Record<string, bigint>;
+
+    const fromDay = new Date(range.from).toISOString().slice(0, 10);
+    const toDay = new Date(range.to - 1).toISOString().slice(0, 10);
+    const imported = this.#db
+      .prepare(
+        `SELECT COALESCE(SUM(cost_catalog), 0) AS total,
+                COALESCE(SUM(CASE WHEN priced = 0 THEN 1 ELSE 0 END), 0) AS unpriced,
+                COUNT(*) AS rows
+         FROM imported_usage
+         WHERE tenant_id = ? AND provider = ? AND day >= ? AND day <= ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, provider, fromDay, toDay) as Record<string, bigint>;
+
+    return {
+      total: (metered["total"] as bigint) + (imported["total"] as bigint),
+      meteredCalls: Number(metered["calls"]),
+      importedRows: Number(imported["rows"]),
+      // Unpriced traffic is missing from the denominator, which would inflate
+      // any rate derived from it. Reported rather than silently absorbed.
+      unpriced: Number(metered["unpriced"]) + Number(imported["unpriced"]),
+    };
   }
 
   recentViolations(tenantId: string, limit = 50) {

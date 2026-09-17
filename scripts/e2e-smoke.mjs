@@ -299,7 +299,25 @@ check("granted tool extracted", edge("grants", "topo-parent", "refund_customer")
 check("delegation extracted", edge("delegates", "topo-parent", "topo-child"), true);
 check("no delegation loop reported", topo.cycles.length, 0);
 
-console.log("\n10. monthly statement, in every format it exports");
+console.log("\n10. negotiated rate: figures reconcile with an invoice");
+await cli(["rates", "set", "anthropic", "--discount", "18"]);
+res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });
+check("discounted call still succeeds", res.status, 200);
+await res.text();
+
+const ratesOut = await cli(["rates"]);
+check("rate is listed", /anthropic\s+18\.00% off list/.test(ratesOut), true);
+
+const discounted = await cli(["statement", "--format", "json"]);
+const parsedStatement = JSON.parse(discounted);
+check("statement declares the rate", parsedStatement.rates[0].discountPercent, 18);
+
+// The catalog price survives on the row, so the discount stays provable.
+const listVsPaid = await cli(["report", "--days", "1"]);
+check("report still renders under a rate", /Total spend/.test(listVsPaid), true);
+await cli(["rates", "clear", "anthropic"]);
+
+console.log("\n11. monthly statement, in every format it exports");
 const statementText = await cli(["statement"]);
 check("statement names this month", /CostGrid statement — /.test(statementText), true);
 check("statement is marked month to date", /Month to date/.test(statementText), true);
@@ -323,7 +341,7 @@ const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
 // Money must survive as an exact decimal string, never a float.
 check("json money is a string", typeof statementJson.total, "string");
 
-console.log("\n11. CLI report\n");
+console.log("\n12. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 
 gateway.kill("SIGTERM");

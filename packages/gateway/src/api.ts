@@ -235,6 +235,7 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
         routedCalls: statement.routing.routedCalls,
         realisedSavingUsd: money(statement.routing.realisedSaving),
       },
+      rates: statement.rates,
       budgets: statement.budgets.map((b) => ({
         policyId: b.policyId,
         policyName: b.policyName,

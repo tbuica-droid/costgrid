@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import { writeFileSync } from "node:fs";
-import { findModelPrice, type Policy, toUsdString, usd } from "@costgrid/core";
+import {
+  deriveRate,
+  discountPercent,
+  findModelPrice,
+  type Policy,
+  rateFromDiscountPercent,
+  toUsdString,
+  usd,
+} from "@costgrid/core";
 import {
   Analytics,
   backupDatabase,
@@ -45,6 +53,12 @@ Usage:
   costgrid policy disable <policy-id>
   costgrid runs [--days N] [--limit N]    Most expensive runs in the window
   costgrid run <run-id>                   Every call in one run, in order
+  costgrid rates                          Show negotiated rates in force
+  costgrid rates set <provider> --discount <pct>
+                                          Apply a known enterprise discount
+  costgrid rates derive <provider> --invoiced <usd> [--days N]
+                                          Derive the rate from an actual invoice total
+  costgrid rates clear <provider>
   costgrid backup <path>                  Consistent copy of the database (use this, not cp)
 
 Scope is "tenant", "dept:<name>" or "agent:<id>".
@@ -302,6 +316,122 @@ async function main(): Promise<void> {
         if (step.errorMessage) console.log(`       ${step.errorMessage}`);
       }
       console.log("");
+      break;
+    }
+
+    case "rates": {
+      requireTenant();
+      const sub = argv[1] ?? "list";
+
+      if (sub === "list") {
+        const rates = repository.listRateOverrides(tenantId);
+        if (rates.length === 0) {
+          console.log("\nNo negotiated rates. Every call is priced at catalog list.");
+          console.log("If you buy off list, your figures here will read high — see");
+          console.log("`costgrid rates derive --help` or docs/QUICKSTART.md.\n");
+          break;
+        }
+        console.log("");
+        for (const rate of rates) {
+          const pct = discountPercent(rate);
+          console.log(
+            `  ${rate.provider.padEnd(12)} ${pct.toFixed(2)}% off list  [${rate.source}]`,
+          );
+          if (rate.evidence) {
+            const span = `${new Date(rate.evidence.from).toISOString().slice(0, 10)} to ${new Date(
+              rate.evidence.to,
+            )
+              .toISOString()
+              .slice(0, 10)}`;
+            console.log(
+              `               invoiced $${toUsdString(rate.evidence.reported, 2)} against ` +
+                `$${toUsdString(rate.evidence.catalog, 2)} at list, ${span}`,
+            );
+          }
+        }
+        console.log("");
+        break;
+      }
+
+      if (sub === "set") {
+        const provider = argv[2] ?? fail("rates set needs a provider");
+        const discount = Number(flag(argv, "discount") ?? fail("rates set needs --discount <pct>"));
+        let rate;
+        try {
+          rate = rateFromDiscountPercent(provider, discount);
+        } catch (error) {
+          fail(error instanceof Error ? error.message : String(error));
+        }
+        repository.setRateOverride(tenantId, rate);
+        console.log(`${provider} is now priced at ${discount}% off list.`);
+        console.log("Calls recorded from here on use this rate; history keeps the price it was");
+        console.log("recorded at, and every row keeps its catalog price alongside.");
+        break;
+      }
+
+      if (sub === "derive") {
+        const provider = argv[2] ?? fail("rates derive needs a provider");
+        const invoiced = flag(argv, "invoiced") ?? fail("rates derive needs --invoiced <usd>");
+        const days = Number(flag(argv, "days") ?? 30);
+        if (!Number.isInteger(days) || days < 1 || days > 3650) {
+          fail(`--days must be an integer 1..3650, got ${days}`);
+        }
+
+        const range = trailingWindow(days);
+        const basis = analytics.catalogTotal(tenantId, provider, range);
+        if (basis.total <= 0n) {
+          fail(
+            `no ${provider} traffic priced in the last ${days} day(s), so there is nothing ` +
+              "to compare an invoice against. Meter some calls or import history first.",
+          );
+        }
+
+        const reported = usd(invoiced);
+        const rate = deriveRate(provider, reported, basis.total);
+        if (!rate) {
+          fail(
+            `$${toUsdString(reported, 2)} against $${toUsdString(basis.total, 2)} at list is ` +
+              "not a plausible rate. Check the window matches the invoice period, and that " +
+              "the invoice covers only this provider.",
+          );
+        }
+
+        repository.setRateOverride(tenantId, {
+          ...rate,
+          evidence: { from: range.from, to: range.to, reported, catalog: basis.total },
+        });
+
+        const pct = discountPercent(rate);
+        console.log(
+          `\nDerived ${pct.toFixed(2)}% off list for ${provider}: $${toUsdString(reported, 2)} ` +
+            `invoiced against $${toUsdString(basis.total, 2)} at catalog prices,`,
+        );
+        console.log(
+          `over ${days} day(s) — ${basis.meteredCalls} metered call(s) and ` +
+            `${basis.importedRows} imported row(s).\n`,
+        );
+        if (basis.unpriced > 0) {
+          // Unpriced traffic is missing from the denominator, so the derived
+          // discount reads deeper than it is.
+          console.log(
+            `Warning: ${basis.unpriced} item(s) could not be priced and are absent from the\n` +
+              "comparison, so this rate understates what you pay. Fix the catalog first.\n",
+          );
+        }
+        break;
+      }
+
+      if (sub === "clear") {
+        const provider = argv[2] ?? fail("rates clear needs a provider");
+        console.log(
+          repository.clearRateOverride(tenantId, provider)
+            ? `Cleared. ${provider} is priced at catalog list again.`
+            : `No rate was set for ${provider}.`,
+        );
+        break;
+      }
+
+      fail(`unknown rates subcommand ${JSON.stringify(sub)}`);
       break;
     }
 

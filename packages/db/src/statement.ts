@@ -1,4 +1,4 @@
-import { type Nanodollars, type PolicyScope, toUsdString } from "@costgrid/core";
+import { discountPercent, type Nanodollars, type PolicyScope, toUsdString } from "@costgrid/core";
 import type { Analytics, GroupedSpend, RoutingSavings, TimeRange } from "./analytics.js";
 import type { ImportsRepository } from "./imports.js";
 import type { CostGridRepository } from "./repositories.js";
@@ -111,6 +111,16 @@ export interface Statement {
    * folding them into the chargeback tables would silently misattribute them.
    * Shown so the totals can be reconciled, not to pad them.
    */
+  /**
+   * Negotiated rates in force, so a reader can see why these figures differ
+   * from catalog list — and check the derivation rather than trust it.
+   */
+  readonly rates: readonly {
+    readonly provider: string;
+    readonly discountPercent: number;
+    readonly source: "manual" | "derived";
+  }[];
+
   readonly imported:
     | { readonly catalogCost: Nanodollars; readonly reportedCost: Nanodollars | undefined; readonly requests: number }
     | undefined;
@@ -251,6 +261,11 @@ export function buildStatement(input: StatementInput): Statement {
     ),
 
     routing: analytics.routingSavings(tenantId, range),
+    rates: repository.listRateOverrides(tenantId).map((rate) => ({
+      provider: rate.provider,
+      discountPercent: discountPercent(rate),
+      source: rate.source,
+    })),
     budgets,
     imported:
       importedSummary && importedSummary.rows > 0

@@ -87,6 +87,17 @@ The percentage falls as volume rises on purpose: the fee should not grow faster
 than the value of governing the spend. The routing report tells you what
 CostGrid is saving you, so you can check the trade rather than take it on faith.
 
+## If you have an enterprise agreement
+
+CostGrid prices at catalog list by default, so if you buy off list, tell it your
+rate — `costgrid rates set <provider> --discount <pct>`, or derive it from an
+actual invoice with `costgrid rates derive`. Every figure then reconciles with
+what you are billed, and each row keeps its catalog price so the discount stays
+provable.
+
+Do this on day one. Reporting 18% high for three weeks and correcting later
+costs more trust than it saves time.
+
 ## What it will not do for you
 
 Stated up front, because finding out in week three wastes your time:

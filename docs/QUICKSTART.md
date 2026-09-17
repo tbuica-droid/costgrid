@@ -325,7 +325,62 @@ reachability policy needs. Arguments are content, and content is forwarded and
 never kept. Set `COSTGRID_EXTRACT_TOOLS=false` to switch the path off entirely
 if your tool names are themselves sensitive.
 
-## 12. The monthly statement
+## 12. If you buy off list
+
+Most enterprises do. A committed-spend discount, a partner rate, a negotiated
+agreement — the catalog only knows list prices, so without telling CostGrid
+about it, every figure here reads high and nothing reconciles with your
+invoice. That is the worst possible discrepancy for a tool that sells cost
+truth, so fix it first.
+
+**If you know your discount:**
+
+```bash
+npx tsx packages/cli/src/main.ts rates set anthropic --discount 18
+```
+
+**If you would rather derive it from what you were actually billed** — which is
+better, because it captures whatever your agreement really does rather than
+what you think it does:
+
+```bash
+# Compare a real invoice total against what CostGrid priced the same period at.
+npx tsx packages/cli/src/main.ts rates derive anthropic --invoiced 164.00 --days 30
+```
+
+```text
+Derived 18.00% off list for anthropic: $164.00 invoiced against $200.00 at
+catalog prices, over 30 day(s) — 200 metered call(s) and 0 imported row(s).
+```
+
+Pair it with `costgrid import` and the comparison spans your whole
+organisation's history, not just the traffic already routed through the
+gateway.
+
+### How it behaves
+
+- **Every figure becomes what you pay.** Spend, budgets, statements, routing
+  savings. A $500 budget now bites at $500 of real money, not $500 of list.
+- **The catalog price is kept on every row**, so the discount is provable
+  rather than asserted, and you can show both to an auditor.
+- **Rates are exact rationals, never floats.** 18% off is 8200/10000 and stays
+  that way through every multiplication.
+- **Per provider.** An Anthropic discount does not touch OpenAI.
+- **History keeps the price it was recorded at.** Setting a rate today does not
+  rewrite last month; clear it and new calls return to list.
+
+### The guard
+
+A derivation outside 5%–150% of list is refused rather than applied. A
+mis-parsed invoice, or a window that does not match the billing period, would
+otherwise corrupt every number CostGrid reports. If you are refused, check that
+the window matches the invoice and that the invoice covers only that provider.
+
+Traffic CostGrid cannot price is excluded from the comparison and reported as a
+warning, because it would otherwise make the derived discount look deeper than
+it is.
+
+## 13. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

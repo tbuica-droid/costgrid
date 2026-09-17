@@ -10,7 +10,7 @@ import type {
   SpendSnapshot,
   TokenUsage,
 } from "@costgrid/core";
-import type { CostBreakdown } from "@costgrid/core";
+import type { CostBreakdown, RateOverride } from "@costgrid/core";
 import type { Db } from "./database.js";
 
 export type CallOutcome = "ok" | "blocked" | "error";
@@ -27,6 +27,14 @@ export interface CallRecord {
   readonly streamed: boolean;
   readonly usage: TokenUsage;
   readonly cost: CostBreakdown;
+  /**
+   * Catalog price before any negotiated rate.
+   *
+   * `cost` is what the customer actually pays. This is what the list price
+   * would have been, kept so a discount is provable rather than asserted.
+   * Omit it and it equals `cost`, which is the truth when no rate is in force.
+   */
+  readonly costList?: CostBreakdown | undefined;
   readonly priced: boolean;
   /** Pricing modifiers in effect, so the row's cost is reproducible. */
   readonly modifiers?: PriceModifiers | undefined;
@@ -60,6 +68,19 @@ export interface RunStats {
   readonly steps: number;
   /** Delegation hops from the root run. Zero when there is no parent. */
   readonly depth: number;
+}
+
+/** A rate override as stored, with the evidence that produced it. */
+export interface StoredRateOverride extends RateOverride {
+  readonly evidence?:
+    | {
+        readonly from: number;
+        readonly to: number;
+        readonly reported: Nanodollars;
+        readonly catalog: Nanodollars;
+      }
+    | undefined;
+  readonly updatedAt?: number | undefined;
 }
 
 export interface CreatedApiKey {
@@ -223,7 +244,7 @@ export class CostGridRepository {
            outcome, status_code, stop_reason, error_message,
            speed, inference_geo, batch,
            requested_model, routed, route_dry_run, saving_estimate,
-           run_id, parent_run_id, run_depth, run_declared
+           run_id, parent_run_id, run_depth, run_declared, cost_list
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -232,7 +253,7 @@ export class CostGridRepository {
            @outcome, @statusCode, @stopReason, @errorMessage,
            @speed, @inferenceGeo, @batch,
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
-           @runId, @parentRunId, @runDepth, @runDeclared
+           @runId, @parentRunId, @runDepth, @runDeclared, @costList
          )`,
       )
       .run({
@@ -273,6 +294,7 @@ export class CostGridRepository {
         parentRunId: call.parentRunId ?? null,
         runDepth: call.runDepth ?? 0,
         runDeclared: call.runDeclared === true ? 1 : 0,
+        costList: call.costList?.total ?? call.cost.total,
       });
   }
 
@@ -398,6 +420,74 @@ export class CostGridRepository {
         upsertGrant.run(input.tenantId, input.agentId, tool, input.at, input.at);
       }
     })();
+  }
+
+  /** The negotiated rate in force for a provider, if any. */
+  rateOverride(tenantId: string, provider: string): StoredRateOverride | undefined {
+    const row = this.#db
+      .prepare(
+        `SELECT provider, numerator, denominator, source,
+                evidence_from AS evidenceFrom, evidence_to AS evidenceTo,
+                evidence_reported AS evidenceReported, evidence_catalog AS evidenceCatalog,
+                updated_at AS updatedAt
+         FROM rate_overrides WHERE tenant_id = ? AND provider = ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, provider) as Record<string, bigint | string> | undefined;
+
+    return row === undefined ? undefined : toStoredRate(row);
+  }
+
+  listRateOverrides(tenantId: string): StoredRateOverride[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT provider, numerator, denominator, source,
+                evidence_from AS evidenceFrom, evidence_to AS evidenceTo,
+                evidence_reported AS evidenceReported, evidence_catalog AS evidenceCatalog,
+                updated_at AS updatedAt
+         FROM rate_overrides WHERE tenant_id = ? ORDER BY provider`,
+      )
+      .safeIntegers(true)
+      .all(tenantId) as Record<string, bigint | string>[];
+    return rows.map(toStoredRate);
+  }
+
+  setRateOverride(tenantId: string, override: StoredRateOverride, at = Date.now()): void {
+    this.#db
+      .prepare(
+        `INSERT INTO rate_overrides (
+           tenant_id, provider, numerator, denominator, source,
+           evidence_from, evidence_to, evidence_reported, evidence_catalog, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (tenant_id, provider) DO UPDATE SET
+           numerator = excluded.numerator,
+           denominator = excluded.denominator,
+           source = excluded.source,
+           evidence_from = excluded.evidence_from,
+           evidence_to = excluded.evidence_to,
+           evidence_reported = excluded.evidence_reported,
+           evidence_catalog = excluded.evidence_catalog,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        tenantId,
+        override.provider,
+        override.numerator,
+        override.denominator,
+        override.source,
+        override.evidence?.from ?? null,
+        override.evidence?.to ?? null,
+        override.evidence?.reported ?? null,
+        override.evidence?.catalog ?? null,
+        at,
+      );
+  }
+
+  clearRateOverride(tenantId: string, provider: string): boolean {
+    const result = this.#db
+      .prepare("DELETE FROM rate_overrides WHERE tenant_id = ? AND provider = ?")
+      .run(tenantId, provider);
+    return result.changes > 0;
   }
 
   // --------------------------------------------------------------- policies
@@ -536,3 +626,24 @@ function deserializeScope(kind: PolicyScope["kind"], value: string | null): Poli
 }
 
 export type { Nanodollars };
+
+function toStoredRate(row: Record<string, bigint | string>): StoredRateOverride {
+  const from = row["evidenceFrom"];
+  return {
+    provider: row["provider"] as string,
+    numerator: row["numerator"] as bigint,
+    denominator: row["denominator"] as bigint,
+    source: row["source"] as "manual" | "derived",
+    ...(from != null
+      ? {
+          evidence: {
+            from: Number(from),
+            to: Number(row["evidenceTo"]),
+            reported: row["evidenceReported"] as bigint,
+            catalog: row["evidenceCatalog"] as bigint,
+          },
+        }
+      : {}),
+    updatedAt: Number(row["updatedAt"]),
+  };
+}

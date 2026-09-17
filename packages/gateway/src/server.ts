@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
+  applyRate,
+  applyRateTo,
   estimateSaving,
   evaluatePolicies,
   planFor,
   type PolicyScope,
   priceUsage,
+  type RateOverride,
   type RequestContext,
   toUsdString,
   ZERO_COST,
@@ -314,6 +317,20 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * configuration, and a control that demands code changes is a control
        * most fleets never turn on.
        */
+      /*
+       * Negotiated rates, resolved once per request.
+       *
+       * A tenant usually has none; when it does, the same one applies to every
+       * recording path below, so it is looked up once rather than per write.
+       */
+      const rateCache = new Map<string, RateOverride | undefined>();
+      const rateFor = (provider: string): RateOverride | undefined => {
+        if (!rateCache.has(provider)) {
+          rateCache.set(provider, repository.rateOverride(caller.tenantId, provider));
+        }
+        return rateCache.get(provider);
+      };
+
       const declaredTools = config.extractTools ? adapter.declaredTools(request.body) : [];
       const declaredRun = runIdOf(request, RUN_HEADER);
       const parentRun = runIdOf(request, PARENT_RUN_HEADER);
@@ -472,6 +489,18 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         const computed = priceUsage(model, usage, modifiers);
 
         /*
+         * The negotiated rate, applied here rather than at read time.
+         *
+         * Every budget, statement and analytic already reads `cost`, so
+         * discounting once at the point of record means none of them can be
+         * left behind reporting list prices. The catalog figure travels
+         * alongside as `costList`, which is what makes the discount provable
+         * instead of asserted.
+         */
+        const rate = rateFor(adapter.id);
+        const effectiveCost = applyRate(computed.cost, rate);
+
+        /*
          * The counterfactual, for a routed or dry-run call: what these same
          * tokens would have cost on the model the caller asked for.
          *
@@ -482,15 +511,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
          */
         let savingEstimate: bigint | undefined;
         if (route !== undefined) {
-          savingEstimate = route.applied
+          const listSaving = route.applied
             ? estimateSaving(route.fromModel, model, usage, modifiers)
             : estimateSaving(model, route.toModel, usage, modifiers);
+          // A saving quoted at list against a bill quoted at the negotiated
+          // rate would not reconcile with itself.
+          savingEstimate = listSaving === undefined ? undefined : applyRateTo(listSaving, rate);
         }
 
         // `priced: false` means the cost could not be established — either the
         // model is uncatalogued, or the provider reported no usage. Both must
         // surface as unpriced rather than as free traffic.
         const priced = over.priced === false ? false : computed.priced;
+
 
         // `record` runs at most once per request, so reusing the id minted
         // above keeps a synthetic run_id pointing at a call that exists.
@@ -502,7 +535,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           model,
           durationMs: Date.now() - startedAt,
           usage,
-          cost: computed.cost,
+          cost: effectiveCost,
+          costList: computed.cost,
           priced,
           modifiers,
           ...(route !== undefined
