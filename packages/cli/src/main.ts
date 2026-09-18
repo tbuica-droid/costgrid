@@ -10,6 +10,7 @@ import {
   usd,
 } from "@costgrid/core";
 import {
+  Advisor,
   Analytics,
   backupDatabase,
   buildStatement,
@@ -21,6 +22,7 @@ import {
   trailingWindow,
 } from "@costgrid/db";
 import { formatPreflight, preflight } from "@costgrid/gateway";
+import { formatProposals } from "./advise.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
@@ -31,6 +33,11 @@ Usage:
   costgrid key create <agent-name>        Create an API key (shown once, never again)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
+  costgrid advise [--days N] [--format json]
+                                          Read your own traffic and propose rules,
+                                          each one replayed against the same window
+                                          so the saving is shown before you enable
+                                          it. Proposes only — nothing is applied.
   costgrid statement [--month YYYY-MM] [--format text|csv|json] [--out FILE]
                                           Monthly statement for finance: spend by team,
                                           movement against last month, budget status and
@@ -220,6 +227,31 @@ async function main(): Promise<void> {
         fail(`--days must be an integer 1..3650, got ${days}`);
       }
       console.log(formatReport(analytics, tenantId, trailingWindow(days), days));
+      break;
+    }
+
+    case "advise": {
+      requireTenant();
+      const days = Number(flag(argv, "days") ?? 30);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) {
+        fail(`--days must be an integer 1..3650, got ${days}`);
+      }
+
+      const proposals = new Advisor(db).proposals(tenantId, trailingWindow(days));
+      if (flag(argv, "format") === "json") {
+        console.log(
+          JSON.stringify(
+            proposals,
+            // Nanodollars are bigints and JSON has no such thing. Stringifying
+            // keeps every digit; a Number would silently round the one figure
+            // the whole output exists to report.
+            (_key, value: unknown) => (typeof value === "bigint" ? value.toString() : value),
+            2,
+          ),
+        );
+      } else {
+        console.log(formatProposals(proposals, days));
+      }
       break;
     }
 

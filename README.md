@@ -63,6 +63,15 @@ and records the counterfactual, so the saving is audited rather than claimed.
 Always dry-run first: `--action monitor` changes nothing and still measures what
 it would have saved.
 
+**Proposes its own rules, and proves them first.** `costgrid advise` reads your
+metered traffic, drafts concrete policies, and replays each one against the same
+window — so a saving is shown before anything is switched on. It proposes and
+never applies; every line it prints is a command for you to run, or not.
+Proposals that save money are kept separate from ones that merely bound a risk,
+because ranking both by "money involved" would put a spending cap that saves
+nothing above a route rule that saves real money. No model is involved: every
+figure comes from a deterministic query over your own rows.
+
 **Reports.** A live dashboard, a terminal report, and a monthly statement —
 spend by team with movement against last month, budget status, and what routing
 saved — exportable as CSV for finance.

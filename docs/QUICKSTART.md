@@ -434,7 +434,83 @@ gateway refuses to start** in that state, naming the policies and both ways out.
 A boundary that silently stops holding is worse than no boundary, because you
 stop watching the thing you believe is covered.
 
-## 13. Bedrock and Vertex
+## 13. Advice from your own traffic
+
+```bash
+npx tsx packages/cli/src/main.ts advise --days 30
+```
+
+CostGrid reads your metered calls, proposes rules, and **replays each one
+against the same window** so you can see what it would have done before you
+turn it on. It proposes. It never applies. Every line it prints is a command
+for you to run, or not.
+
+```
+  SAVES MONEY NOW — ranked by what the replay says it would have saved
+
+  1. ticket-classifier could run claude-opus-5 work on claude-haiku-4-5
+     900 call(s) averaging 90 output tokens — short answers, on one of
+     the most expensive models you run.
+
+    Replayed: 900 of 900 call(s), would have saved about $23.22
+    Prices the same token counts on the cheaper model. Token counts are
+    not identical across models, and a smaller model is often more
+    verbose, so treat this as an estimate rather than a measurement.
+
+    costgrid policy route agent:ticket-classifier claude-haiku-4-5 \
+      --from claude-opus-5 --action monitor
+```
+
+### Why it is grouped rather than ranked in one list
+
+A proposal that **saves money now** and one that **bounds a risk** are
+different things, and putting them in one column ranked by "money involved"
+reads as a lie: the cap on a department's spend touches more money than the
+route rule, and saves none of it.
+
+So they are separate, and the same replay result means opposite things in each.
+A route rule that would never have fired has nothing to do. A cap that would
+never have fired is *correctly sized* — it sits above everything you actually
+did, which is exactly where a cap belongs.
+
+### What the numbers mean, precisely
+
+| Basis | What it means | How far to trust it |
+|---|---|---|
+| `estimated` | The call still happens, priced on the cheaper model | Sound. Assumes token counts carry across models, which is close but not exact |
+| `avoided` | The call would not have happened at all | **Not a saving.** Spend that would not have occurred, assuming nothing retried |
+
+That second row is the one to read twice. A blocking rule replayed over history
+says "these calls would have been refused" — and refused calls do not vanish
+quietly. The software that made them would have errored, retried, or degraded.
+It is spend prevented, not money saved, and a cap with `--fallback` is usually
+what a team actually wants instead.
+
+### Rules it will not replay
+
+Tool boundaries and depth limits are not backtested, and the output says so
+rather than printing a confident zero. A tool rule fires on the tool list in a
+*request*, and requests are not stored — only the names, aggregated. Run one in
+`--action monitor` for a week instead; that is a measurement rather than a
+replay.
+
+### What it will not propose
+
+A rule that could not fire. An agent sending no `x-costgrid-run` header cannot
+be protected by a step cap, so none is offered — the output says the header is
+the missing piece. This is the same rule the rest of the product follows: a
+control that cannot bite must not look like protection.
+
+### What this is not
+
+It is not an AI making decisions about your spend. Every proposal here comes
+from a deterministic query over your metered rows, and every number is
+reproducible. That boundary is deliberate: **the advisor proposes, the
+enforcement engine acts, and the meter stays free of judgement.** Being wrong
+in an advisory costs you a rejected suggestion. Being wrong in the meter costs
+you a bill that will not reconcile.
+
+## 14. Bedrock and Vertex
 
 Claude through AWS or Google is the same model, reached differently. CostGrid
 proxies both.
@@ -503,7 +579,7 @@ npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 
 That figure comes from your AWS bill, so it absorbs the channel's pricing and
 any committed-use discount in one number.
 
-## 14. If you buy off list
+## 15. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
 agreement — the catalog only knows list prices, so without telling CostGrid
@@ -558,7 +634,7 @@ Traffic CostGrid cannot price is excluded from the comparison and reported as a
 warning, because it would otherwise make the derived discount look deeper than
 it is.
 
-## 15. The monthly statement
+## 16. The monthly statement
 
 The report above is a trailing window — useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

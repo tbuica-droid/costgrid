@@ -337,6 +337,23 @@ await res.text();
 const boundaryOut = await cli(["policy", "list"]);
 check("boundary is listed", /may not use \[refund_customer\]/.test(boundaryOut), true);
 
+console.log("\n10b. advise: proposes from this run's own traffic");
+/*
+ * The smoke run makes a couple of dozen calls, which is far below every
+ * threshold in the advisor. That is the assertion: it says so plainly rather
+ * than inventing a finding to look useful on thin data.
+ */
+const adviceOut = await cli(["advise", "--days", "1"]);
+check("advise runs", /COSTGRID ADVISE/.test(adviceOut), true);
+check(
+  "thin data produces no invented findings",
+  /Nothing to propose/.test(adviceOut),
+  true,
+);
+
+const adviceJson = JSON.parse(await cli(["advise", "--days", "1", "--format", "json"]));
+check("json form is an array", Array.isArray(adviceJson), true);
+
 console.log("\n11. negotiated rate: figures reconcile with an invoice");
 await cli(["rates", "set", "anthropic", "--discount", "18"]);
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });

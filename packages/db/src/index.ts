@@ -5,3 +5,5 @@ export * from "./repositories.js";
 export * from "./schema.js";
 export * from "./analytics.js";
 export * from "./statement.js";
+export * from "./backtest.js";
+export * from "./advise.js";
