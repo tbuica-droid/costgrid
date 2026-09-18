@@ -162,10 +162,10 @@ const call = (payload, headers = {}, path = "/v1/messages") =>
     body: JSON.stringify(payload),
   });
 
-const cli = (args) =>
+const cli = (args, extraEnv = {}) =>
   new Promise((resolve) => {
     const p = spawn("node", ["--import", "tsx", "packages/cli/src/main.ts", ...args], {
-      env: { ...process.env, COSTGRID_DB: DB, COSTGRID_TENANT: "local" },
+      env: { ...process.env, COSTGRID_DB: DB, COSTGRID_TENANT: "local", ...extraEnv },
       stdio: ["ignore", "pipe", "inherit"],
     });
     let out = "";
@@ -354,6 +354,46 @@ check(
 const adviceJson = JSON.parse(await cli(["advise", "--days", "1", "--format", "json"]));
 check("json form is an array", Array.isArray(adviceJson), true);
 
+console.log("\n10c. the analyst: what leaves the network, and what it is checked against");
+
+/*
+ * The model here is a local stand-in, like the provider stub. It proves the
+ * request shape, the confidentiality boundary and the grounding check. It
+ * proves nothing about how a real model answers.
+ */
+const fakeModel = createServer((req, res) => {
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    const sent = JSON.parse(body).messages.at(-1).content;
+    const real = (sent.match(/\$[\d,]+\.\d{2}/g) ?? [])[0] ?? "$0.00";
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(
+      JSON.stringify({
+        choices: [{ message: { content: `You spent ${real}. I also invented $4,242.00.` } }],
+      }),
+    );
+  });
+});
+await new Promise((resolve) => fakeModel.listen(8124, resolve));
+
+const shown = await cli(["ask", "--show-data", "--days", "1"]);
+check("show-data prints the briefing", /Window: the last 1 days/.test(shown), true);
+// The confidentiality promise, checked rather than asserted.
+check("no prompt text in the briefing", /Reply with the single word/.test(shown), false);
+check("no tool arguments in the briefing", /cus_|amount_usd/.test(shown), false);
+
+const answered = await cli(["ask", "why did spend move", "--days", "1"], {
+  COSTGRID_ANALYST_DEMO_KEY: "smoke-demo-key",
+  COSTGRID_ANALYST_MODEL: "stand-in",
+  COSTGRID_ANALYST_BASE_URL: "http://127.0.0.1:8124",
+});
+check("answers the question", /You spent \$/.test(answered), true);
+check("catches the invented figure", /\$4,242\.00 does not appear/.test(answered), true);
+check("says it is on the trial key", /trial key/.test(answered), true);
+check("says it cannot act", /cannot change a rule/.test(answered), true);
+fakeModel.close();
+
 console.log("\n11. negotiated rate: figures reconcile with an invoice");
 await cli(["rates", "set", "anthropic", "--discount", "18"]);
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });
@@ -374,7 +414,7 @@ await cli(["rates", "clear", "anthropic"]);
 
 console.log("\n12. monthly statement, in every format it exports");
 const statementText = await cli(["statement"]);
-check("statement names this month", /CostGrid statement — /.test(statementText), true);
+check("statement names this month", /CostGrid statement · /.test(statementText), true);
 check("statement is marked month to date", /Month to date/.test(statementText), true);
 
 const statementCsv = await cli(["statement", "--format", "csv"]);

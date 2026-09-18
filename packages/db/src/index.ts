@@ -7,3 +7,4 @@ export * from "./analytics.js";
 export * from "./statement.js";
 export * from "./backtest.js";
 export * from "./advise.js";
+export * from "./briefing.js";

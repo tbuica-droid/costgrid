@@ -510,7 +510,73 @@ enforcement engine acts, and the meter stays free of judgement.** Being wrong
 in an advisory costs you a rejected suggestion. Being wrong in the meter costs
 you a bill that will not reconcile.
 
-## 14. Bedrock and Vertex
+## 14. Asking questions in plain English
+
+```bash
+npx tsx packages/cli/src/main.ts ask "why did spend go up last week"
+```
+
+Everything else here needs you to know which command to run. This does not.
+It reads the same figures the dashboard shows and answers in ordinary words.
+
+It is off until you give it a key, and there are three things to understand
+before you do.
+
+### Your key, your vendor
+
+Point it at whichever model your company already uses. Your spend figures go to
+a vendor you have already approved, rather than to one we picked for you.
+
+```bash
+COSTGRID_ANALYST_WIRE=openai
+COSTGRID_ANALYST_BASE_URL=https://api.x.ai
+COSTGRID_ANALYST_KEY=...
+COSTGRID_ANALYST_MODEL=grok-4
+```
+
+`COSTGRID_ANALYST_WIRE` is the request format, not the company. Most vendors,
+xAI included, use OpenAI's. Set it to `anthropic` for Claude.
+
+There is a trial key for evaluation, so nobody has to configure a second vendor
+before seeing whether the feature is worth it. Answers given on it say so on
+every line. Your own key always wins where both are set.
+
+### See exactly what would be sent
+
+```bash
+npx tsx packages/cli/src/main.ts ask --show-data
+```
+
+Prints the whole briefing and sends nothing. It is spend totals, agent and
+department names you chose, model names, policy events, and dates. No prompts,
+no answers, no tool arguments. CostGrid never stores any of those, so none of
+them could be in there even by accident.
+
+The bytes you inspect are the bytes that go out. The same function produces
+both, so the two cannot drift apart.
+
+### Its arithmetic is checked
+
+Every money figure in an answer is matched against the briefing. Anything that
+is not in your data is flagged underneath:
+
+```
+  Note: $4,242.00 does not appear in the figures above. Check it before
+  quoting it.
+```
+
+That is not proof of a mistake. A correct sum of two briefing figures will not
+itself be in the briefing. It tells you which numbers were read off your data
+and which were worked out, which is the distinction worth knowing before you
+repeat one to your finance team.
+
+### It explains. It does not act.
+
+It cannot set a budget, change a rule, or block a call. Those stay with the
+engine that gives exact answers, because a model does not. If you want a rule
+changed, `costgrid advise` proposes them and you run the command.
+
+## 15. Bedrock and Vertex
 
 Claude through AWS or Google is the same model, reached differently. CostGrid
 proxies both.
@@ -579,7 +645,7 @@ npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 
 That figure comes from your AWS bill, so it absorbs the channel's pricing and
 any committed-use discount in one number.
 
-## 15. If you buy off list
+## 16. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
 agreement. The catalog only knows list prices, so without telling CostGrid
@@ -634,7 +700,7 @@ Traffic CostGrid cannot price is excluded from the comparison and reported as a
 warning, because it would otherwise make the derived discount look deeper than
 it is.
 
-## 16. The monthly statement
+## 17. The monthly statement
 
 The report above is a trailing window. Useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

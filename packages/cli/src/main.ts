@@ -13,6 +13,8 @@ import {
   Advisor,
   Analytics,
   backupDatabase,
+  Briefings,
+  render as renderBriefing,
   buildStatement,
   CostGridRepository,
   ImportsRepository,
@@ -21,7 +23,7 @@ import {
   statementToCsv,
   trailingWindow,
 } from "@costgrid/db";
-import { formatPreflight, preflight } from "@costgrid/gateway";
+import { ask, type AnalystConfig, formatPreflight, preflight } from "@costgrid/gateway";
 import { formatProposals } from "./advise.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
@@ -33,6 +35,11 @@ Usage:
   costgrid key create <agent-name>        Create an API key (shown once, never again)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
+  costgrid ask "<question>" [--days N] [--show-data]
+                                          Ask about your own spending in plain
+                                          English. --show-data prints exactly
+                                          what would be sent, and sends nothing.
+                                          Explains only; it cannot change a rule.
   costgrid advise [--days N] [--format json]
                                           Read your own traffic and propose rules,
                                           each one replayed against the same window
@@ -160,6 +167,42 @@ function parseAction(raw: string | undefined) {
   return value;
 }
 
+/**
+ * Where the analyst's model lives, and whose key pays for it.
+ *
+ * The customer's own key is the default and the recommendation: their spend
+ * figures go to a vendor they already chose and already trust, which is the
+ * only version of this that survives a security review.
+ *
+ * `COSTGRID_ANALYST_DEMO_KEY` exists because asking someone to configure a
+ * second vendor before they have seen the feature work is how a good feature
+ * goes untried. It is for evaluation, it says so in every answer it produces,
+ * and a customer's own key always takes precedence over it.
+ */
+function analystConfig(): AnalystConfig | undefined {
+  const wire = (process.env["COSTGRID_ANALYST_WIRE"]?.trim() || "openai") as "anthropic" | "openai";
+  if (wire !== "anthropic" && wire !== "openai") {
+    fail(`COSTGRID_ANALYST_WIRE must be anthropic or openai, got ${JSON.stringify(wire)}`);
+  }
+
+  const own = process.env["COSTGRID_ANALYST_KEY"]?.trim();
+  const demo = process.env["COSTGRID_ANALYST_DEMO_KEY"]?.trim();
+  const apiKey = own || demo;
+  if (!apiKey) return undefined;
+
+  const model = process.env["COSTGRID_ANALYST_MODEL"]?.trim();
+  if (!model) fail("COSTGRID_ANALYST_MODEL is not set, so there is no model to ask.");
+
+  const baseUrl = process.env["COSTGRID_ANALYST_BASE_URL"]?.trim();
+  return {
+    wire,
+    apiKey,
+    model,
+    ...(baseUrl ? { baseUrl } : {}),
+    demo: !own && !!demo,
+  };
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv[0];
@@ -227,6 +270,69 @@ async function main(): Promise<void> {
         fail(`--days must be an integer 1..3650, got ${days}`);
       }
       console.log(formatReport(analytics, tenantId, trailingWindow(days), days));
+      break;
+    }
+
+    case "ask": {
+      requireTenant();
+      const question = argv.slice(1).filter((a) => !a.startsWith("--")).join(" ");
+      const days = Number(flag(argv, "days") ?? 30);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) {
+        fail(`--days must be an integer 1..3650, got ${days}`);
+      }
+
+      const range = trailingWindow(days);
+      const briefing = new Briefings(db).build(tenantId, range, days);
+      const rendered = renderBriefing(briefing);
+
+      /*
+       * Inspection first, and without a key configured, because deciding
+       * whether you are comfortable sending this has to be possible before
+       * anything is sent.
+       */
+      if (argv.includes("--show-data")) {
+        console.log(
+          "\nThis is exactly what would be sent, and nothing else. No prompts,\n" +
+            "no answers, no tool arguments. CostGrid does not store any of those.\n",
+        );
+        console.log(rendered);
+        console.log("");
+        break;
+      }
+
+      if (question === "") fail('ask needs a question, e.g. costgrid ask "why did spend go up"');
+
+      const analyst = analystConfig();
+      if (analyst === undefined) {
+        fail(
+          "no analyst key configured. Set COSTGRID_ANALYST_KEY and COSTGRID_ANALYST_MODEL.\n" +
+            "       Run \"costgrid ask --show-data\" first to see exactly what would leave your network.",
+        );
+      }
+
+      let answer;
+      try {
+        answer = await ask(analyst, rendered, question);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
+
+      console.log("");
+      console.log(answer.text);
+      console.log("");
+      if (answer.unverified.length > 0) {
+        // Said out loud rather than trusted: a figure not present in the data
+        // was worked out rather than read off.
+        console.log(
+          `  Note: ${answer.unverified.join(", ")} ${answer.unverified.length === 1 ? "does" : "do"} ` +
+            "not appear in the figures above. Check it before quoting it.",
+        );
+      }
+      console.log(
+        `  Answered by ${answer.model}${answer.demo ? " on CostGrid's trial key" : ""}. ` +
+          "Explains only. It cannot change a rule or a budget.",
+      );
+      console.log("");
       break;
     }
 
