@@ -8,3 +8,4 @@ export * from "./statement.js";
 export * from "./backtest.js";
 export * from "./advise.js";
 export * from "./briefing.js";
+export * from "./autopilot.js";

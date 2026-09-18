@@ -1,5 +1,8 @@
 # The free trial
 
+> Setting up? Read **[ONBOARDING.md](ONBOARDING.md)** instead. This page is
+> about what the trial involves; that one is the instructions.
+
 Thirty days, free, running on your own infrastructure. No card, no sales call.
 
 Stopping is a one-line revert: point your client's base URL back at the
@@ -10,8 +13,8 @@ to remove is a tool you have to be talked into.
 
 CostGrid is a proxy that sits between your software and the LLM provider. It
 forwards each call unchanged, reads the exact token counts out of the response,
-prices them, attributes them to whatever label you attach, and. If you ask it
-to. Refuses or downgrades a call that would blow a budget.
+prices them, attributes them to whatever label you attach, and, if you ask it
+to, refuses or downgrades a call that would blow a budget.
 
 You run it. There is no CostGrid service in the middle, and no account to
 create.

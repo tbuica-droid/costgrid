@@ -15,6 +15,10 @@ and nothing else changes:
 client = Anthropic(base_url="https://costgrid.example.com", api_key="unused")
 ```
 
+**Starting a trial? [docs/ONBOARDING.md](docs/ONBOARDING.md)** is the one to
+read. It takes you from nothing to a real number, assumes nothing, and ends
+with four weeks of what to do next.
+
 **[Try the dashboard](https://costgrid.dev/demo/)** against sample traffic. No
 install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)** takes a clean
 checkout to a real spend report from your own traffic, and

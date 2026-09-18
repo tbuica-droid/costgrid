@@ -18,6 +18,31 @@ import type { Db } from "./database.js";
  * exactly on a boundary. Build trailing windows with `trailingWindow` rather
  * than by hand — see the note there.
  */
+/**
+ * Whether the spending achieved anything, split by how we know.
+ *
+ * Reported and inferred figures never combine. The first is what the customer
+ * told us; the second is what the wire suggests. Presenting them as one number
+ * would be the most damaging kind of convenient lie in a product whose whole
+ * claim is that its figures are exact.
+ */
+export interface OutcomeSummary {
+  /** Runs the customer reported on. The denominator for everything reported. */
+  readonly reportedRuns: number;
+  readonly succeeded: number;
+  readonly failed: number;
+  readonly costOfSuccess: Nanodollars;
+  readonly costOfFailure: Nanodollars;
+  /** Undefined when nothing succeeded, rather than zero. */
+  readonly costPerSuccess: Nanodollars | undefined;
+  /** Declared runs in the window, reported on or not. */
+  readonly totalRuns: number;
+  /** Signals, not failures: a truncated answer may still have been useful. */
+  readonly truncatedRuns: number;
+  readonly erroredRuns: number;
+  readonly runSpend: Nanodollars;
+}
+
 export interface TimeRange {
   readonly from: number;
   readonly to: number;
@@ -804,6 +829,89 @@ export class Analytics {
       // Unpriced traffic is missing from the denominator, which would inflate
       // any rate derived from it. Reported rather than silently absorbed.
       unpriced: Number(metered["unpriced"]) + Number(imported["unpriced"]),
+    };
+  }
+
+  /**
+   * What the money bought, as far as anyone can tell.
+   *
+   * Two halves that are never added together.
+   *
+   * **Reported** comes from the customer's own software calling
+   * `POST /v1/costgrid/outcome`. It is the only real answer, and it exists
+   * only for runs they chose to report on, so `reportedRuns` is always shown
+   * beside it. A 90% success rate over 4 of 900 runs is not a success rate.
+   *
+   * **Inferred** is what can be read off the wire without being told: runs
+   * that hit an output cap, or ended in an error. Those are signals of waste,
+   * not of failure. A truncated answer may still have been useful and a failed
+   * call may have been retried successfully. It is labelled as a signal
+   * everywhere it appears and never presented as a success rate.
+   *
+   * Only declared runs are counted. A run CostGrid invented is one call, and
+   * "did this call succeed" is not the question being asked.
+   */
+  outcomes(tenantId: string, range: TimeRange): OutcomeSummary {
+    const reported = this.#db
+      .prepare(
+        `SELECT COUNT(*)                                                      AS runs,
+                COALESCE(SUM(o.succeeded), 0)                                 AS succeeded,
+                COALESCE(SUM(CASE WHEN o.succeeded = 1 THEN r.cost ELSE 0 END), 0) AS costOfSuccess,
+                COALESCE(SUM(CASE WHEN o.succeeded = 0 THEN r.cost ELSE 0 END), 0) AS costOfFailure
+         FROM outcomes o
+         JOIN (
+           SELECT run_id, tenant_id, SUM(cost_total) AS cost
+           FROM calls
+           WHERE tenant_id = ? AND outcome = 'ok' AND run_declared = 1
+             AND started_at >= ? AND started_at < ?
+           GROUP BY run_id
+         ) r ON r.run_id = o.run_id AND r.tenant_id = o.tenant_id
+         WHERE o.tenant_id = ?`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, range.from, range.to, tenantId) as Record<string, bigint>;
+
+    /*
+     * The inferred half. Counted per run, not per call: one truncated answer
+     * inside a forty-step run is a signal about that run, and counting it
+     * forty times would make a small problem look like a crisis.
+     */
+    const inferred = this.#db
+      .prepare(
+        `SELECT COUNT(*) AS runs,
+                COALESCE(SUM(truncated), 0) AS truncatedRuns,
+                COALESCE(SUM(errored), 0)   AS erroredRuns,
+                COALESCE(SUM(cost), 0)      AS totalCost
+         FROM (
+           SELECT run_id,
+                  MAX(CASE WHEN stop_reason = 'max_tokens' THEN 1 ELSE 0 END) AS truncated,
+                  MAX(CASE WHEN outcome = 'error' THEN 1 ELSE 0 END)          AS errored,
+                  SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END)    AS cost
+           FROM calls
+           WHERE tenant_id = ? AND run_declared = 1
+             AND started_at >= ? AND started_at < ?
+           GROUP BY run_id
+         )`,
+      )
+      .safeIntegers(true)
+      .get(tenantId, range.from, range.to) as Record<string, bigint>;
+
+    const reportedRuns = Number(reported["runs"]);
+    const succeeded = Number(reported["succeeded"]);
+
+    return {
+      reportedRuns,
+      succeeded,
+      failed: reportedRuns - succeeded,
+      costOfSuccess: reported["costOfSuccess"]!,
+      costOfFailure: reported["costOfFailure"]!,
+      // `undefined` rather than a confident zero: no reports means no answer,
+      // which is a different thing from a success rate of nothing.
+      costPerSuccess: succeeded === 0 ? undefined : reported["costOfSuccess"]! / BigInt(succeeded),
+      totalRuns: Number(inferred["runs"]),
+      truncatedRuns: Number(inferred["truncatedRuns"]),
+      erroredRuns: Number(inferred["erroredRuns"]),
+      runSpend: inferred["totalCost"]!,
     };
   }
 

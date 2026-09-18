@@ -576,7 +576,129 @@ It cannot set a budget, change a rule, or block a call. Those stay with the
 engine that gives exact answers, because a model does not. If you want a rule
 changed, `costgrid advise` proposes them and you run the command.
 
-## 15. Bedrock and Vertex
+## 15. Did it actually work?
+
+Everything so far answers "what did this cost". None of it answers "was it
+worth it", and a run that burned $4 and failed is not cheaper than one that
+burned $6 and worked.
+
+CostGrid cannot tell. It sees tokens, not truth. So your software has to say
+so, in one optional call at the end of a run:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/costgrid/outcome \
+  -H "x-costgrid-key: $COSTGRID_KEY" \
+  -H "content-type: application/json" \
+  -d '{"run_id": "order-8841", "success": true, "label": "refund-issued"}'
+```
+
+`run_id` is the same value you sent as `x-costgrid-run` on that run's calls.
+`label` groups outcomes and is capped at 64 characters: it is for grouping, not
+for describing what happened, which would be content.
+
+Report again for the same run and the later answer wins, so a run judged
+successful and later found to have produced nonsense can be corrected.
+
+Once you do this, `costgrid report` gains the figure nothing else can give you:
+
+```
+  Did it work?
+    You reported on    412 of 900 run(s)
+    Worked             377 (91%), costing $84.02
+    Did not            35, costing $11.90
+    Cost per result    $0.22
+```
+
+### The denominator is part of the number
+
+A 91% success rate over 4 of 900 runs is not a success rate. The report always
+shows how many runs the figure covers, and says so out loud when it covers
+under half of them.
+
+### What CostGrid can see on its own, and what that is worth
+
+Without any reporting, it still surfaces two signals:
+
+- runs where a call hit the output cap, so an answer was cut off
+- runs where a call failed
+
+These are printed under a heading that calls them signals, because they are not
+failures. A truncated answer may still have been useful, and a failed call may
+have been retried successfully a second later. They are never counted into a
+success rate and never added to anything you reported.
+
+## 16. Letting it act on its own
+
+Off unless you switch it on. It can never refuse a call or set a budget, at any
+level.
+
+```bash
+npx tsx packages/cli/src/main.ts autopilot status
+npx tsx packages/cli/src/main.ts autopilot monitor
+npx tsx packages/cli/src/main.ts autopilot run
+```
+
+**`monitor`** lets it create rules that change nothing and start measuring.
+This is most of the value: the common failure is not a missing rule, it is
+nobody remembering to turn the measurement on.
+
+**`apply`** lets it additionally switch on a routing rule that has already
+replayed with a saving against your own traffic.
+
+### What it will never do
+
+It only ever creates **routing** rules. Routing serves a cheaper answer, and
+the worst case of a wrong one is a weaker reply that shows up in the next
+report. Everything else either refuses your traffic or commits your
+organisation to a number:
+
+| It proposes | It acts on it |
+|---|---|
+| Route to a cheaper model | Yes, if the replay shows a saving |
+| A spending cap | No. That is a decision about what you are willing to spend |
+| A step cap or depth limit | No. It can refuse a call |
+| A tool boundary | No. It can refuse a call |
+| A change in your own code | No. There is no rule to create |
+
+### The limits you set
+
+```bash
+npx tsx packages/cli/src/main.ts autopilot apply --max-impact 30 --max-actions 2
+```
+
+`--max-impact` caps the share of your spend a single rule may sit in front of,
+so software cannot re-route an entire estate unattended. It applies at `apply`
+only: at `monitor` a rule alters no request, so there is no blast radius to cap.
+
+`--max-actions` caps changes per run, so one bad window cannot rewrite your
+whole policy set.
+
+### Undo
+
+```bash
+npx tsx packages/cli/src/main.ts autopilot undo
+```
+
+Switches off everything it created, in one command. Rules you wrote yourself
+are untouched. The record of what it did is kept rather than deleted, because
+"CostGrid changed something and I cannot tell what" is the fear this feature
+has to answer, and an empty table answers it badly.
+
+### It explains itself, including when it does nothing
+
+Every proposal it passed over is listed with the reason:
+
+```
+  Left alone:
+    Research has no spending cap: autopilot only creates routing rules,
+      and this is a budget rule
+    doc-summariser is paying for answers that get cut off: there is no rule
+      to create; it needs a change in your own code
+```
+
+Silence is indistinguishable from being broken.
+
+## 17. Bedrock and Vertex
 
 Claude through AWS or Google is the same model, reached differently. CostGrid
 proxies both.
@@ -645,7 +767,7 @@ npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 
 That figure comes from your AWS bill, so it absorbs the channel's pricing and
 any committed-use discount in one number.
 
-## 16. If you buy off list
+## 18. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
 agreement. The catalog only knows list prices, so without telling CostGrid
@@ -700,7 +822,7 @@ Traffic CostGrid cannot price is excluded from the comparison and reported as a
 warning, because it would otherwise make the derived discount look deeper than
 it is.
 
-## 17. The monthly statement
+## 19. The monthly statement
 
 The report above is a trailing window. Useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider

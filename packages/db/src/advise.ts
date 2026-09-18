@@ -32,6 +32,7 @@ export type ProposalKind =
   | "route-to-cheaper"
   | "unguarded-spend"
   | "truncation-waste"
+  | "cache-opportunity"
   | "unused-capability"
   | "long-run"
   | "no-run-context";
@@ -97,6 +98,17 @@ const TRUNCATION_RATE_TO_FLAG = 0.05;
  * fires on every busy service is a check nobody reads.
  */
 const LONG_RUN_STEPS = 25;
+/**
+ * A big prompt sent over and over, with nothing being reused.
+ *
+ * Large average input plus almost no cache reads is the shape of a fixed
+ * instruction block or document being re-sent on every call and paid for in
+ * full each time. Cached input bills at a fraction of the normal rate, so this
+ * is usually the cheapest saving on the list to actually implement.
+ */
+const CACHE_MIN_INPUT_TOKENS = 4_000;
+const CACHE_HIT_FLOOR = 0.05;
+
 /** Below this, a fleet has not shown enough traffic for run coverage to mean anything. */
 const MIN_CALLS_FOR_COVERAGE_ADVICE = 200;
 
@@ -132,6 +144,7 @@ export class Advisor {
       ...this.#routeCandidates(tenantId, range),
       ...this.#unguardedSpend(tenantId, range),
       ...this.#truncationWaste(tenantId, range),
+      ...this.#cacheOpportunity(tenantId, range),
       ...this.#unusedCapability(tenantId, range),
       ...this.#longRuns(tenantId, range),
       ...this.#noRunContext(tenantId, range),
@@ -327,6 +340,65 @@ export class Advisor {
         weight: row.wasted,
         // No rule to write: raising max_tokens, or shortening the prompt, is a
         // change in their code. Saying so beats inventing a policy for it.
+        command: undefined,
+      });
+    }
+    return out;
+  }
+
+  // ----------------------------------------------------- cache opportunity
+
+  #cacheOpportunity(tenantId: string, range: TimeRange): Proposal[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT agent_id AS agentId, COUNT(*) AS calls, SUM(cost_total) AS cost,
+                SUM(input_tokens) AS inputTokens, SUM(cache_read_tokens) AS cacheReadTokens
+         FROM calls
+         WHERE tenant_id = ? AND outcome = 'ok' AND priced = 1
+           AND started_at >= ? AND started_at < ?
+         GROUP BY agent_id
+         HAVING calls >= ?`,
+      )
+      .safeIntegers(true)
+      .all(tenantId, range.from, range.to, MIN_CALLS_TO_GENERALISE) as unknown as {
+      agentId: string;
+      calls: bigint;
+      cost: bigint;
+      inputTokens: bigint;
+      cacheReadTokens: bigint;
+    }[];
+
+    const out: Proposal[] = [];
+    for (const row of rows) {
+      if (row.cost < MIN_SPEND_TO_MENTION) continue;
+
+      const meanInput = Number(row.inputTokens) / Number(row.calls);
+      if (meanInput < CACHE_MIN_INPUT_TOKENS) continue;
+
+      const readable = Number(row.inputTokens) + Number(row.cacheReadTokens);
+      const hitRate = readable === 0 ? 0 : Number(row.cacheReadTokens) / readable;
+      if (hitRate > CACHE_HIT_FLOOR) continue;
+
+      out.push({
+        kind: "cache-opportunity",
+        intent: "finding",
+        headline: `${row.agentId} re-sends a large prompt and reuses none of it`,
+        evidence:
+          `${row.calls} call(s) averaging ${Math.round(meanInput).toLocaleString("en-US")} input ` +
+          `tokens, with ${(hitRate * 100).toFixed(0)}% of readable input coming from cache. ` +
+          "If part of that prompt is the same every time, caching it bills the repeated " +
+          "part at a fraction of the normal rate.",
+        rule: undefined,
+        scope: { kind: "agent", agentId: row.agentId },
+        backtest: undefined,
+        /*
+         * Weighted by what is being spent, not by a saving. How much of that
+         * prompt is actually identical is a fact about the customer's code
+         * that CostGrid cannot see, and quoting a saving would be inventing
+         * the one number that matters.
+         */
+        weight: row.cost,
+        // The change is a cache_control marker in their request, not a policy.
         command: undefined,
       });
     }

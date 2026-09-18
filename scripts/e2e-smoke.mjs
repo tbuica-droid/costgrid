@@ -394,6 +394,34 @@ check("says it is on the trial key", /trial key/.test(answered), true);
 check("says it cannot act", /cannot change a rule/.test(answered), true);
 fakeModel.close();
 
+console.log("\n10d. outcomes: did the money buy anything");
+res = await call({ run_id: "smoke-loop", success: true, label: "smoke" }, {}, "/v1/costgrid/outcome");
+check("outcome accepted", res.status, 202);
+await res.text();
+
+res = await call({ success: true }, {}, "/v1/costgrid/outcome");
+check("outcome without a run id is refused", res.status, 400);
+await res.text();
+
+const withOutcome = await cli(["report", "--days", "1"]);
+check("report shows whether it worked", /Did it work\?/.test(withOutcome), true);
+check("report names the denominator", /You reported on/.test(withOutcome), true);
+
+console.log("\n10e. autopilot: bounded, recorded, reversible");
+check("off until switched on", /Autopilot is off/.test(await cli(["autopilot", "status"])), true);
+await cli(["autopilot", "monitor"]);
+const piloted = await cli(["autopilot", "run", "--days", "1"]);
+check("it says what it looked at", /proposal\(s\) at level monitor/.test(piloted), true);
+// The boundary, asserted against live output rather than only in unit tests.
+check(
+  "it refuses anything that could refuse a call",
+  /only creates routing rules|Changed nothing/.test(piloted),
+  true,
+);
+const undone = await cli(["autopilot", "undo"]);
+check("undo is one command", /Switched off|Nothing to undo/.test(undone), true);
+await cli(["autopilot", "off"]);
+
 console.log("\n11. negotiated rate: figures reconcile with an invoice");
 await cli(["rates", "set", "anthropic", "--discount", "18"]);
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });

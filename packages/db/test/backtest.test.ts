@@ -380,6 +380,19 @@ describe("advising from a fleet's own traffic", () => {
     expect(found).toBeUndefined();
   });
 
+  it("spots a big prompt being re-sent with nothing reused", () => {
+    // 40k input per call, no cache reads: the shape of a fixed instruction
+    // block paid for in full every time.
+    for (let i = 0; i < 120; i += 1) record({ at: T0 + i * 60_000 });
+
+    const found = advisor.proposals("t1", window()).find((p) => p.kind === "cache-opportunity");
+    expect(found).toBeDefined();
+    // How much of that prompt is actually identical is a fact about their
+    // code, so no saving is quoted and no rule is proposed.
+    expect(found!.command).toBeUndefined();
+    expect(found!.intent).toBe("finding");
+  });
+
   it("stays quiet about caps once a tenant-wide budget exists", () => {
     for (let i = 0; i < 120; i += 1) record({ at: T0 + i * 60_000 });
     repository.createPolicy("t1", {

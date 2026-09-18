@@ -583,6 +583,42 @@ export class CostGridRepository {
     return rows.map((r) => r.name);
   }
 
+  /**
+   * Record whether a run achieved what it was for.
+   *
+   * The one thing CostGrid cannot observe. It sees tokens, not truth, so this
+   * has to come from the software that did the work. Everything keeps working
+   * without it; what you lose is the only figure that says whether the money
+   * bought anything.
+   *
+   * Upsert rather than insert, because a run can finish, be judged a success,
+   * and later be found to have produced nonsense. The later answer wins.
+   */
+  recordOutcome(input: {
+    tenantId: string;
+    runId: string;
+    succeeded: boolean;
+    label?: string | undefined;
+    at: number;
+  }): void {
+    this.#db
+      .prepare(
+        `INSERT INTO outcomes (tenant_id, run_id, succeeded, label, reported_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(tenant_id, run_id) DO UPDATE SET
+           succeeded = excluded.succeeded,
+           label = excluded.label,
+           reported_at = excluded.reported_at`,
+      )
+      .run(
+        input.tenantId,
+        input.runId,
+        input.succeeded ? 1 : 0,
+        input.label ?? null,
+        input.at,
+      );
+  }
+
   listPolicies(tenantId: string): Policy[] {
     const rows = this.#db
       .prepare(

@@ -779,6 +779,54 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     app.post(adapter.path, proxyHandler(adapter));
   }
 
+  /**
+   * Tell CostGrid whether a run achieved what it was for.
+   *
+   * The one fact it cannot observe. Everything else here is read off the wire;
+   * this has to be reported by the software that did the work, because tokens
+   * do not say whether the answer was any good.
+   *
+   * One optional call, and nothing breaks without it. What you lose by
+   * skipping it is the only figure that says whether the money bought
+   * anything: cost per result that worked.
+   */
+  app.post("/v1/costgrid/outcome", async (request, reply) => {
+    const caller = identify(request, deps, true);
+    if (!caller) return reply.code(401).send({ error: "unauthorized" });
+
+    const body = request.body as Record<string, unknown> | undefined;
+    const runId = typeof body?.["run_id"] === "string" ? body["run_id"].trim() : "";
+    if (runId === "") {
+      return reply.code(400).send({
+        error: "run_id is required: the id you sent as x-costgrid-run on the calls in this run",
+      });
+    }
+    if (typeof body?.["success"] !== "boolean") {
+      return reply.code(400).send({ error: "success must be true or false" });
+    }
+
+    /*
+     * A label groups outcomes; it is not a place to describe what happened.
+     * Capped and stripped so it cannot quietly become a field where a customer
+     * puts content we have promised never to store.
+     */
+    const rawLabel = body["label"];
+    const label =
+      typeof rawLabel === "string" && rawLabel.trim() !== ""
+        ? rawLabel.trim().slice(0, 64)
+        : undefined;
+
+    repository.recordOutcome({
+      tenantId: caller.tenantId,
+      runId,
+      succeeded: body["success"],
+      label,
+      at: Date.now(),
+    });
+
+    return reply.code(202).send({ recorded: true, run_id: runId });
+  });
+
   app.get("/v1/costgrid/summary", async (request, reply) => {
     const caller = identify(request, deps, true);
     if (!caller) return reply.code(401).send({ error: "unauthorized" });

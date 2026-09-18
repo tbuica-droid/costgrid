@@ -142,6 +142,54 @@ export function formatReport(
   // The routing model, now anchored to a measured share rather than an assumed one.
   const routing = analyzeRouting(share);
   out.push("");
+  /*
+   * What the money bought. Reported and inferred are printed apart, under
+   * headings that say which is which, because combining them would turn a
+   * customer's own fact and our guess into one number nobody could unpick.
+   */
+  const outcomes = analytics.outcomes(tenantId, range);
+  if (outcomes.totalRuns > 0) {
+    out.push("");
+    out.push("  Did it work?");
+    if (outcomes.reportedRuns === 0) {
+      out.push("    Nothing reported. CostGrid cannot tell whether a run worked; your");
+      out.push("    software has to say so. One optional call per run:");
+      out.push("      POST /v1/costgrid/outcome  {\"run_id\": \"...\", \"success\": true}");
+      out.push("    Without it there is no cost-per-result figure, only cost.");
+    } else {
+      const rate = (outcomes.succeeded / outcomes.reportedRuns) * 100;
+      out.push(
+        `    You reported on    ${outcomes.reportedRuns} of ${outcomes.totalRuns} run(s)`,
+      );
+      out.push(
+        `    Worked             ${outcomes.succeeded} (${rate.toFixed(0)}%), costing ` +
+          `${money(outcomes.costOfSuccess)}`,
+      );
+      out.push(
+        `    Did not           ${outcomes.failed}, costing ${money(outcomes.costOfFailure)}`,
+      );
+      if (outcomes.costPerSuccess !== undefined) {
+        out.push(`    Cost per result    ${money(outcomes.costPerSuccess)}`);
+      }
+      if (outcomes.reportedRuns < outcomes.totalRuns / 2) {
+        out.push("    Read that rate carefully: it covers under half your runs.");
+      }
+    }
+
+    if (outcomes.truncatedRuns > 0 || outcomes.erroredRuns > 0) {
+      out.push("");
+      out.push("    Signals CostGrid can see on its own, which are not the same as failures:");
+      if (outcomes.truncatedRuns > 0) {
+        out.push(
+          `      ${outcomes.truncatedRuns} run(s) hit an output cap, so an answer was cut off`,
+        );
+      }
+      if (outcomes.erroredRuns > 0) {
+        out.push(`      ${outcomes.erroredRuns} run(s) had a call fail`);
+      }
+    }
+  }
+
   out.push("  Room to move");
   out.push(`    on cheaper models  ${(share * 100).toFixed(1)}% of tokens today`);
   out.push(`    best modelled      ${(routing.optimalShare * 100).toFixed(1)}%`);

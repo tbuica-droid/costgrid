@@ -12,6 +12,7 @@ import {
 import {
   Advisor,
   Analytics,
+  Autopilot,
   backupDatabase,
   Briefings,
   render as renderBriefing,
@@ -35,6 +36,11 @@ Usage:
   costgrid key create <agent-name>        Create an API key (shown once, never again)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
+  costgrid autopilot [status|monitor|apply|off|run|undo]
+                                          Let CostGrid act on its own findings,
+                                          inside limits you set. Off by default.
+                                          It can never refuse a call or set a
+                                          budget. "undo" reverses everything.
   costgrid ask "<question>" [--days N] [--show-data]
                                           Ask about your own spending in plain
                                           English. --show-data prints exactly
@@ -333,6 +339,108 @@ async function main(): Promise<void> {
           "Explains only. It cannot change a rule or a budget.",
       );
       console.log("");
+      break;
+    }
+
+    case "autopilot": {
+      requireTenant();
+      const pilot = new Autopilot(db);
+      const sub = argv[1];
+
+      if (sub === undefined || sub === "status") {
+        const settings = pilot.settings(tenantId);
+        const actions = pilot.actions(tenantId, 10);
+        console.log("");
+        console.log(`  Autopilot is ${settings.level}.`);
+        if (settings.level === "off") {
+          console.log("");
+          console.log("  Nothing is changed on your account unless you switch this on.");
+          console.log("    costgrid autopilot monitor   create rules that measure and change nothing");
+          console.log("    costgrid autopilot apply     also switch on routing that already replayed well");
+          console.log("");
+          console.log("  It can never refuse a call or set a budget, at any level.");
+        } else {
+          console.log(
+            `  At most ${settings.maxActions} change(s) per run, and none covering more than ` +
+              `${settings.maxImpactPct}% of your spend.`,
+          );
+        }
+        if (actions.length > 0) {
+          console.log("");
+          console.log("  What it has done:");
+          for (const a of actions) {
+            const when = new Date(a.actedAt).toISOString().slice(0, 16).replace("T", " ");
+            console.log(`    ${when}  ${a.undoneAt ? "[undone] " : ""}${a.summary}`);
+            console.log(`                    ${a.evidence}`);
+          }
+          console.log("");
+          console.log("  Undo all of it: costgrid autopilot undo");
+        }
+        console.log("");
+        break;
+      }
+
+      if (sub === "off" || sub === "monitor" || sub === "apply") {
+        const impact = flag(argv, "max-impact");
+        const actions = flag(argv, "max-actions");
+        const settings = pilot.configure(tenantId, {
+          level: sub,
+          ...(impact !== undefined ? { maxImpactPct: Number(impact) } : {}),
+          ...(actions !== undefined ? { maxActions: Number(actions) } : {}),
+        });
+        console.log(`Autopilot is now ${settings.level}.`);
+        if (sub === "apply") {
+          console.log(
+            "\n  It may now switch routing rules on by itself, but only ones that\n" +
+              "  already replayed with a saving, and never covering more than\n" +
+              `  ${settings.maxImpactPct}% of your spend. It still cannot refuse a call\n` +
+              "  or set a budget. Undo everything with: costgrid autopilot undo",
+          );
+        }
+        break;
+      }
+
+      if (sub === "undo") {
+        const n = pilot.undoAll(tenantId);
+        console.log(
+          n === 0
+            ? "Nothing to undo."
+            : `Switched off ${n} rule(s) autopilot created. The record of them is kept.`,
+        );
+        break;
+      }
+
+      if (sub === "run") {
+        const days = Number(flag(argv, "days") ?? 30);
+        if (!Number.isInteger(days) || days < 1 || days > 3650) {
+          fail(`--days must be an integer 1..3650, got ${days}`);
+        }
+        const result = pilot.run(tenantId, trailingWindow(days));
+        if (result.level === "off") {
+          fail('autopilot is off. Turn it on with "costgrid autopilot monitor".');
+        }
+
+        console.log("");
+        console.log(`  Looked at ${result.considered} proposal(s) at level ${result.level}.`);
+        if (result.taken.length === 0) {
+          console.log("  Changed nothing.");
+        } else {
+          console.log("");
+          for (const a of result.taken) {
+            console.log(`  ${a.summary}`);
+            console.log(`    ${a.evidence}`);
+          }
+        }
+        if (result.declined.length > 0) {
+          console.log("");
+          console.log("  Left alone:");
+          for (const d of result.declined) console.log(`    ${d.headline}: ${d.because}`);
+        }
+        console.log("");
+        break;
+      }
+
+      fail(`unknown autopilot command ${JSON.stringify(sub)}. Try status, monitor, apply, off, run or undo.`);
       break;
     }
 

@@ -400,6 +400,89 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    version: 9,
+    name: "outcomes",
+    // Did the run actually work?
+    //
+    // Every number in this product until now answers "what did it cost". None
+    // of them answer "was it worth it", and a run that burned $4 and failed is
+    // not cheaper than one that burned $6 and worked. Cost per *useful* result
+    // is the figure a business owner actually wants, and it cannot be derived
+    // from spend alone.
+    //
+    // There is no way to know this from the wire. CostGrid sees tokens, not
+    // truth, so the signal has to be reported by the software that ran the
+    // work. One optional call, and everything keeps working without it.
+    //
+    // `source` is the whole discipline here. A reported outcome is a fact the
+    // customer told us. An inferred one is a guess we made from stop reasons
+    // and error codes. They are never summed together and never shown in the
+    // same column, exactly as realised and dry-run savings are kept apart.
+    sql: `
+      CREATE TABLE outcomes (
+        tenant_id  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        run_id     TEXT NOT NULL,
+        succeeded  INTEGER NOT NULL CHECK (succeeded IN (0, 1)),
+        -- A short label the caller chooses, for grouping: 'refund-issued',
+        -- 'ticket-resolved'. Never free text about what happened, which would
+        -- be content.
+        label      TEXT,
+        reported_at INTEGER NOT NULL,
+        -- One outcome per run. A run that reports twice has changed its mind,
+        -- and the later answer is the one that counts.
+        PRIMARY KEY (tenant_id, run_id)
+      ) STRICT;
+
+      CREATE INDEX idx_outcomes_tenant_time ON outcomes(tenant_id, reported_at);
+    `,
+  },
+  {
+    version: 10,
+    name: "autopilot",
+    // Letting CostGrid act on its own findings, inside limits the customer
+    // sets and can revoke in one command.
+    //
+    // Off unless switched on, and the levels are deliberately not a slider
+    // from "cautious" to "brave". `monitor` may only create rules that change
+    // nothing and start measuring. `apply` may additionally switch on a
+    // routing rule that already backtested positive. Nothing here may ever
+    // refuse a call or set a budget: refusing breaks a customer's product, and
+    // a budget is a decision belonging to whoever answers for the money.
+    //
+    // Every action is written here with the figures that justified it at the
+    // time, so "why is this rule on my account" always has an answer, and so
+    // undo is a table scan rather than an archaeology exercise.
+    sql: `
+      CREATE TABLE autopilot (
+        tenant_id       TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+        level           TEXT NOT NULL CHECK (level IN ('off', 'monitor', 'apply')),
+        -- The most traffic, as a percentage of window spend, that a single
+        -- action may redirect. A ceiling on blast radius, not on saving.
+        max_impact_pct  INTEGER NOT NULL DEFAULT 50 CHECK (max_impact_pct BETWEEN 1 AND 100),
+        -- Actions per run, so one bad window cannot rewrite a whole policy set.
+        max_actions     INTEGER NOT NULL DEFAULT 3 CHECK (max_actions BETWEEN 1 AND 20),
+        updated_at      INTEGER NOT NULL
+      ) STRICT;
+
+      CREATE TABLE autopilot_actions (
+        id            TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        policy_id     TEXT NOT NULL,
+        kind          TEXT NOT NULL,
+        -- What it did and why, in the words the customer would read.
+        summary       TEXT NOT NULL,
+        -- The replay figures at the moment of acting, so a decision can be
+        -- re-examined against what was known then rather than what is known now.
+        evidence      TEXT NOT NULL,
+        level         TEXT NOT NULL,
+        acted_at      INTEGER NOT NULL,
+        undone_at     INTEGER
+      ) STRICT;
+
+      CREATE INDEX idx_autopilot_actions_tenant ON autopilot_actions(tenant_id, acted_at);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
