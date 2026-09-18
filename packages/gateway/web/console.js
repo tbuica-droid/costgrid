@@ -163,7 +163,7 @@ async function renderSettings() {
     .map(
       (p) =>
         `<option value="${escapeHtml(p.id)}" ${p.id === billing.plan.id ? "selected" : ""}>
-           ${escapeHtml(p.name)} — ${money(p.monthlyBaseUsd)}/mo + ${p.spendFeeBps / 100}% of spend
+           ${escapeHtml(p.name)} · ${money(p.monthlyBaseUsd)}/mo + ${p.spendFeeBps / 100}% of spend
          </option>`,
     )
     .join("");
@@ -177,7 +177,7 @@ async function renderSettings() {
 
     <h2 style="margin-top:26px">Provider credentials</h2>
     <p class="section-note">Your own API keys. CostGrid encrypts each one before storing it and
-      presents it only to that provider — it is never returned to this page, and a database dump
+      presents it only to that provider. It is never returned to this page, and a database dump
       does not contain it. A provider with no key here serves no route for your organisation.</p>
     <div class="card scroll-x"><table>
       <thead><tr><th>Provider</th><th>Status</th><th class="num">Key</th></tr></thead>
@@ -188,7 +188,7 @@ async function renderSettings() {
     <p class="section-note">See your last 90 days before routing a single request. Paste an
       <strong>admin</strong> key and CostGrid reads your organisation's usage report straight from
       the provider. The key is used for this one request and <strong>never stored</strong>.</p>
-    <p class="section-note">These are the provider's daily totals, not calls we watched — so
+    <p class="section-note">These are the provider's daily totals, not calls we watched, so
       there is no per-agent breakdown and nothing to enforce against. It is shown separately
       from metered spend for exactly that reason.</p>
     <div class="card">
@@ -246,7 +246,7 @@ async function renderSettings() {
 
     <h2 style="margin-top:26px">Plan and billing</h2>
     <p class="section-note">Two separate numbers: what your AI cost you, and what CostGrid
-      charges for governing it. Billing is invoiced manually in this release — changing the plan
+      charges for governing it. Billing is invoiced manually in this release. Changing the plan
       here records the intent, it does not charge a card.</p>
     <div class="grid cols-4">
       <div class="card">

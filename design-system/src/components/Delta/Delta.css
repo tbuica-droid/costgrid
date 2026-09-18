@@ -1,0 +1,7 @@
+.cg-delta {
+  font-family: var(--cg-font-sans);
+  font-weight: var(--cg-weight-medium);
+  color: var(--cg-ink-soft);
+}
+.cg-delta--over  { color: var(--cg-over); }
+.cg-delta--saved { color: var(--cg-saved); }

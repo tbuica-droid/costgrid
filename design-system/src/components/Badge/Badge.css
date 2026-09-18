@@ -1,0 +1,14 @@
+.cg-badge {
+  display: inline-block;
+  font-family: var(--cg-font-mono);
+  font-size: var(--cg-text-xs);
+  line-height: 1;
+  padding: 0.3em 0.5em;
+  border-radius: var(--cg-radius-sm);
+  border: 1px solid var(--cg-rule);
+  color: var(--cg-ink-soft);
+  background: var(--cg-surface);
+  white-space: nowrap;
+}
+.cg-badge--over  { color: var(--cg-over);  border-color: var(--cg-over);  background: var(--cg-over-wash); }
+.cg-badge--saved { color: var(--cg-saved); border-color: var(--cg-saved); background: var(--cg-saved-wash); }

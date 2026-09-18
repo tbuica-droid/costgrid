@@ -1,0 +1,32 @@
+.cg-field { display: flex; flex-direction: column; gap: var(--cg-space-2); margin-bottom: var(--cg-space-4); }
+
+.cg-field__label {
+  font-size: var(--cg-text-xs);
+  font-weight: var(--cg-weight-medium);
+  letter-spacing: var(--cg-tracking-label);
+  text-transform: uppercase;
+  color: var(--cg-ink-faint);
+}
+.cg-field__hint { font-size: var(--cg-text-xs); color: var(--cg-ink-faint); }
+
+.cg-input, .cg-select, .cg-textarea {
+  width: 100%;
+  font-family: var(--cg-font-sans);
+  /* 16px minimum: anything smaller makes iOS Safari zoom on focus. */
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--cg-ink);
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-rule);
+  border-radius: var(--cg-radius-sm);
+  padding: 0.7rem 0.75rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.cg-textarea { min-height: 6rem; resize: vertical; }
+.cg-input:focus, .cg-select:focus, .cg-textarea:focus {
+  outline: none;
+  border-color: var(--cg-ink);
+  box-shadow: inset 0 0 0 1px var(--cg-ink);
+}
+.cg-input:invalid:not(:placeholder-shown) { border-color: var(--cg-over); }

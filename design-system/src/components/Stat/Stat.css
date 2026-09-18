@@ -1,0 +1,32 @@
+.cg-stat { display: flex; flex-direction: column; gap: var(--cg-space-2); }
+
+.cg-stat__label {
+  font-size: var(--cg-text-xs);
+  font-weight: var(--cg-weight-medium);
+  letter-spacing: var(--cg-tracking-label);
+  text-transform: uppercase;
+  color: var(--cg-ink-faint);
+  line-height: 1;
+}
+
+/* The figure is set in the display serif. This is the one place the serif
+ * earns its keep: a large lining numeral in a text serif reads as a printed
+ * account rather than as a dashboard widget. */
+.cg-stat__value {
+  font-family: var(--cg-font-display);
+  font-weight: var(--cg-weight-regular);
+  line-height: 1;
+  letter-spacing: var(--cg-tracking-tight);
+  color: var(--cg-ink);
+}
+.cg-stat--md .cg-stat__value { font-size: var(--cg-text-2xl); }
+.cg-stat--lg .cg-stat__value { font-size: var(--cg-text-3xl); }
+
+.cg-stat__value--over  { color: var(--cg-over); }
+.cg-stat__value--saved { color: var(--cg-saved); }
+
+.cg-stat__note {
+  font-size: var(--cg-text-sm);
+  line-height: var(--cg-leading-snug);
+  color: var(--cg-ink-soft);
+}

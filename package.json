@@ -17,7 +17,9 @@
     "typecheck": "tsc --build --force",
     "gateway": "node --import tsx packages/gateway/src/main.ts",
     "gateway:dev": "node --import tsx --watch packages/gateway/src/main.ts",
-    "verify-pricing": "npm run build --silent && node scripts/verify-pricing.mjs"
+    "verify-pricing": "npm run build --silent && node scripts/verify-pricing.mjs",
+    "sync-design-tokens": "node scripts/sync-design-tokens.mjs",
+    "check-design-tokens": "node scripts/sync-design-tokens.mjs --check"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",

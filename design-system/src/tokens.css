@@ -1,0 +1,140 @@
+/*
+ * CostGrid design tokens.
+ *
+ * One rule decides most of what follows: **colour is never decorative.** It
+ * appears only on money that moved the wrong way, or money that was saved.
+ * Everything else is ink on paper. That is why this does not look like the
+ * other tools in the category, all of which pick a brand accent and then paint
+ * buttons, links, icons and borders with it until the accent means nothing.
+ *
+ * Here, a red number is a fact about the customer's bill. If you find yourself
+ * reaching for a colour to make something look nicer, the answer is weight,
+ * size or space instead.
+ *
+ * The second decision is figures. This product exists to show numbers, so
+ * numbers get the good typography: tabular, lining, aligned on the decimal.
+ * A column of costs that jitters as digits change is a column nobody trusts.
+ */
+
+:root {
+  /* --- Ink and paper -----------------------------------------------------
+   * Real greys, not black at reduced opacity. Opacity greys go muddy over a
+   * tinted ground and shift when you layer two of them.
+   */
+  --cg-ink:            #16130f;
+  --cg-ink-soft:       #4a443c;
+  --cg-ink-faint:      #8a8175;
+  --cg-paper:          #faf8f4;
+  --cg-surface:        #ffffff;
+  --cg-surface-sunk:   #f2efe8;
+
+  /* --- Rules -------------------------------------------------------------
+   * Three weights, each with a job, borrowed from how a ledger is set:
+   * hairline separates rows, rule closes a group, total sits under a sum.
+   * Using one hairline for all three is what makes a page read as a grid of
+   * equally important boxes.
+   */
+  --cg-rule-hair:      #e8e3d9;
+  --cg-rule:           #d5cec1;
+  --cg-rule-total:     var(--cg-ink);
+
+  /* --- Signals -----------------------------------------------------------
+   * The only colours in the system. `over` is spend going the wrong way:
+   * over budget, blocked, failed, rising. `saved` is money kept.
+   */
+  --cg-over:           #a63a22;
+  --cg-over-wash:      #f7ece8;
+  --cg-saved:          #2e6b4f;
+  --cg-saved-wash:     #e9f1ec;
+
+  /* --- Focus -------------------------------------------------------------
+   * Deliberately not a signal colour: a focus ring is not a fact about money.
+   */
+  --cg-focus:          #16130f;
+
+  /* --- Type --------------------------------------------------------------
+   * Serif for display, sans for reading, mono only for things you would copy:
+   * code, ids, model names. The fallbacks matter as much as the webfonts.
+   * CostGrid's dashboard ships inside customer networks that cannot reach a
+   * font CDN, so every stack has to hold up unloaded.
+   */
+  --cg-font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --cg-font-sans:    "Instrument Sans", -apple-system, BlinkMacSystemFont,
+                     "Segoe UI", Helvetica, Arial, sans-serif;
+  --cg-font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+                     Consolas, monospace;
+
+  /* A modest scale. Sixteen sizes is not a scale, it is an accident. */
+  --cg-text-xs:   0.75rem;    /* 12 */
+  --cg-text-sm:   0.875rem;   /* 14 */
+  --cg-text-base: 1rem;       /* 16 */
+  --cg-text-lg:   1.125rem;   /* 18 */
+  --cg-text-xl:   1.375rem;   /* 22 */
+  --cg-text-2xl:  1.75rem;    /* 28 */
+  --cg-text-3xl:  2.5rem;     /* 40 */
+  --cg-text-4xl:  clamp(2.5rem, 5vw, 4rem);
+
+  --cg-weight-regular: 400;
+  --cg-weight-medium:  500;
+  --cg-weight-bold:    600;
+
+  --cg-leading-tight:  1.1;
+  --cg-leading-snug:   1.35;
+  --cg-leading-normal: 1.6;
+
+  --cg-tracking-tight: -0.02em;
+  --cg-tracking-label: 0.08em;
+
+  /* --- Space: 4px base --------------------------------------------------- */
+  --cg-space-1:  0.25rem;
+  --cg-space-2:  0.5rem;
+  --cg-space-3:  0.75rem;
+  --cg-space-4:  1rem;
+  --cg-space-5:  1.5rem;
+  --cg-space-6:  2rem;
+  --cg-space-7:  3rem;
+  --cg-space-8:  4rem;
+  --cg-space-9:  6rem;
+
+  /* --- Radius ------------------------------------------------------------
+   * Nearly square. A financial instrument does not have pill buttons.
+   */
+  --cg-radius-sm: 2px;
+  --cg-radius-md: 3px;
+
+  /* --- Elevation ---------------------------------------------------------
+   * One shadow, used rarely. Depth is not how this system separates things;
+   * rules and space are.
+   */
+  --cg-shadow: 0 1px 2px rgba(22, 19, 15, 0.06), 0 8px 24px rgba(22, 19, 15, 0.05);
+}
+
+/*
+ * The root class. Put it on any container of your own so type, colour and
+ * figure settings are inherited by everything inside.
+ */
+.cg-root {
+  font-family: var(--cg-font-sans);
+  color: var(--cg-ink);
+  font-size: var(--cg-text-base);
+  line-height: var(--cg-leading-normal);
+  box-sizing: border-box;
+  /* Lining, tabular figures everywhere by default. This is a product about
+   * numbers; proportional digits make a column of costs wobble. */
+  font-variant-numeric: lining-nums tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+.cg-root *,
+.cg-root *::before,
+.cg-root *::after { box-sizing: inherit; }
+
+/* Anything that is a number gets the treatment, wherever it appears. */
+.cg-num {
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+.cg-root :focus-visible {
+  outline: 2px solid var(--cg-focus);
+  outline-offset: 2px;
+}

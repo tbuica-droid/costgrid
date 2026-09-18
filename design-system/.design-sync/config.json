@@ -1,0 +1,13 @@
+{
+  "shape": "package",
+  "pkg": "@costgrid/ui",
+  "buildCmd": "npm run build",
+  "cssEntry": "./dist/index.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "SectionHeader": { "cardMode": "column" },
+    "DataTable": { "cardMode": "column" },
+    "Callout": { "cardMode": "column" },
+    "Meter": { "cardMode": "column" }
+  }
+}

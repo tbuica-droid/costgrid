@@ -1,0 +1,7 @@
+.cg-meter { display: flex; flex-direction: column; gap: var(--cg-space-2); }
+.cg-meter__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--cg-space-4); }
+.cg-meter__label { font-size: var(--cg-text-sm); color: var(--cg-ink); }
+.cg-meter__detail { font-size: var(--cg-text-sm); color: var(--cg-ink-faint); }
+.cg-meter__track { height: 6px; background: var(--cg-surface-sunk); border-radius: 1px; overflow: hidden; }
+.cg-meter__fill { height: 100%; background: var(--cg-ink); }
+.cg-meter__fill--over { background: var(--cg-over); }
