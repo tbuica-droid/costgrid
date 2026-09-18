@@ -45,7 +45,7 @@ function renderBacktest(backtest: BacktestResult, intent: ProposalIntent, out: s
      */
     out.push(
       intent === "guardrail"
-        ? "    Replayed: would not have fired once over this window — it sits above" +
+        ? "    Replayed: would not have fired once over this window. It sits above" +
             "\n    everything you actually did, which is how a guardrail should be set."
         : "    Replayed over this window: would never have fired.",
     );
@@ -74,7 +74,7 @@ export function formatProposals(proposals: readonly Proposal[], days: number): s
   const out: string[] = [];
   out.push("");
   out.push(RULE);
-  out.push(`  COSTGRID ADVISE — last ${days} day(s)`);
+  out.push(`  COSTGRID ADVISE · last ${days} day(s)`);
   out.push(RULE);
 
   if (proposals.length === 0) {
@@ -92,13 +92,13 @@ export function formatProposals(proposals: readonly Proposal[], days: number): s
   out.push("");
   out.push(`  ${proposals.length} proposal(s).`);
   out.push("");
-  out.push("  CostGrid proposes. It does not apply anything — every line below is a");
+  out.push("  CostGrid proposes. It does not apply anything. Every line below is a");
   out.push("  command for you to run, or not.");
 
   const headings: Record<ProposalIntent, string> = {
-    saving: "SAVES MONEY NOW — ranked by what the replay says it would have saved",
-    guardrail: "BOUNDS A RISK — saves nothing today; ranked by what is exposed",
-    finding: "WORTH KNOWING — nothing to install",
+    saving: "SAVES MONEY NOW: ranked by what the replay says it would have saved",
+    guardrail: "BOUNDS A RISK: saves nothing today, ranked by what is exposed",
+    finding: "WORTH KNOWING: nothing to install",
   };
 
   let current: ProposalIntent | undefined;
@@ -119,7 +119,7 @@ export function formatProposals(proposals: readonly Proposal[], days: number): s
 
     out.push("");
     if (proposal.command === undefined) {
-      out.push("    No rule to write — this one is a change in your own code.");
+      out.push("    No rule to write. This one is a change in your own code.");
     } else {
       out.push(`    ${proposal.command}`);
     }

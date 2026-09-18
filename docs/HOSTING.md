@@ -4,7 +4,7 @@ CostGrid has two modes. Self-hosted is one organisation running it for
 themselves, with the operator's provider keys in environment variables. Hosted
 is a service other people sign up for, bringing their own keys.
 
-The distinction is one flag, but it changes the trust model completely — in
+The distinction is one flag, but it changes the trust model completely. In
 hosted mode you hold other companies' provider credentials, which spend their
 money.
 
@@ -39,14 +39,13 @@ openssl rand -base64 48
 
 It decrypts every tenant's provider credentials. Three consequences:
 
-- **Losing it makes every stored credential unrecoverable.** Tenants would
-  have to re-enter their keys. The gateway detects this and says so rather
-  than sending garbage upstream.
-- **Leaking it, together with a database dump, exposes every tenant's provider
-  key.** Either alone is not enough — that is the point of holding it outside
-  the database.
-- **Changing it does not re-encrypt anything.** There is no key-rotation path
-  in this release; rotating means asking every tenant to re-enter their key.
+-  - **Losing it makes every stored credential unrecoverable.** Tenants would
+  have to re-enter their keys. The gateway detects this and says so rather than
+  sending garbage upstream. - **Leaking it, together with a database dump,
+  exposes every tenant's provider key.** Either alone is not enough. That is
+  the point of holding it outside the database. - **Changing it does not
+  re-encrypt anything.** There is no key-rotation path in this release;
+  rotating means asking every tenant to re-enter their key.
 
 Keep it in a secrets manager, not in the image, not in the repo, not in a
 shell command that lands in history.
@@ -67,31 +66,31 @@ docker run -d --name costgrid \
 The image runs as a non-root user, carries no compiler or test framework, and
 has a healthcheck on `/health`.
 
-> Not verified on this machine — Docker was not installed where this was
-> written, so the image has never been built. The compiled entrypoint it runs
-> (`packages/gateway/dist/main.js`) was started directly and serves `/health`
-> and `/console` correctly. Build it once before trusting it.
+> Not verified on this machine. Docker was not installed where this was >
+written, so the image has never been built. The compiled entrypoint it runs >
+(`packages/gateway/dist/main.js`) was started directly and serves `/health` >
+and `/console` correctly. Build it once before trusting it.
 
 **Terminate TLS in front of it.** Session cookies are `Secure` in hosted mode,
-so plain http will not keep anyone signed in — which is the correct failure.
+so plain http will not keep anyone signed in. Which is the correct failure.
 Provider keys and API keys cross this connection.
 
 ## Onboarding a customer
 
 The fastest path to showing value, and the one to use in a sales call:
 
-1. They sign up at `/console`.
-2. **Import** — they paste a provider *admin* key and CostGrid pulls their last
-   90 days from the provider's usage report. Their own numbers are on screen in
-   under a minute, before anything is integrated.
-3. They add a provider API key and point one service at the gateway.
-4. Metered spend, per-agent attribution and enforcement start from there.
+1.  1. They sign up at `/console`. 2. **Import**. They paste a provider *admin*
+   key and CostGrid pulls their last 90 days from the provider's usage report.
+   Their own numbers are on screen in under a minute, before anything is
+   integrated. 3. They add a provider API key and point one service at the
+   gateway. 4. Metered spend, per-agent attribution and enforcement start from
+   there.
 
 Step 2 matters because without it a prospect's first experience is an empty
 dashboard, which cannot be demoed and cannot be sold from.
 
-**The admin key is not stored.** It is used for that one request and dropped —
-worth saying out loud, because "can read our whole organisation's usage" is
+**The admin key is not stored.** It is used for that one request and dropped.
+Worth saying out loud, because "can read our whole organisation's usage" is
 exactly the permission a security reviewer will stop on.
 
 Imported history is shown in its own labelled section and never merged into
@@ -107,8 +106,8 @@ docker exec costgrid node packages/cli/dist/main.js backup /data/backup.db
 ```
 
 Use this rather than copying the file. WAL mode keeps recent commits in a
-sidecar until checkpoint, so `cp` silently loses the newest calls — the ones
-a customer is most likely to be asking about.
+sidecar until checkpoint, so `cp` silently loses the newest calls. The ones a
+customer is most likely to be asking about.
 
 A backup contains encrypted credentials, not plaintext, but it is still
 customer data. Treat it accordingly.
@@ -130,8 +129,8 @@ Expired sessions are swept hourly by the process itself. Nothing to do.
 ## What is deliberately not built
 
 **No payment processor.** Changing a plan records the intent; nobody's card is
-charged. `GET /console/:tenant/billing` returns the invoice basis — base fee,
-usage fee, metered spend, call count — and an operator collects. Charging money
+charged. `GET /console/:tenant/billing` returns the invoice basis. Base fee,
+usage fee, metered spend, call count. And an operator collects. Charging money
 automatically is a real-world action that belongs behind an explicit,
 deliberate integration.
 

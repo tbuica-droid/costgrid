@@ -1,4 +1,4 @@
-# Quickstart — metering your own LLM usage
+# Quickstart: metering your own LLM usage
 
 > This is the **self-hosted** path: one organisation, your own provider keys in
 > environment variables. To run CostGrid as a service other people sign up for,
@@ -28,7 +28,7 @@ cp .env.example .env && printf 'Anthropic API key (input hidden): ' && read -rs 
 ```
 
 Prefer an editor? `cp .env.example .env` then open `.env` and paste the key
-after `ANTHROPIC_API_KEY=`. That is equally safe — the danger is only the
+after `ANTHROPIC_API_KEY=`. That is equally safe. The danger is only the
 command line.
 
 **OpenAI too?** Add `OPENAI_API_KEY=` on its own line the same way. Each
@@ -40,14 +40,14 @@ provider gets its own route, and a provider with no key serves none:
 | OpenAI | `POST /v1/chat/completions` |
 
 Spend from both lands in one tenant view, and a budget policy applies across
-them — a cap blown on OpenAI blocks the next Anthropic call.
+them. A cap blown on OpenAI blocks the next Anthropic call.
 
 The gateway holds this credential so the services calling through it never
 need it. That indirection is the point: a compromised caller can be cut off in
 CostGrid without rotating your provider key.
 
 `.env` is gitignored, along with anything else starting `.env` except the
-example — including a file accidentally *named* after a key.
+example. Including a file accidentally *named* after a key.
 
 ## 3. Create the local tenant
 
@@ -56,7 +56,7 @@ npx tsx packages/cli/src/main.ts init
 ```
 
 This prints an API key once. With `COSTGRID_ALLOW_ANONYMOUS=true` you do not
-need it yet, but store it now — it is not recoverable.
+need it yet, but store it now. It is not recoverable.
 
 ## 4. Start the gateway
 
@@ -68,8 +68,8 @@ It listens on `http://127.0.0.1:8787`.
 
 ## 5. Send traffic through it
 
-Any Anthropic SDK works — point its base URL at the gateway and CostGrid
-meters everything that flows through.
+Any Anthropic SDK works. Point its base URL at the gateway and CostGrid meters
+everything that flows through.
 
 ```bash
 curl http://127.0.0.1:8787/v1/messages \
@@ -100,7 +100,7 @@ client = OpenAI(base_url="http://127.0.0.1:8787/v1", api_key="unused")
 ```
 
 The SDK still needs an `api_key` argument, but the gateway ignores it and
-substitutes its own — so a placeholder is correct here, not a shortcut.
+substitutes its own. So a placeholder is correct here, not a shortcut.
 
 ### Attribution headers
 
@@ -122,8 +122,8 @@ breakdowns), Statement (a calendar month, with CSV export), Agents (one row per
 cost line), Routing (your measured substitution share against the modelled
 optimum), Policies (rules and the enforcement feed), and Pricing (the catalog).
 
-Everything on it is read from metered calls. There is no sample data — an
-empty database shows you an empty state, not a plausible chart.
+Everything on it is read from metered calls. There is no sample data. An empty
+database shows you an empty state, not a plausible chart.
 
 ## 7. Read the report
 
@@ -173,25 +173,25 @@ npx tsx packages/cli/src/main.ts policy budget dept:Engineering 500.00 \
   --fallback claude-haiku-4-5 --action block
 ```
 
-Under $500 nothing changes. Over it, calls keep returning 200 — answered by
+Under $500 nothing changes. Over it, calls keep returning 200. Answered by
 Haiku, carrying `x-costgrid-fallback: claude-opus-5->claude-haiku-4-5` so the
 caller can tell, and recorded as a violation so the feed says why the model
 changed.
 
-The downgrade has to be safe by the same three rules as routing: same
-provider, priceable, not a no-op. When it cannot be made — most often because
-the traffic is *already* on the fallback model and there is nothing cheaper
-left to give — the rule's own action applies again. So:
+The downgrade has to be safe by the same three rules as routing: same provider,
+priceable, not a no-op. When it cannot be made. Most often because the traffic
+is *already* on the fallback model and there is nothing cheaper left to give.
+The rule's own action applies again. So:
 
 | Action | Over budget, downgrade possible | Over budget, no downgrade left |
 |---|---|---|
-| `block` | Answers on the cheap model | **403** — the cap is still a cap |
+| `block` | Answers on the cheap model | **403**, the cap is still a cap |
 | `warn` | Answers on the cheap model | Answers, with a warning header |
 | `monitor` | Dry run: records what it would have saved | Records only |
 
-Pick `block` for a true ceiling with a soft landing, and `warn` for a rule
-that will never refuse a call under any circumstance — accepting that spend
-then keeps accruing, just at the cheaper model's rate.
+Pick `block` for a true ceiling with a soft landing, and `warn` for a rule that
+will never refuse a call under any circumstance. Accepting that spend then
+keeps accruing, just at the cheaper model's rate.
 
 A budget fallback outranks any standing `route` rule: it is the emergency
 measure. A separate `block` rule still wins over both, because a refused call
@@ -264,11 +264,11 @@ npx tsx packages/cli/src/main.ts policy run-depth tenant 2 --action block
 
 **The one thing to know before relying on any of this: run rules only apply to
 calls that carry `x-costgrid-run`.** A call without it is metered as a run of
-one, which no run rule can ever fire on. This is deliberate — the alternative is
-guessing which calls belong together and refusing traffic on a guess — but it
-means a rule can look enabled while covering nothing. `costgrid runs` prints how
-much of your traffic carries a run id, and says so plainly when the answer is
-none.
+one, which no run rule can ever fire on. This is deliberate. The alternative is
+guessing which calls belong together and refusing traffic on a guess. But it
+means a rule can look enabled while covering nothing. `costgrid runs` prints
+how much of your traffic carries a run id, and says so plainly when the answer
+is none.
 
 Read them back:
 
@@ -291,7 +291,7 @@ npx tsx packages/cli/src/main.ts run <run-id>      # every call, in order
 ## 11. The topology
 
 With runs flowing, CostGrid reads the shape of your fleet out of the traffic
-itself — no config file, no diagram to keep current:
+itself. No config file, no diagram to keep current:
 
 - **agent → model**, from metered calls
 - **agent → tool**, from the `tool_use` blocks in responses and the `tools` your
@@ -299,7 +299,7 @@ itself — no config file, no diagram to keep current:
 - **agent → agent**, from `x-costgrid-parent-run`
 
 The **Topology** tab draws it. Click an agent and it reports what that agent
-reaches *directly* and what it reaches *through a delegation* — the second being
+reaches *directly* and what it reaches *through a delegation*. The second being
 the thing a flat policy cannot express and a reachability question has to
 answer.
 
@@ -309,7 +309,7 @@ still reachable, and still the thing a policy has to account for.
 
 Delegation loops are reported rather than judged. An agent that transitively
 delegates back to itself is either designed recursion or a runaway, and nothing
-here can tell which — a `run-depth` policy bounds it either way.
+here can tell which. A `run-depth` policy bounds it either way.
 
 ### What is stored
 
@@ -333,7 +333,7 @@ Every rule so far governs money. This one governs an action.
 npx tsx packages/cli/src/main.ts policy deny-tool agent:support refund_customer
 ```
 
-`support` may no longer be given that tool — and neither may any agent `support`
+`support` may no longer be given that tool. And neither may any agent `support`
 hands work to. A delegate is how an agent would otherwise walk straight around
 the rule, so transitive is the default; `--direct-only` turns it off and has to
 be typed on purpose.
@@ -357,7 +357,7 @@ do, not everything your software can do.
 
 The transitive half needs `x-costgrid-parent-run` propagated. Without it the
 delegation chain is invisible and only the direct rule can fire. Creating the
-rule prints your run coverage for the last 30 days for exactly this reason — a
+rule prints your run coverage for the last 30 days for exactly this reason. A
 boundary that cannot see the chain should not be assumed to be holding it.
 
 ### The allowlist form
@@ -383,7 +383,7 @@ rule here.
 
 The rule above works because a model cannot call a tool it was never given.
 That covers the tool list you send. It does not cover a model *inventing* a
-tool name it was never offered — which is rare, and does happen, and a harness
+tool name it was never offered. Which is rare, and does happen, and a harness
 that dispatches by name can find it.
 
 So the same rule is checked again on the way back, against the tool calls the
@@ -404,7 +404,7 @@ arguments afterwards. CostGrid cuts at the name, so:
 
 A tool call with no arguments is not executable, and no harness should try. But
 "should" is doing real work in that sentence. **Where the guarantee has to be
-absolute, do not stream that traffic** — a buffered response is checked in full
+absolute, do not stream that traffic**. A buffered response is checked in full
 before a byte of it moves.
 
 Under a tool rule, streamed chunks are decoded before being forwarded rather
@@ -414,7 +414,7 @@ rule actually reaches.
 
 ### These calls cost money, and are recorded as such
 
-A request-side block costs nothing — the call was never made. A response-side
+A request-side block costs nothing. The call was never made. A response-side
 block is different: the provider ran it and will invoice you for it. Those rows
 are recorded as normal spend, so your budgets and your monthly statement
 reconcile with the bill. What CostGrid did is in the violation feed and in the
@@ -446,10 +446,10 @@ turn it on. It proposes. It never applies. Every line it prints is a command
 for you to run, or not.
 
 ```
-  SAVES MONEY NOW — ranked by what the replay says it would have saved
+  SAVES MONEY NOW: ranked by what the replay says it would have saved
 
   1. ticket-classifier could run claude-opus-5 work on claude-haiku-4-5
-     900 call(s) averaging 90 output tokens — short answers, on one of
+     900 call(s) averaging 90 output tokens. Short answers, on one of
      the most expensive models you run.
 
     Replayed: 900 of 900 call(s), would have saved about $23.22
@@ -470,7 +470,7 @@ route rule, and saves none of it.
 
 So they are separate, and the same replay result means opposite things in each.
 A route rule that would never have fired has nothing to do. A cap that would
-never have fired is *correctly sized* — it sits above everything you actually
+never have fired is *correctly sized*. It sits above everything you actually
 did, which is exactly where a cap belongs.
 
 ### What the numbers mean, precisely
@@ -481,7 +481,7 @@ did, which is exactly where a cap belongs.
 | `avoided` | The call would not have happened at all | **Not a saving.** Spend that would not have occurred, assuming nothing retried |
 
 That second row is the one to read twice. A blocking rule replayed over history
-says "these calls would have been refused" — and refused calls do not vanish
+says "these calls would have been refused". And refused calls do not vanish
 quietly. The software that made them would have errored, retried, or degraded.
 It is spend prevented, not money saved, and a cap with `--fallback` is usually
 what a team actually wants instead.
@@ -490,14 +490,14 @@ what a team actually wants instead.
 
 Tool boundaries and depth limits are not backtested, and the output says so
 rather than printing a confident zero. A tool rule fires on the tool list in a
-*request*, and requests are not stored — only the names, aggregated. Run one in
+*request*, and requests are not stored. Only the names, aggregated. Run one in
 `--action monitor` for a week instead; that is a measurement rather than a
 replay.
 
 ### What it will not propose
 
 A rule that could not fire. An agent sending no `x-costgrid-run` header cannot
-be protected by a step cap, so none is offered — the output says the header is
+be protected by a step cap, so none is offered. The output says the header is
 the missing piece. This is the same rule the rest of the product follows: a
 control that cannot bite must not look like protection.
 
@@ -560,7 +560,7 @@ npx tsx packages/cli/src/main.ts preflight vertex
 ```
 
 One real call, naming the exact stage that fails. If `usage` or `route` fails,
-that is a bug here rather than in your setup — the output is written to be
+that is a bug here rather than in your setup. The output is written to be
 pasted straight into an issue.
 
 ### Pricing on these channels
@@ -569,8 +569,8 @@ pasted straight into an issue.
 not carry them.** Traffic is priced at the direct-API list rate for the same
 model, which is close but not exact.
 
-Make it exact the same way an enterprise discount is made exact — derive it
-from the bill:
+Make it exact the same way an enterprise discount is made exact. Derive it from
+the bill:
 
 ```bash
 npx tsx packages/cli/src/main.ts rates derive bedrock --invoiced 1840.00 --days 30
@@ -582,7 +582,7 @@ any committed-use discount in one number.
 ## 15. If you buy off list
 
 Most enterprises do. A committed-spend discount, a partner rate, a negotiated
-agreement — the catalog only knows list prices, so without telling CostGrid
+agreement. The catalog only knows list prices, so without telling CostGrid
 about it, every figure here reads high and nothing reconciles with your
 invoice. That is the worst possible discrepancy for a tool that sells cost
 truth, so fix it first.
@@ -593,7 +593,7 @@ truth, so fix it first.
 npx tsx packages/cli/src/main.ts rates set anthropic --discount 18
 ```
 
-**If you would rather derive it from what you were actually billed** — which is
+**If you would rather derive it from what you were actually billed**. Which is
 better, because it captures whatever your agreement really does rather than
 what you think it does:
 
@@ -604,7 +604,7 @@ npx tsx packages/cli/src/main.ts rates derive anthropic --invoiced 164.00 --days
 
 ```text
 Derived 18.00% off list for anthropic: $164.00 invoiced against $200.00 at
-catalog prices, over 30 day(s) — 200 metered call(s) and 0 imported row(s).
+catalog prices, over 30 day(s): 200 metered call(s) and 0 imported row(s).
 ```
 
 Pair it with `costgrid import` and the comparison spans your whole
@@ -636,7 +636,7 @@ it is.
 
 ## 16. The monthly statement
 
-The report above is a trailing window — useful for watching, wrong for
+The report above is a trailing window. Useful for watching, wrong for
 reconciling. Finance works in calendar months, because that is how the provider
 invoices, so the statement is its own command:
 
@@ -652,7 +652,7 @@ department, agent and model with each line's share and movement, budget status
 many days went over), and what auto-routing actually saved.
 
 While the month is still running it says so, and projects a month-end figure
-from the run rate — labelled a projection, never mixed into the total.
+from the run rate. Labelled a projection, never mixed into the total.
 
 `--format csv` is the spreadsheet finance will actually open: two tables, spend
 line items and budget status. Costs carry six decimals rather than two, because
@@ -666,7 +666,7 @@ picker and a *Download CSV* button, served from `/api/statement` and
 Anything the numbers do not cover is stated on the statement rather than left
 out: unpriced calls, calls refused by policy (which cost nothing, and whose
 counterfactual cost is genuinely unmeasurable because they never ran), upstream
-failures, and imported provider history — which is reported beside the totals,
+failures, and imported provider history. Which is reported beside the totals,
 never added to them, because those rows have no team attribution.
 
 ## Keeping prices honest
@@ -676,9 +676,9 @@ npm run verify-pricing
 ```
 
 Fetches each provider's published pricing table and diffs every rate in the
-catalog — 53 models across Anthropic and OpenAI. Exit 0 means accurate and
+catalog. 53 models across Anthropic and OpenAI. Exit 0 means accurate and
 fresh; 1 means a discrepancy or a stale verification date; 2 means a page could
-not be fetched or parsed — which is *inconclusive*, not a pass.
+not be fetched or parsed. Which is *inconclusive*, not a pass.
 
 If a rate has changed, update `packages/core/src/pricing.ts` and bump that
 provider's `verifiedAt` in `CATALOG_PROVENANCE`. Past 45 days the gateway warns at startup and both the
@@ -691,7 +691,7 @@ npx tsx packages/cli/src/main.ts backup ./costgrid-backup.db
 ```
 
 Use this rather than `cp`. The database runs in WAL mode, so recent calls live
-in a `-wal` sidecar until checkpointed — a plain file copy silently loses them.
+in a `-wal` sidecar until checkpointed. A plain file copy silently loses them.
 
 ## Routing Claude Code through it
 
@@ -703,7 +703,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8787 claude
 ```
 
 Two caveats. Claude Code authenticates with an OAuth profile by default, and
-the gateway swaps in the API key from its own `.env` — so this bills your API
+the gateway swaps in the API key from its own `.env`. So this bills your API
 account rather than your Claude subscription. And with a `block` policy active,
 a mid-session block surfaces as an API error inside Claude Code. Use `monitor`
 first.
@@ -712,7 +712,7 @@ first.
 
 OpenAI omits token usage from a streamed response unless the request asks for
 it. CostGrid adds `stream_options: {include_usage: true}` when you have not set
-`stream_options` yourself — without it a streamed call cannot be metered at all.
+`stream_options` yourself. Without it a streamed call cannot be metered at all.
 
 That adds one trailing chunk with an empty `choices` array. Official SDKs
 handle it; a hand-rolled parser that assumes `choices[0]` exists might not. Set
@@ -723,8 +723,8 @@ that streamed OpenAI calls then show as unpriced.
 
 Everything in the *spend* section is measured from provider responses: token
 counts come from each call's `usage` object, and each token bucket is priced at
-its own rate. The two providers report differently — Anthropic's input count
-excludes cached tokens, OpenAI's includes them — and each has its own parser.
+its own rate. The two providers report differently. Anthropic's input count
+excludes cached tokens, OpenAI's includes them. And each has its own parser.
 
 The *routing* section is a model, not a measurement. Your observed substitution
 share is real; the optimum and the headroom figure derive from the assumptions

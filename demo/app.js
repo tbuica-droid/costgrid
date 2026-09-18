@@ -136,7 +136,7 @@ function importedSection(history) {
     <h2 style="margin-top:30px">Imported history
       <span class="tag" style="vertical-align:middle;margin-left:8px">provider report</span></h2>
     <p class="section-note">Pulled from your provider's usage report, not metered by CostGrid.
-      Daily totals only — no per-agent attribution, and no enforcement, because these calls did
+      Daily totals only. No per-agent attribution, and no enforcement, because these calls did
       not pass through the gateway. ${rateNote}</p>
 
     <div class="grid cols-4">
@@ -189,7 +189,7 @@ function barChart(buckets) {
       const y = pad.top + plotHeight - barHeight;
       return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}"
         height="${barHeight.toFixed(1)}" fill="var(--ink)">
-        <title>${escapeHtml(bucket.day)} — ${money(bucket.costUsd)}, ${bucket.calls} calls</title>
+        <title>${escapeHtml(bucket.day)}: ${money(bucket.costUsd)}, ${bucket.calls} calls</title>
       </rect>`;
     })
     .join("");
@@ -442,8 +442,8 @@ async function renderRouting() {
 
   return `
     <h2>Routing</h2>
-    <p class="section-note">Your substitution share — the fraction of tokens served off the
-      frontier tier — is <strong>measured from traffic</strong>. Everything else on this page
+    <p class="section-note">The share you send to cheaper models, the fraction of tokens served off the
+      most expensive tier, is <strong>measured from traffic</strong>. Everything else on this page
       is a model, and is only as good as the assumptions below it.</p>
 
     <div class="grid cols-4">
@@ -512,7 +512,7 @@ async function renderPolicies() {
     if (rule.kind === "tool-denylist") {
       const tools = (rule.tools ?? []).map(escapeHtml).join(", ");
       const reach = rule.transitive === false ? "this agent only" : "and any agent it delegates to";
-      return `may not be given ${tools} — ${reach}`;
+      return `may not be given ${tools} (${reach})`;
     }
     if (rule.kind === "tool-allowlist") {
       return `may only be given ${(rule.tools ?? []).map(escapeHtml).join(", ")}`;
@@ -574,7 +574,7 @@ async function renderPolicies() {
     <h2>Policies</h2>
     <p class="section-note">A <strong>block</strong> is evaluated before the request is
       forwarded, so a blocked call costs nothing. <strong>Warn</strong> forwards it and returns
-      an <code>x-costgrid-warnings</code> header. <strong>Monitor</strong> only records — start
+      an <code>x-costgrid-warnings</code> header. <strong>Monitor</strong> only records. Start
       there to see what a rule would do before it does it. Add rules with
       <code>costgrid policy</code>.</p>
 
@@ -650,7 +650,7 @@ async function renderPricing() {
 
   const stale = catalog.stale
     ? `<div class="banner"><strong>Catalog is ${catalog.ageDays} days old.</strong>
-         Past the ${catalog.staleAfterDays}-day freshness window — run
+         Past the ${catalog.staleAfterDays}-day freshness window. Run
          <code>npm run verify-pricing</code> before relying on these rates.</div>`
     : "";
 
@@ -658,7 +658,7 @@ async function renderPricing() {
     <h2>Pricing catalog</h2>
     ${stale}
     <p class="section-note">Every model CostGrid can price, in $ per million tokens. A call on
-      a model <em>not</em> listed is still metered, but recorded as unpriced — its cost reads as
+      a model <em>not</em> listed is still metered, but recorded as unpriced, so its cost reads as
       zero and totals say so, rather than showing it as free traffic. These are first-party API
       list rates; Bedrock and Google Cloud are partner-operated and priced separately.</p>
     ${[...byProvider.entries()].map(([provider, rows]) => tableFor(provider, rows)).join("")}
@@ -781,7 +781,7 @@ async function renderStatement() {
   return `
     <h2>Statement</h2>
     <p class="section-note">A closed calendar month in UTC, comparable against the one before
-      it — not a trailing window. This is the view that reconciles against a provider
+      it, not a trailing window. This is the view that reconciles against a provider
       invoice, and the CSV is the same numbers for a spreadsheet.</p>
 
     <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -792,7 +792,7 @@ async function renderStatement() {
                 border:1px solid var(--rule);text-decoration:none">Download CSV</a>
       ${
         s.partial
-          ? `<span class="kpi-sub">Month to date — ${s.daysElapsed.toFixed(1)} of
+          ? `<span class="kpi-sub">Month to date: ${s.daysElapsed.toFixed(1)} of
              ${s.daysInMonth} days. Figures are not final.</span>`
           : ""
       }
@@ -819,7 +819,7 @@ async function renderStatement() {
               <tbody>${budgetRows}</tbody>
             </table>
             <p class="section-note" style="margin-top:12px">A daily cap is judged against the
-              worst single day of the month, not the month total — the two say nothing about
+              worst single day of the month, not the month total. The two say nothing about
               each other.</p>
           </div>`
         : ""
@@ -881,7 +881,7 @@ async function renderTopology() {
     <h2>Topology</h2>
     <p class="section-note">Read out of metered traffic: which agents called which
       models, which tools they invoked, and who delegated to whom. Nothing here comes
-      from a config file — solid edges were exercised in this window, dashed ones are
+      from a config file. Solid edges were exercised in this window, dashed ones are
       capability an agent holds and has not used. Tool <em>names</em> only; arguments
       are never stored.</p>
     <div class="grid cols-4">${kpis}</div>

@@ -26,7 +26,7 @@ import { formatProposals } from "./advise.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
-const USAGE = `costgrid — see, split and cap what your software spends on AI
+const USAGE = `costgrid: see, split and cap what your software spends on AI
 
 Usage:
   costgrid init [name]                    Create the local tenant and a first API key
@@ -37,7 +37,7 @@ Usage:
                                           Read your own traffic and propose rules,
                                           each one replayed against the same window
                                           so the saving is shown before you enable
-                                          it. Proposes only — nothing is applied.
+                                          it. Proposes only. Nothing is applied.
   costgrid statement [--month YYYY-MM] [--format text|csv|json] [--out FILE]
                                           Monthly statement for finance: spend by team,
                                           movement against last month, budget status and
@@ -149,7 +149,7 @@ function parseScope(raw: string) {
   if (raw === "tenant") return { kind: "tenant" } as const;
   if (raw.startsWith("dept:")) return { kind: "department", department: raw.slice(5) } as const;
   if (raw.startsWith("agent:")) return { kind: "agent", agentId: raw.slice(6) } as const;
-  return fail(`unrecognised scope ${JSON.stringify(raw)} — use tenant, dept:<name> or agent:<id>`);
+  return fail(`unrecognised scope ${JSON.stringify(raw)}. Use tenant, dept:<name> or agent:<id>`);
 }
 
 function parseAction(raw: string | undefined) {
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
 
   const requireTenant = (): void => {
     if (!repository.getTenant(tenantId)) {
-      fail(`tenant "${tenantId}" does not exist — run "costgrid init" first`);
+      fail(`tenant "${tenantId}" does not exist. Run "costgrid init" first`);
     }
   };
 
@@ -321,7 +321,7 @@ async function main(): Promise<void> {
       }
 
       console.log(
-        `\n  Runs — last ${days} day(s) · ${coverage.declared} of ${coverage.total} ` +
+        `\n  Runs · last ${days} day(s) · ${coverage.declared} of ${coverage.total} ` +
           `call(s) carry a run id\n`,
       );
       console.log(
@@ -412,7 +412,7 @@ async function main(): Promise<void> {
         const rates = repository.listRateOverrides(tenantId);
         if (rates.length === 0) {
           console.log("\nNo negotiated rates. Every call is priced at catalog list.");
-          console.log("If you buy off list, your figures here will read high — see");
+          console.log("If you buy off list, your figures here will read high. See");
           console.log("`costgrid rates derive --help` or docs/QUICKSTART.md.\n");
           break;
         }
@@ -492,7 +492,7 @@ async function main(): Promise<void> {
             `invoiced against $${toUsdString(basis.total, 2)} at catalog prices,`,
         );
         console.log(
-          `over ${days} day(s) — ${basis.meteredCalls} metered call(s) and ` +
+          `over ${days} day(s): ${basis.meteredCalls} metered call(s) and ` +
             `${basis.importedRows} imported row(s).\n`,
         );
         if (basis.unpriced > 0) {
@@ -583,7 +583,7 @@ async function main(): Promise<void> {
           if (action === "monitor") console.log("but nothing is rewritten yet.");
           if (action === "block") {
             console.log(
-              `They only fail if the downgrade cannot be made — traffic already on ` +
+              `They only fail if the downgrade cannot be made. Traffic already on ` +
                 `${fallbackModel}, or on another provider.`,
             );
           }
@@ -674,7 +674,7 @@ async function main(): Promise<void> {
          */
         console.log(
           "\n  This rule reads the tool list out of each request, so it stops the\n" +
-            "  model being offered the tool at all — there is nothing to execute.",
+            "  model being offered the tool at all, so there is nothing to execute.",
         );
         if (sub === "deny-tool" && !directOnly) {
           const coverage = analytics.runCoverage(tenantId, trailingWindow(30));
@@ -727,7 +727,7 @@ async function main(): Promise<void> {
     }
 
     default:
-      fail(`unknown command ${JSON.stringify(command)} — run "costgrid --help"`);
+      fail(`unknown command ${JSON.stringify(command)}. Run "costgrid --help"`);
   }
 
   db.close();

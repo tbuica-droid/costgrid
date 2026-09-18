@@ -193,8 +193,8 @@ export class Advisor {
         intent: "saving",
         headline: `${row.agentId} could run ${row.model} work on ${target}`,
         evidence:
-          `${row.calls} call(s) averaging ${Math.round(meanOutput)} output tokens — ` +
-          "short answers, on one of the most expensive models you run.",
+          `${row.calls} call(s) averaging ${Math.round(meanOutput)} output tokens. ` +
+          "Short answers, on one of the most expensive models you run.",
         rule,
         scope,
         backtest,
@@ -477,7 +477,7 @@ export class Advisor {
         evidence:
           `Longest run in this window: ${peak.steps} call(s) (${peak.runId}), ` +
           `${money(spend)} across all its long runs. CostGrid cannot see whether that ` +
-          "is a loop or long legitimate work — but a cap is the difference between " +
+          "is a loop or long legitimate work, but a cap is the difference between " +
           "finding out at step 40 and finding out on the invoice.",
         rule,
         scope,

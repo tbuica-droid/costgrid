@@ -53,7 +53,7 @@ export function formatStatement(statement: Statement): string {
   const rule = "─".repeat(72);
 
   out.push("");
-  out.push(`  CostGrid statement — ${monthLabel(statement.month)}`);
+  out.push(`  CostGrid statement · ${monthLabel(statement.month)}`);
   out.push(`  ${rule}`);
 
   if (statement.partial) {
@@ -106,7 +106,7 @@ export function formatStatement(statement: Statement): string {
           : `${money(budget.actual)} of ${money(budget.limit)}`;
       const over =
         budget.breachedDays !== undefined && budget.breachedDays > 0
-          ? ` — over on ${budget.breachedDays} day(s)`
+          ? `, over on ${budget.breachedDays} day(s)`
           : "";
       const fallback = budget.fallbackModel ? `, falls back to ${budget.fallbackModel}` : "";
       out.push(
@@ -122,7 +122,7 @@ export function formatStatement(statement: Statement): string {
     for (const rate of statement.rates) {
       out.push(
         `    ${rate.provider.padEnd(12)} ${rate.discountPercent.toFixed(2)}% off list ` +
-          `[${rate.source}] — figures above are what you pay, not catalog price`,
+          `[${rate.source}]. Figures above are what you pay, not catalog price`,
       );
     }
   }
@@ -132,7 +132,7 @@ export function formatStatement(statement: Statement): string {
   if (statement.unpricedCalls > 0) {
     caveats.push(
       `${statement.unpricedCalls} call(s) used a model missing from the price catalog and ` +
-        "are counted as $0 — the total above is understated.",
+        "are counted as $0, so the total above is understated.",
     );
   }
   if (statement.blockedCalls > 0) {

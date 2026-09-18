@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CostGrid &mdash; meter, attribute and cap your LLM API spend</title>
+<title>CostGrid &middot; see and control what your AI spends</title>
 <meta name="description" content="A gateway that prices every LLM API call from the provider's own token counts, bills it back to a team, and enforces budgets before the money is spent. Free 30-day trial, self-hosted.">
-<meta property="og:title" content="CostGrid — meter, attribute and cap your LLM API spend">
+<meta property="og:title" content="CostGrid · see and control what your AI spends">
 <meta property="og:description" content="Point your SDK at CostGrid instead of the provider. Exact metering, per-team chargeback, and budgets that downgrade instead of breaking production.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://costgrid.dev/">
@@ -138,8 +138,7 @@
     </div>
     <nav style="display:flex;align-items:center;gap:clamp(12px,2vw,30px);font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em">
       <a href="#how" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv1 hdr-links">How it works</a>
-      <a href="#dial" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv2 hdr-links">The dial</a>
-      <a href="#topology-section" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">Topology</a>
+      <a href="#topology-section" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">What it shows you</a>
       <a href="#pricing" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv3 hdr-links">Pricing</a>
       <a href="./demo/" style="text-decoration:none;color:rgba(15,20,17,0.62)" class="hv4 hdr-links">Demo</a>
       <a href="#trial" class="hv5 hdr-cta" style="display:inline-flex;align-items:center;gap:8px;background:#0f1411;color:#f5f2e9;padding:8px 14px;text-decoration:none;white-space:nowrap">Start free trial <span style="font-family:'Libre Franklin',sans-serif">&#8594;</span></a>
@@ -152,8 +151,8 @@
       <div style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9d7b1f;margin-bottom:clamp(20px,3vw,34px)">Cost control for the AI inside your software</div>
       <h1 style="margin:0;font-size:clamp(34px,4.6vw,70px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;text-wrap:balance;max-width:16ch">Per-token prices are collapsing.</h1>
       <h1 style="margin:0.12em 0 0;font-size:clamp(34px,4.6vw,70px);font-weight:600;line-height:0.97;letter-spacing:-0.035em;color:#a8452a;text-wrap:balance;max-width:20ch">Your AI bill is going up anyway.</h1>
-      <p style="margin:clamp(24px,3vw,38px) 0 0;max-width:58ch;font-size:clamp(16px,1.25vw,19px);line-height:1.5;color:rgba(15,20,17,0.72)">Unit price is the wrong thing to watch. Spend is price multiplied by volume, and volume wins. CostGrid sits in front of your LLM API calls: it prices every one from the provider&rsquo;s own token counts, bills it back to the team that made it, and enforces your budgets <em>before</em> the money is spent.</p>
-      <p style="margin:16px 0 0;max-width:58ch;font-size:15px;line-height:1.55;color:rgba(15,20,17,0.6)">One line of configuration. No SDK to install, no code to change.</p>
+      <p style="margin:clamp(24px,3vw,38px) 0 0;max-width:58ch;font-size:clamp(16px,1.25vw,19px);line-height:1.5;color:rgba(15,20,17,0.72)">Your software calls AI, and the bill arrives a month later with no way to tell who spent what. CostGrid sits in front of those calls. It shows you the cost of every one, splits it by team, and stops the spending before it goes past a limit you set.</p>
+      <p style="margin:16px 0 0;max-width:58ch;font-size:15px;line-height:1.55;color:rgba(15,20,17,0.6)">One line of setup. Nothing to install, no code to rewrite.</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:clamp(26px,3vw,40px)">
         <a href="#trial" style="display:inline-flex;align-items:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:14px 22px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" class="hv6">START THE FREE TRIAL &#8594;</a>
         <a href="./demo/" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(15,20,17,0.3);color:#0f1411;padding:14px 22px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" class="hv7">CLICK THROUGH THE DASHBOARD</a>
@@ -172,7 +171,7 @@
         <span style="font-size:clamp(30px,3.4vw,44px);font-weight:500;letter-spacing:-0.03em;color:#a8452a">$207.3<span style="font-size:0.5em;font-weight:500">B</span></span>
       </div>
       <div style="height:6px;background:#a8452a;width:100%"></div>
-      <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.6)">Prices fall roughly 10&times; a year. Spend triples. Falling prices don&rsquo;t shrink the bill &mdash; they grow it.</p>
+      <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.6)">Prices fall roughly 10&times; a year. Spend triples. Falling prices don&rsquo;t shrink the bill. They grow it.</p>
     </div>
   </section>
 
@@ -180,15 +179,15 @@
   <section style="background:#0f1411;color:#f5f2e9;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
     <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
       <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">21.8%</div>
-      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of head-to-head pairs, the cheaper-listed model costs more &mdash; by up to 28&times;</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of head-to-head pairs, the cheaper-listed model costs more, by up to 28&times;</div>
     </div>
     <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
       <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">1 in 5</div>
-      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">firms has mature agent governance &mdash; Deloitte</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">firms has mature agent governance &middot; Deloitte</div>
     </div>
     <div style="padding:22px clamp(20px,2.5vw,32px);border-right:1px solid rgba(245,242,233,0.16)">
       <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">97%</div>
-      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of AI security incidents lacked access controls &mdash; IBM</div>
+      <div style="font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.6;color:rgba(245,242,233,0.6);margin-top:8px">of AI security incidents lacked access controls &middot; IBM</div>
     </div>
     <div style="padding:22px clamp(20px,2.5vw,32px)">
       <div style="font-family:'Fragment Mono',monospace;font-size:26px;color:#c9a13d;letter-spacing:-0.02em">Aug 2026</div>
@@ -199,7 +198,7 @@
   <!-- ===================================================== 01 how it works -->
   <section id="how" style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">01 &mdash; How it works</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">01 &middot; How it works</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:34ch;text-wrap:balance">Three changes, none of them in your application logic.</h2>
         <p style="margin:18px 0 0;max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">CostGrid is a proxy. It forwards each call to the same provider with the same body, streaming included, then reads the token counts back out of the response.</p>
@@ -219,7 +218,7 @@
             <h3 style="margin:0 0 10px;font-size:16px;font-weight:600;letter-spacing:-0.01em">02 &nbsp;Label the traffic</h3>
             <pre style="margin:0 0 12px;font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.65;background:rgba(15,20,17,0.05);border:1px solid rgba(15,20,17,0.1);padding:14px">x-costgrid-agent: <span style="color:#9d7b1f">chat-bot</span>
 x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
-            <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Two optional headers turn one provider invoice into per-team, per-feature chargeback. Unlabelled calls are still metered &mdash; as <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">unattributed</code>, a visible line rather than a silent gap.</p>
+            <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Two optional headers turn one provider invoice into per-team, per-feature chargeback. Unlabelled calls are still metered, as <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">unattributed</code>, a visible line rather than a silent gap.</p>
           </div>
           <div>
             <div style="height:2px;background:#a8452a;width:34px;margin-bottom:16px"></div>
@@ -242,124 +241,56 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 02 what you get -->
   <section id="product" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">02 &mdash; What you get</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">02 &middot; What you get</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 clamp(26px,3vw,40px);font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">Reporting a saving is advice. Making one is a product.</h2>
         <div style="border-top:1px solid rgba(15,20,17,0.16)">
 
           <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
-              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Exact metering, not estimates</div>
-              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Token counts come from each provider&rsquo;s own <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">usage</code> object. Five buckets priced independently &mdash; input, output, 5-minute and 1-hour cache writes, cache reads &mdash; because a cache-heavy workload is mispriced by anything that lumps them together. 53 models, re-verified against the published tables.</p>
+              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">You pay for what actually ran</div>
+              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Every number comes from the provider&rsquo;s own count of what you used, not from a guess. Prices for 53 models, checked against the published rates.</p>
             </div>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">no guessing</div>
           </div>
 
           <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(157,123,31,0.09)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
-              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Budgets that don&rsquo;t break production</div>
-              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">The reason nobody turns on a hard cap is that it breaks the product at 3am. A CostGrid cap can <em>downgrade</em> instead: over-budget traffic is served by a cheaper model and keeps answering, with a response header saying so. It refuses any substitution it cannot make safely &mdash; across providers, or to a model it cannot price.</p>
+              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">A limit that won&rsquo;t break your product</div>
+              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Nobody turns on a hard cut-off, because it breaks things at 3am. A CostGrid limit can switch to a cheaper model instead, so your customers still get an answer.</p>
             </div>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:#9d7b1f;padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">the difference</div>
           </div>
 
           <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
-              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Savings you can audit</div>
-              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A routing rule moves matching traffic to a cheaper model and records what those exact tokens would have cost on the model the caller originally asked for. Realised savings are reported separately from dry-run ones, so the number can be checked rather than believed.</p>
+              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">Savings you can check</div>
+              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">When CostGrid moves work to a cheaper model, it records what the old way would have cost. You see the difference rather than taking our word for it.</p>
             </div>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">measured</div>
           </div>
 
           <div class="row-2col" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:clamp(20px,2.4vw,28px) 0;border-bottom:1px solid rgba(15,20,17,0.16)">
             <div style="padding-left:clamp(12px,1.5vw,22px)">
-              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">A statement finance can reconcile</div>
-              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">A closed calendar month in UTC &mdash; not a trailing window &mdash; because that is how the provider invoices. Spend by team with movement against last month, budget status, what routing saved. Text, CSV or JSON.</p>
+              <div style="font-size:clamp(17px,1.7vw,22px);font-weight:600;letter-spacing:-0.02em">A monthly bill finance can use</div>
+              <p style="margin:7px 0 0;max-width:64ch;font-size:14.5px;line-height:1.55;color:rgba(15,20,17,0.7)">Spend by team, how it moved since last month, and what the rules saved. Covers the same calendar month your provider invoices. Exports to CSV.</p>
             </div>
             <div style="font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.6);padding-right:clamp(12px,1.5vw,22px);white-space:nowrap">CSV export</div>
           </div>
 
         </div>
-        <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.55)">Every figure is computed in integer nanodollars. Nothing rounds until it is displayed.</p>
+        <p style="margin:22px 0 0;font-family:'Fragment Mono',monospace;font-size:12px;color:rgba(15,20,17,0.55)">Every figure is exact to a fraction of a cent, and nothing is rounded until you see it.</p>
       </div>
     </div>
   </section>
 
-  <!-- ===================================================== 03 the dial -->
-  <section id="dial" style="border-bottom:1px solid rgba(15,20,17,0.16)">
-    <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">03 &mdash; The dial</div>
-      <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
-        <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:36ch;text-wrap:balance">Stop forecasting vendor prices. Forecast your routing.</h2>
-        <p style="margin:18px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Most calls do not need your most expensive model. The share you move down to a cheaper one is the single number you control &mdash; you do not set vendor prices. Move the slider to see what that share does to a company running 12 billion tokens a month, then let CostGrid <em>measure your real share</em> and move it for you.</p>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(26px,3vw,48px);margin-top:clamp(30px,3.5vw,46px);align-items:start" class="grid">
-          <div>
-            <div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(15,20,17,0.16);padding-bottom:12px">
-              <span style="font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5)">Sent to cheaper models</span>
-              <span style="font-family:'Fragment Mono',monospace;font-size:30px;letter-spacing:-0.02em;color:#0f1411"><span id="shareLabel">15%</span></span>
-            </div>
-            <input type="range" min="0" max="99" step="1" id="shareInput" value="15" aria-label="Share of traffic sent to cheaper models" style="width:100%;margin:22px 0 6px;height:22px" />
-            <div style="display:flex;justify-content:space-between;font-family:'Fragment Mono',monospace;font-size:10.5px;color:rgba(15,20,17,0.5)">
-              <span>0%</span>
-              <span>99%</span>
-            </div>
-            <div style="display:flex;gap:10px;margin-top:18px">
-              <button type="button" id="btnToday" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid rgba(15,20,17,0.3);background:transparent;color:#0f1411;cursor:pointer" class="hv8">TODAY &middot; 15%</button>
-              <button type="button" id="btnOptimum" style="flex:1;font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:11px 8px;border:1px solid #9d7b1f;background:transparent;color:#9d7b1f;cursor:pointer" class="hv9">BEST &middot; 83%</button>
-            </div>
-
-            <div style="margin-top:26px;border-top:1px solid rgba(15,20,17,0.16)">
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
-                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Average cost per million tokens</span>
-                <span style="font-family:'Fragment Mono',monospace;font-size:19px"><span id="blended"></span></span>
-              </div>
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid rgba(15,20,17,0.1)">
-                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">Monthly token spend</span>
-                <span style="font-family:'Fragment Mono',monospace;font-size:19px"><span id="monthly"></span></span>
-              </div>
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0">
-                <span style="font-family:'Fragment Mono',monospace;font-size:11.5px;color:rgba(15,20,17,0.6)">vs. routing 15% today</span>
-                <span style="font-family:'Fragment Mono',monospace;font-size:19px;color:#a8452a"><span id="delta"></span></span>
-              </div>
-            </div>
-            <p style="margin:6px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.65;color:rgba(15,20,17,0.55)"><span id="verdict"></span></p>
-          </div>
-
-          <div>
-            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.5);margin-bottom:14px">Average cost per million tokens</div>
-            <svg viewBox="0 0 600 288" style="width:100%;height:auto;display:block;overflow:visible" role="img" aria-label="Average cost per million tokens as more traffic moves to cheaper models">
-              <line x1="0" y1="20" x2="600" y2="20" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
-              <line x1="0" y1="130" x2="600" y2="130" stroke="rgba(15,20,17,0.1)" stroke-width="1"></line>
-              <line x1="0" y1="240" x2="600" y2="240" stroke="rgba(15,20,17,0.28)" stroke-width="1"></line>
-              <text x="0" y="14" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$11.00</text>
-              <text x="0" y="124" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$6.75</text>
-              <text x="0" y="256" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">$2.50</text>
-              <line x1="90" y1="20" x2="90" y2="240" stroke="rgba(15,20,17,0.22)" stroke-width="1" stroke-dasharray="3 4"></line>
-              <line x1="498" y1="20" x2="498" y2="240" stroke="#9d7b1f" stroke-width="1" stroke-dasharray="3 4"></line>
-              <text x="94" y="34" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.55)">today 15%</text>
-              <text x="494" y="34" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="#9d7b1f">best 83%</text>
-              <path d="M0,45.9 L6,48.4 L12,50.9 L18,53.4 L24,55.9 L30,58.4 L36,60.9 L42,63.4 L48,65.9 L54,68.4 L60,70.9 L66,73.4 L72,75.9 L78,78.4 L84,80.8 L90,83.3 L96,85.8 L102,88.3 L108,90.8 L114,93.3 L120,95.8 L126,98.3 L132,100.8 L138,103.3 L144,105.8 L150,108.3 L156,110.8 L162,113.3 L168,115.8 L174,118.3 L180,120.8 L186,123.3 L192,125.8 L198,128.3 L204,130.8 L210,133.3 L216,135.8 L222,138.3 L228,140.7 L234,143.2 L240,145.7 L246,148.2 L252,150.7 L258,153.1 L264,155.6 L270,158.1 L276,160.5 L282,163 L288,165.4 L294,167.9 L300,170.3 L306,172.7 L312,175.1 L318,177.5 L324,179.9 L330,182.3 L336,184.6 L342,187 L348,189.3 L354,191.6 L360,193.8 L366,196 L372,198.2 L378,200.4 L384,202.5 L390,204.6 L396,206.6 L402,208.6 L408,210.5 L414,212.3 L420,214.1 L426,215.8 L432,217.4 L438,218.9 L444,220.4 L450,221.7 L456,222.9 L462,224 L468,224.9 L474,225.7 L480,226.4 L486,226.9 L492,227.2 L498,227.3 L504,227.2 L510,226.8 L516,226.2 L522,225.4 L528,224.3 L534,222.9 L540,221.1 L546,219.1 L552,216.6 L558,213.8 L564,210.5 L570,206.8 L576,202.6 L582,198 L588,192.8 L594,187" fill="none" stroke="#0f1411" stroke-width="2"></path>
-              <line id="markerLine" x1="90" y1="0" x2="90" y2="240" stroke="#a8452a" stroke-width="1"></line>
-              <circle id="markerDot" cx="90" cy="0" r="5.5" fill="#a8452a"></circle>
-              <text x="0" y="278" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 0%</text>
-              <text x="600" y="278" text-anchor="end" font-family="Fragment Mono, monospace" font-size="10" fill="rgba(15,20,17,0.45)">s = 99%</text>
-            </svg>
-            <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:rgba(15,20,17,0.68)">Cost falls as more traffic moves to cheaper models, then climbs again past about 90% &mdash; because the last calls you move are the ones that genuinely needed the expensive model, and getting those wrong costs more than the tokens saved. The best share is where those two effects cancel. It is a fact about your traffic, not about whichever vendor is cheapest this month. <a href="./thesis.html">The full thesis &#8594;</a></p>
-            <p style="margin:14px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.65;color:rgba(15,20,17,0.55)">Modelled from stated assumptions, on an illustrative 12,000M tokens a month. The product measures your real share from real traffic instead of assuming it.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================================================== 04 the demo -->
+  <!-- ===================================================== 04 the demo -->  <!-- ===================================================== 04 the demo -->
   <section id="demo" style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">04 &mdash; See it working</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">03 &middot; See it working</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">The actual dashboard, running on sample traffic.</h2>
-        <p style="margin:18px 0 clamp(24px,2.6vw,32px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Not a mockup and not a video &mdash; this is the product&rsquo;s own dashboard bundle, served against a snapshot of 526 metered calls from a six-agent fleet. Every number in it was computed by the same code that would price your traffic. Click into it.</p>
+        <p style="margin:18px 0 clamp(24px,2.6vw,32px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Not a mockup and not a video. This is the product&rsquo;s own dashboard bundle, served against a snapshot of 526 metered calls from a six-agent fleet. Every number in it was computed by the same code that would price your traffic. Click into it.</p>
 
         <div class="demo-embed" style="border:1px solid rgba(15,20,17,0.28);background:rgba(15,20,17,0.035)">
           <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(15,20,17,0.16);font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.5)">
@@ -395,7 +326,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
               </div>
             </div>
             <div style="margin-top:24px;display:inline-flex;align-items:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:13px 20px;font-family:'Fragment Mono',monospace;font-size:12px;letter-spacing:0.04em">OPEN THE DASHBOARD &#8594;</div>
-            <p style="margin:14px 0 0;font-family:'Fragment Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(15,20,17,0.5)">Best on a wider screen &mdash; it is a real dashboard, not a summary.</p>
+            <p style="margin:14px 0 0;font-family:'Fragment Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(15,20,17,0.5)">Best on a wider screen. It is a real dashboard, not a summary.</p>
           </div>
         </a>
 
@@ -411,31 +342,19 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 05 topology -->
   <section id="topology-section" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">05 &mdash; What you actually run</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">04 &middot; What you actually run</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">Nobody can tell you what their agents can reach.</h2>
         <p style="margin:18px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">They have a diagram from six months ago and a lot of hope. CostGrid reads the
           shape out of your own traffic instead: which agents call which models, which tools they
-          can invoke, and who hands work to whom. Not from your documentation &mdash; from what your
+          can invoke, and who hands work to whom. Not from your documentation, but from what your
           software actually did this week.</p>
-        <p style="margin:14px 0 0;max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Tool <em>names</em> only &mdash; arguments are never stored. Once the map exists, a
-          rule can name a boundary rather than a budget:
-          <em>this agent may not reach <code style="font-family:'Fragment Mono',monospace;font-size:13px">refund_customer</code>,
-          directly or through anything it delegates to.</em></p>
-        <p style="margin:14px 0 clamp(26px,3vw,34px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">That is one command, and it holds for a reason worth understanding:
-          <strong>a model cannot use a tool it was never given.</strong> The tool list is part of the
-          request, so CostGrid refuses the request and there is nothing for your code to run &mdash; no
-          change to your agent framework, and no trusting the model to behave.</p>
+        <p style="margin:14px 0 clamp(20px,2.4vw,28px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Then you can draw a line around any of it. One command stops an agent being given a tool, and stops every agent it passes work to from being given it
+          either. It works because a model cannot use a tool it was never handed.</p>
 
         <div style="margin:0 0 clamp(26px,3vw,34px);border-left:2px solid #9d7b1f;padding:2px 0 2px 16px">
           <pre style="margin:0;font-family:'Fragment Mono',monospace;font-size:12.5px;line-height:1.7;color:#0f1411;white-space:pre-wrap">costgrid policy deny-tool agent:support refund_customer</pre>
-          <p style="margin:8px 0 0;font-size:13.5px;line-height:1.55;color:rgba(15,20,17,0.6)">Covers every agent <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">support</code> hands work to, not just
-            <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">support</code> itself &mdash; delegating is how an agent would otherwise walk around
-            the rule. Start it in <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">--action monitor</code> to watch what it would have stopped.</p>
-          <p style="margin:8px 0 0;font-size:13.5px;line-height:1.55;color:rgba(15,20,17,0.6)">The same rule is checked again on the response, for the rarer case of a model
-            inventing a tool name it was never offered. On a buffered reply that is airtight; on a
-            streamed one the arguments are cut but the name has already gone out.
-            <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md#the-second-line-a-tool-the-model-invents">Exactly how far each one goes &#8594;</a></p>
+          <p style="margin:8px 0 0;font-size:13.5px;line-height:1.55;color:rgba(15,20,17,0.6)">Tool <em>names</em> only. What they were called with is never stored.</p>
         </div>
 
         <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(20px,2.4vw,32px);align-items:start" class="grid topo-grid">
@@ -451,10 +370,8 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
           <div id="topology-panel" style="border:1px solid rgba(15,20,17,0.28);background:#f5f2e9;padding:20px;font-size:14.5px;line-height:1.6;min-height:200px"></div>
         </div>
 
-        <p style="margin:18px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.7;color:rgba(15,20,17,0.55);max-width:78ch">This diagram is laid out by hand for legibility. The real thing is in the
-          product: <a href="./demo/">open the demo and pick Topology</a> to see the same graph built
-          from metered calls, where solid edges were exercised and dashed ones are capability an
-          agent holds and has not used. CostGrid labels that difference everywhere it reports one.</p>
+        <p style="margin:18px 0 0;font-family:'Fragment Mono',monospace;font-size:11px;line-height:1.7;color:rgba(15,20,17,0.55);max-width:78ch">Drawn by hand here so it reads clearly.
+          <a href="./demo/">The demo has the real one</a>, built from actual calls.</p>
       </div>
     </div>
   </section>
@@ -462,30 +379,30 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 06 questions -->
   <section id="questions" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">06 &mdash; Straight answers</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">05 &middot; Straight answers</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 clamp(26px,3vw,38px);font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:32ch;text-wrap:balance">The questions you are about to ask.</h2>
 
         <div style="border-top:1px solid rgba(15,20,17,0.28)">
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.12)">
-            <div style="font-size:16px;font-weight:600;margin-bottom:8px">Does our prompt and response data go to you?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">No. You run CostGrid inside your own infrastructure &mdash; there is no CostGrid service in the middle. Bodies are forwarded to the provider and streamed back untouched. What is stored is token counts, model names, cost and your labels. Not prompts, not completions.</p>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">Do you see our data?</div>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">No. CostGrid runs on your own servers. There is no CostGrid service in the middle. It records how many tokens were used, which model, what it cost and your labels. Never the prompts or the answers.</p>
           </div>
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.12)">
-            <div style="font-size:16px;font-weight:600;margin-bottom:8px">What does it do to latency?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">One local network hop. Streamed bytes are passed through as they arrive rather than buffered, so time-to-first-token is essentially unchanged.</p>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">Will it slow us down?</div>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">One hop on your own network, and streamed responses pass straight through. In practice, no.</p>
           </div>
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.12)">
-            <div style="font-size:16px;font-weight:600;margin-bottom:8px">What happens if CostGrid goes down?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">It is in the request path, and pretending otherwise would be dishonest: if it is down, those calls fail. That is the price of being able to <em>refuse</em> a call rather than report on it afterwards. Run it beside the service that calls it, and keep every rule in <code style="font-family:'Fragment Mono',monospace;font-size:12.5px">monitor</code> until you trust it.</p>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">What if it goes down?</div>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Those calls fail, and we will not pretend otherwise. That is the price of being able to stop a call instead of reporting on it afterwards. Run it next to the service that uses it, and leave every rule in watch-only mode until you trust it.</p>
           </div>
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.12)">
             <div style="font-size:16px;font-weight:600;margin-bottom:8px">Are the prices right?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">53 models across Anthropic and OpenAI, checked against the providers&rsquo; published tables by a script that fails on a discrepancy or a stale verification date. The dashboard says so on the page when the catalog is over 45 days old &mdash; a stale catalog does not fail loudly, it just bills last quarter&rsquo;s rates.</p>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">53 models, checked against the providers&rsquo; published rates by a script that fails the build if anything drifts. If the price list goes more than 45 days without a check, the dashboard says so on the page.</p>
           </div>
           <div style="padding:20px 0;border-bottom:1px solid rgba(15,20,17,0.28)">
-            <div style="font-size:16px;font-weight:600;margin-bottom:8px">What is it bad at?</div>
-            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Bedrock and Vertex went in last and neither has yet run against a live AWS or Google account &mdash; <code style="font-family:'Fragment Mono',monospace;font-size:13px">costgrid preflight bedrock</code> makes one real call and tells you in a minute whether it works on yours. It governs what your <em>software</em> spends on AI, not what your staff spend on chat subscriptions: if your AI bill is people typing into a browser, there is nothing here to meter. And it runs as a single server with a local database today &mdash; fine for a team, not yet a setup that survives losing that server.</p>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">What is it not good at?</div>
+            <p style="margin:0;max-width:70ch;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.7)">It watches what your <em>software</em> spends on AI, not what your staff spend on chat subscriptions. If your bill is people typing into a browser, there is nothing here to measure. AWS Bedrock and Google Vertex work but have not yet been run against a live account, so there is a one-minute check that tells you if yours is fine. And it runs on a single server today: right for one team, not yet right if losing that server would be a crisis.</p>
           </div>
         </div>
       </div>
@@ -495,10 +412,10 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 06 pricing -->
   <section id="pricing" style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">07 &mdash; Pricing</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">06 &middot; Pricing</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">You run the software. The fee is for the product, not for hosting your data.</h2>
-        <p style="margin:18px 0 clamp(26px,3vw,34px);max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Thirty days free on every plan, and the source is public &mdash; read it before you run it.</p>
+        <p style="margin:18px 0 clamp(26px,3vw,34px);max-width:60ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">Thirty days free on every plan, and the source is public. Read it before you run it.</p>
         <p class="swipe-hint" style="display:none;margin:0 0 12px;font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,20,17,0.45)">Swipe the table for included calls &amp; seats &#8594;</p>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-family:'Fragment Mono',monospace;font-size:13px;min-width:560px">
@@ -536,7 +453,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
             </tbody>
           </table>
         </div>
-        <p style="margin:20px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.55);max-width:74ch">The percentage falls as volume rises, on purpose: the fee should not grow faster than the value of governing the spend. If CostGrid is not saving you more than it costs, it is not worth running &mdash; and the routing report tells you which of those is true.</p>
+        <p style="margin:20px 0 0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.65;color:rgba(15,20,17,0.55);max-width:74ch">The percentage falls as volume rises, on purpose: the fee should not grow faster than the value of governing the spend. If CostGrid is not saving you more than it costs, it is not worth running, and the routing report tells you which of those is true.</p>
       </div>
     </div>
   </section>
@@ -544,7 +461,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
   <!-- ===================================================== 07 trial -->
   <section id="trial" style="border-bottom:1px solid rgba(15,20,17,0.16);background:rgba(15,20,17,0.035);scroll-margin-top:58px">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#9d7b1f">08 &mdash; Start free</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#9d7b1f">07 &middot; Start free</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0;font-size:clamp(24px,2.6vw,38px);font-weight:600;letter-spacing:-0.025em;line-height:1.12;max-width:30ch;text-wrap:balance">Thirty days, free, on your own infrastructure.</h2>
         <p style="margin:18px 0 clamp(28px,3vw,40px);max-width:62ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">No card and no sales call. Stopping is a one-line revert: point your base URL back at the provider and everything keeps working.</p>
@@ -553,7 +470,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
 
           <!-- ---- guided: the lead form ---- -->
           <div>
-            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.5);padding-bottom:14px;border-bottom:1px solid rgba(15,20,17,0.28);margin-bottom:22px">Option A &mdash; get set up with me</div>
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.5);padding-bottom:14px;border-bottom:1px solid rgba(15,20,17,0.28);margin-bottom:22px">Option A: get set up with me</div>
 
             <form id="trialForm" novalidate>
               <div class="two-up">
@@ -587,7 +504,7 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
                       style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#0f1411;color:#f5f2e9;padding:15px 22px;border:0;cursor:pointer;font-family:'Fragment Mono',monospace;font-size:12.5px;letter-spacing:0.04em" class="hv6">
                 REQUEST THE TRIAL &#8594;
               </button>
-              <p style="margin:12px 0 0;font-family:'Fragment Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(15,20,17,0.5)">Goes straight to my inbox &mdash; no CRM, no drip sequence, no third party. Usually answered same day.</p>
+              <p style="margin:12px 0 0;font-family:'Fragment Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(15,20,17,0.5)">Goes straight to my inbox. No CRM, no drip sequence, no third party. Usually answered same day.</p>
             </form>
 
             <!-- shown when the browser has no mail handler -->
@@ -599,35 +516,35 @@ x-costgrid-department: <span style="color:#9d7b1f">Support</span></pre>
             </div>
 
             <div id="sentNote" hidden style="margin-top:20px;border-left:2px solid #2f6b4f;padding:4px 0 4px 16px">
-              <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.75)"><strong>Your mail app should be open with the message drafted.</strong> Send it and I&rsquo;ll reply with a setup call or written onboarding, whichever you prefer. Nothing to wait for in the meantime &mdash; Option B works right now.</p>
+              <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(15,20,17,0.75)"><strong>Your mail app should be open with the message drafted.</strong> Send it and I&rsquo;ll reply with a setup call or written onboarding, whichever you prefer. Nothing to wait for in the meantime. Option B works right now.</p>
             </div>
           </div>
 
           <!-- ---- self-serve ---- -->
           <div>
-            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.5);padding-bottom:14px;border-bottom:1px solid rgba(15,20,17,0.28);margin-bottom:22px">Option B &mdash; start right now, alone</div>
-            <pre style="margin:0 0 18px;font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.75;background:#0f1411;color:#e8e4d8;padding:20px;white-space:pre-wrap;overflow-wrap:anywhere"><span style="color:rgba(232,228,216,0.5)"># 1 &mdash; get it</span>
+            <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.5);padding-bottom:14px;border-bottom:1px solid rgba(15,20,17,0.28);margin-bottom:22px">Option B: start right now, alone</div>
+            <pre style="margin:0 0 18px;font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.75;background:#0f1411;color:#e8e4d8;padding:20px;white-space:pre-wrap;overflow-wrap:anywhere"><span style="color:rgba(232,228,216,0.5)"># 1. get it</span>
 git clone https://github.com/tbuica-droid/costgrid
 cd costgrid &amp;&amp; npm install &amp;&amp; npm run build
 
-<span style="color:rgba(232,228,216,0.5)"># 2 &mdash; your provider key goes in .env</span>
+<span style="color:rgba(232,228,216,0.5)"># 2. your provider key goes in .env</span>
 cp .env.example .env
 
-<span style="color:rgba(232,228,216,0.5)"># 3 &mdash; create the tenant and run it</span>
+<span style="color:rgba(232,228,216,0.5)"># 3. create the tenant and run it</span>
 npx tsx packages/cli/src/main.ts init
 npm run gateway
 
-<span style="color:rgba(232,228,216,0.5)"># 4 &mdash; point a client at 127.0.0.1:8787</span>
+<span style="color:rgba(232,228,216,0.5)"># 4. point a client at 127.0.0.1:8787</span>
 <span style="color:rgba(232,228,216,0.5)">#     and open the dashboard</span></pre>
             <div style="display:flex;flex-wrap:wrap;gap:12px">
               <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md" style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(15,20,17,0.3);color:#0f1411;padding:12px 18px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em" class="hv7">QUICKSTART</a>
               <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/TRIAL.md" style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(15,20,17,0.3);color:#0f1411;padding:12px 18px;text-decoration:none;font-family:'Fragment Mono',monospace;font-size:11.5px;letter-spacing:0.04em" class="hv7">WHAT THE TRIAL INVOLVES</a>
             </div>
             <div style="margin-top:24px;border-top:1px solid rgba(15,20,17,0.16);padding-top:18px">
-              <p style="margin:0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.75;color:rgba(15,20,17,0.6)">Week 1 &mdash; measure, set no rules.<br />
-              Week 2 &mdash; add budgets in <span style="color:#0f1411">monitor</span>.<br />
-              Week 3 &mdash; enforce one, or add a fallback.<br />
-              Week 4 &mdash; send the statement to whoever owns the budget.</p>
+              <p style="margin:0;font-family:'Fragment Mono',monospace;font-size:11.5px;line-height:1.75;color:rgba(15,20,17,0.6)">Week 1: measure, set no rules.<br />
+              Week 2: add budgets in <span style="color:#0f1411">monitor</span>.<br />
+              Week 3: enforce one, or add a fallback.<br />
+              Week 4: send the statement to whoever owns the budget.</p>
             </div>
           </div>
 
@@ -639,10 +556,10 @@ npm run gateway
   <!-- ===================================================== 08 research -->
   <section style="border-bottom:1px solid rgba(15,20,17,0.16)">
     <div class="sec-grid">
-      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">09 &mdash; Where this came from</div>
+      <div style="padding:clamp(30px,3.5vw,52px) 20px 0 clamp(20px,3.5vw,56px);font-family:'Fragment Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(15,20,17,0.45)">08 &middot; Where this came from</div>
       <div style="padding:clamp(30px,3.5vw,52px) clamp(20px,3.5vw,56px);border-left:1px solid rgba(15,20,17,0.16);padding-left:clamp(24px,3vw,48px)">
         <h2 style="margin:0 0 18px;font-size:clamp(22px,2.2vw,32px);font-weight:600;letter-spacing:-0.025em;line-height:1.15;max-width:34ch;text-wrap:balance">A cost model first, a product second.</h2>
-        <p style="margin:0 0 clamp(26px,3vw,34px);max-width:64ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">CostGrid began as research into why AI bills rise while token prices fall &mdash; six modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact, driven from a single assumptions sheet. The routing maths in the product is that model. The difference is that the product measures your real numbers instead of assuming them.</p>
+        <p style="margin:0 0 clamp(26px,3vw,34px);max-width:64ch;font-size:15.5px;line-height:1.6;color:rgba(15,20,17,0.7)">CostGrid began as research into why AI bills rise while token prices fall, across six modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact, driven from a single assumptions sheet. The routing maths in the product is that model. The difference is that the product measures your real numbers instead of assuming them.</p>
         <div class="grid link-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:1px solid rgba(15,20,17,0.28)">
           <a href="./thesis.html" style="display:block;padding:20px clamp(16px,2vw,24px) 20px 0;border-bottom:1px solid rgba(15,20,17,0.12);border-right:1px solid rgba(15,20,17,0.12);text-decoration:none">
             <div style="font-family:'Fragment Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(15,20,17,0.45);margin-bottom:8px">The thesis</div>
@@ -661,7 +578,7 @@ npm run gateway
           <span style="color:rgba(15,20,17,0.45);letter-spacing:0.1em;text-transform:uppercase">Grounded in</span>
           <span>NIST AI RMF</span>
           <span style="color:rgba(15,20,17,0.3)">/</span>
-          <span>EY &mdash; The Total Cost of Agents</span>
+          <span>EY &middot; The Total Cost of Agents</span>
           <span style="color:rgba(15,20,17,0.3)">/</span>
           <span>Stanford HAI AI Index 2026</span>
           <span style="color:rgba(15,20,17,0.3)">/</span>
@@ -685,64 +602,14 @@ npm run gateway
       <p style="margin:clamp(28px,3vw,40px) 0 0;font-family:'Fragment Mono',monospace;font-size:12.5px;color:rgba(245,242,233,0.72)">Questions before you install anything? <a href="mailto:tomasbuica@outlook.com?subject=CostGrid" style="color:#c9a13d;text-decoration-color:rgba(201,161,61,0.5)">tomasbuica@outlook.com</a></p>
     </div>
     <div style="border-top:1px solid rgba(245,242,233,0.16);padding:20px clamp(20px,3.5vw,56px);display:flex;flex-wrap:wrap;gap:12px 28px;align-items:baseline;justify-content:space-between;font-family:'Fragment Mono',monospace;font-size:11px;color:rgba(245,242,233,0.55)">
-      <span>CostGrid &mdash; built by Tomas Buica &middot; MIT licensed</span>
+      <span>CostGrid &middot; built by Tomas Buica &middot; MIT licensed</span>
       <span>Demo and forecast figures are illustrative, not a real organization</span>
     </div>
   </section>
 </div>
 
 <script>
-/* ---------------------------------------------------------------- the dial */
-(function () {
-  var TOKENS_PER_MONTH = 12000;
-  var input   = document.getElementById('shareInput');
-  var elShare = document.getElementById('shareLabel');
-  var elBlend = document.getElementById('blended');
-  var elMonth = document.getElementById('monthly');
-  var elDelta = document.getElementById('delta');
-  var elVerd  = document.getElementById('verdict');
-  var line    = document.getElementById('markerLine');
-  var dot     = document.getElementById('markerDot');
-
-  function cost(s) { return 10 - 9.65 * s + 4.446 * Math.pow(s, 8); }
-  function money(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
-
-  function render(s) {
-    var f = s / 100;
-    var c = cost(f);
-    var base = cost(0.15);
-    var monthly = c * TOKENS_PER_MONTH;
-    var diff = (base - c) * TOKENS_PER_MONTH;
-    var pct = ((base - c) / base) * 100;
-    var y = Math.max(6, Math.min(240, 240 - ((c - 2.5) / 8.5) * 220));
-    var verdict;
-    if (s < 12) verdict = 'Almost everything runs on the expensive model. Routine requests are paying top rate for no reason.';
-    else if (s < 40) verdict = 'Where most companies sit. The saving is sitting there untaken.';
-    else if (s <= 90) verdict = 'A sensible range. You are still saving more than the occasional wrong answer costs you.';
-    else verdict = 'Too far. The calls you are still moving down needed the better model, and the mistakes now cost more than the tokens saved.';
-
-    elShare.textContent = s + '%';
-    elBlend.textContent = '$' + c.toFixed(2);
-    elMonth.textContent = money(monthly) + ' / mo';
-    elDelta.textContent = diff >= 0
-      ? '−' + money(diff) + '  (' + pct.toFixed(0) + '%)'
-      : '+' + money(-diff) + '  (' + Math.abs(pct).toFixed(0) + '%)';
-    elVerd.textContent = verdict;
-
-    var mx = (f * 600).toFixed(1);
-    var my = y.toFixed(1);
-    line.setAttribute('x1', mx); line.setAttribute('x2', mx); line.setAttribute('y1', my);
-    dot.setAttribute('cx', mx);  dot.setAttribute('cy', my);
-  }
-
-  function set(v) { input.value = v; render(Number(v)); }
-  input.addEventListener('input', function (e) { render(Number(e.target.value)); });
-  document.getElementById('btnToday').addEventListener('click', function () { set(15); });
-  document.getElementById('btnOptimum').addEventListener('click', function () { set(83); });
-  render(Number(input.value));
-})();
-
-/* --------------------------------------------------------- the trial form */
+/* --------------------------------------------------------- the trial form *//* --------------------------------------------------------- the trial form */
 (function () {
   /*
    * Lead capture without a backend.
@@ -779,7 +646,7 @@ npm run gateway
       'What they use the API for:',
       value('f_context') || '(not stated)',
       '',
-      '— sent from costgrid.dev'
+      'Sent from costgrid.dev'
     ];
     return lines.join('\n');
   }
@@ -805,7 +672,7 @@ npm run gateway
     }
 
     var body = compose();
-    var subject = 'CostGrid trial — ' + (value('f_company') || value('f_name'));
+    var subject = 'CostGrid trial: ' + (value('f_company') || value('f_name'));
 
     if (ENDPOINT) {
       submit.disabled = true;
@@ -822,7 +689,7 @@ npm run gateway
         form.hidden = true;
         sentNote.hidden = false;
         sentNote.querySelector('p').innerHTML =
-          '<strong>Sent — thank you.</strong> I read these myself and usually reply the same day.';
+          '<strong>Sent, thank you.</strong> I read these myself and usually reply the same day.';
       }).catch(function () {
         // Never strand the lead: fall back to the mail path.
         submit.disabled = false;

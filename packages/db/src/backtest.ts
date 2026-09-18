@@ -283,7 +283,7 @@ export class Backtester {
       caveat:
         "This is spend that would not have occurred, not money saved. Each of " +
         "these calls would have been refused, and the software that made it would " +
-        "have done something else — most likely retried, possibly failed. Run the " +
+        "have done something else, most likely retried, possibly failed. Run the " +
         "rule in --action monitor to see the same calls without refusing any.",
     };
   }

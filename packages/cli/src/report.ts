@@ -59,7 +59,7 @@ export function formatReport(
   const rule = "─".repeat(72);
 
   out.push(rule);
-  out.push(`  COSTGRID — last ${days} day${days === 1 ? "" : "s"}`);
+  out.push(`  COSTGRID · last ${days} day${days === 1 ? "" : "s"}`);
   out.push(rule);
 
   if (isCatalogStale()) {
@@ -95,7 +95,7 @@ export function formatReport(
     out.push(
       `  UNPRICED           ${summary.unpricedCalls} call(s) used a model absent from the price`,
     );
-    out.push("                     catalog — their cost reads as zero and the total is understated.");
+    out.push("                     catalog. Their cost reads as zero and the total is understated.");
   }
 
   const maxModel = byModel.reduce((m, r) => (r.cost > m ? r.cost : m), 0n);
@@ -133,7 +133,7 @@ export function formatReport(
     if (savings.dryRunCalls > 0) {
       out.push(
         `    dry run          ${money(savings.potentialSaving)} available across ` +
-          `${savings.dryRunCalls} call(s) — not yet saved`,
+          `${savings.dryRunCalls} call(s), not yet saved`,
       );
     }
     out.push("    (estimated: observed tokens priced at the requested model)");
@@ -152,7 +152,7 @@ export function formatReport(
         `(~$${projected.toFixed(2)} over this window, if the model's assumptions hold)`,
     );
   } else {
-    out.push("    could save         nothing more — already at the modelled best");
+    out.push("    could save         nothing more. Already at the modelled best");
   }
 
   if (violations.length > 0) {
@@ -160,7 +160,7 @@ export function formatReport(
     out.push("  Recent policy events");
     for (const v of violations) {
       const when = new Date(v.occurredAt).toISOString().slice(0, 16).replace("T", " ");
-      out.push(`    ${when}  ${v.action.padEnd(7)} ${v.agentId ?? "?"} — ${v.reason}`);
+      out.push(`    ${when}  ${v.action.padEnd(7)} ${v.agentId ?? "?"}: ${v.reason}`);
     }
   }
 

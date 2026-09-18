@@ -5,7 +5,7 @@
 Your software calls an LLM API. CostGrid sits in front of that call: it meters
 every request against the provider's own reported token counts, attributes the
 cost to a team and an agent, enforces the budgets you set *before* the money is
-spent, and — when you ask it to — serves the call on a cheaper model instead of
+spent, and, when you ask it to, serves the call on a cheaper model instead of
 refusing it.
 
 Deployment is one line of configuration. Point your SDK's base URL at CostGrid
@@ -15,9 +15,9 @@ and nothing else changes:
 client = Anthropic(base_url="https://costgrid.example.com", api_key="unused")
 ```
 
-**[Try the dashboard](https://costgrid.dev/demo/)** against sample traffic —
-no install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)**
-takes a clean checkout to a real spend report from your own traffic, and
+**[Try the dashboard](https://costgrid.dev/demo/)** against sample traffic. No
+install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)** takes a clean
+checkout to a real spend report from your own traffic, and
 **[docs/TRIAL.md](docs/TRIAL.md)** covers what a free trial involves and what
 data stays inside your network (all of it).
 
@@ -28,14 +28,14 @@ data stays inside your network (all of it).
 **Meters exactly.** Token counts come from each provider's `usage` object, not
 an estimate or a tokenizer guess. Five buckets are priced independently: input,
 output, 5-minute cache write, 1-hour cache write, and cache read. Money is
-integer nanodollars end to end — never a float, because a float rounds and a
+integer nanodollars end to end. Never a float, because a float rounds and a
 bill has to reconcile. Rates for 53 models across Anthropic and OpenAI are
 checked against the providers' published tables by `npm run verify-pricing`,
 which fails the build on a discrepancy or a stale verification date.
 
-**Attributes.** Two headers (`x-costgrid-agent`, `x-costgrid-department`) turn a
-provider invoice into per-team, per-feature chargeback. Unlabelled traffic is
-metered as `unattributed` — a visible cost line rather than a silent gap.
+**Attributes.** Two headers (`x-costgrid-agent`, `x-costgrid-department`) turn
+a provider invoice into per-team, per-feature chargeback. Unlabelled traffic is
+metered as `unattributed`. A visible cost line rather than a silent gap.
 
 **Enforces before spending.** Budgets per tenant, department or agent; model
 allowlists and denylists; output-token caps. Each rule runs in `monitor`
@@ -43,20 +43,20 @@ allowlists and denylists; output-token caps. Each rule runs in `monitor`
 the call costs nothing).
 
 **Draws boundaries, not just budgets.** `costgrid policy deny-tool
-agent:support refund_customer` stops that agent — and every agent it delegates
-to — from being handed that tool. It holds because a model cannot call a tool it
-was never given: the tool list is part of the request, so the request is refused
-and there is nothing for your harness to execute. No change to your agent
-framework, and no trusting the model to respect an instruction. The same rule
-is checked again on the way back, for a model that invents a tool name it was
-never offered — airtight on a buffered reply, and on a streamed one it cuts
+agent:support refund_customer` stops that agent. And every agent it delegates
+to. From being handed that tool. It holds because a model cannot call a tool it
+was never given: the tool list is part of the request, so the request is
+refused and there is nothing for your harness to execute. No change to your
+agent framework, and no trusting the model to respect an instruction. The same
+rule is checked again on the way back, for a model that invents a tool name it
+was never offered. Airtight on a buffered reply, and on a streamed one it cuts
 before the arguments are sent. `docs/QUICKSTART.md` states exactly how far each
 half goes.
 
 **Degrades instead of breaking.** A cap with `--fallback` downgrades
 over-budget traffic to a cheaper model rather than returning 403, so the
 customer's product keeps answering. It refuses to make a substitution it cannot
-make safely — across providers, or to a model it cannot price.
+make safely. Across providers, or to a model it cannot price.
 
 **Realises the saving.** A route rule sends matching traffic to a cheaper model
 and records the counterfactual, so the saving is audited rather than claimed.
@@ -64,17 +64,17 @@ Always dry-run first: `--action monitor` changes nothing and still measures what
 it would have saved.
 
 **Proposes its own rules, and proves them first.** `costgrid advise` reads your
-metered traffic, drafts concrete policies, and replays each one against the same
-window — so a saving is shown before anything is switched on. It proposes and
-never applies; every line it prints is a command for you to run, or not.
+metered traffic, drafts concrete policies, and replays each one against the
+same window. So a saving is shown before anything is switched on. It proposes
+and never applies; every line it prints is a command for you to run, or not.
 Proposals that save money are kept separate from ones that merely bound a risk,
 because ranking both by "money involved" would put a spending cap that saves
 nothing above a route rule that saves real money. No model is involved: every
 figure comes from a deterministic query over your own rows.
 
-**Reports.** A live dashboard, a terminal report, and a monthly statement —
-spend by team with movement against last month, budget status, and what routing
-saved — exportable as CSV for finance.
+**Reports.** A live dashboard, a terminal report, and a monthly statement.
+Spend by team with movement against last month, budget status, and what routing
+saved. Exportable as CSV for finance.
 
 **Imports history.** Backfill from each provider's admin API, so the dashboard
 is not empty on day one. Imported rows are kept apart from metered ones: they
@@ -114,10 +114,10 @@ npm install && npm run build && npm test
 ## The model behind it
 
 CostGrid started from an observation: per-token prices are collapsing and
-enterprise AI bills are rising anyway. Unit price is the wrong thing to watch —
-spend is price multiplied by volume, and volume usually wins. `thesis.html`,
-`dashboard.html` and the spreadsheet are that research, and the routing economics in
-`packages/core/src/routing.ts` come straight from it.
+enterprise AI bills are rising anyway. Unit price is the wrong thing to watch.
+Spend is price multiplied by volume, and volume usually wins. `thesis.html`,
+`dashboard.html` and the spreadsheet are that research, and the routing
+economics in `packages/core/src/routing.ts` come straight from it.
 
 **Cost taxonomy.** Tokens are the visible line, not the whole bill. The model
 separates the token line from governance, deployment, observability and
@@ -172,7 +172,7 @@ physically costs to serve.
 
 These are estimates, and the distinction matters: everything in the *model* is
 projected from stated assumptions, while everything the gateway reports is read
-from provider responses at runtime. The two are never mixed — the dashboard
+from provider responses at runtime. The two are never mixed. The dashboard
 labels the modelled figures as modelled.
 
 ---
