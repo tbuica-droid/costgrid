@@ -6,7 +6,7 @@
  * risk it creates is drift, which this script exists to remove. Run it after
  * changing tokens, and CI fails if the two are out of step.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const TOKENS = "design-system/src/tokens.css";
 const TARGETS = ["packages/gateway/web/styles.css", "demo/styles.css"];
@@ -37,6 +37,40 @@ for (const target of TARGETS) {
     writeFileSync(target, next);
     console.log(`updated ${target}`);
   }
+}
+
+/*
+ * The marketing site is static and has no build step, so it needs the compiled
+ * component CSS sitting next to it. Same bargain as the dashboard: inline the
+ * artefact, and make drift a build failure rather than a surprise.
+ */
+const SITE_CSS = "costgrid-ui.css";
+const BUILT = "design-system/dist/index.css";
+const HEADER = `/*
+ * GENERATED. Do not edit.
+ *
+ * The compiled CostGrid design system, copied here by
+ * \`npm run sync-design-tokens\` so the static marketing site can use the real
+ * component styles without a build step. Edit design-system/src/ and re-run
+ * the sync.
+ */
+`;
+
+if (existsSync(BUILT)) {
+  const want = HEADER + readFileSync(BUILT, "utf8");
+  const have = existsSync(SITE_CSS) ? readFileSync(SITE_CSS, "utf8") : "";
+  if (want !== have) {
+    if (check) {
+      console.error(`${SITE_CSS} is out of date. Run: npm run sync-design-tokens`);
+      drifted = true;
+    } else {
+      writeFileSync(SITE_CSS, want);
+      console.log(`updated ${SITE_CSS}`);
+    }
+  }
+} else if (check) {
+  console.error(`${BUILT} missing. Run: cd design-system && npm run build`);
+  drifted = true;
 }
 
 if (drifted) process.exitCode = 1;
