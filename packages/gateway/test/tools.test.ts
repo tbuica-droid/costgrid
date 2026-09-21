@@ -5,6 +5,9 @@ import type { GatewayConfig } from "../src/config.js";
 import { createServer } from "../src/server.js";
 import { anthropicAdapter, openaiAdapter } from "../src/providers/index.js";
 
+/** Unmistakable, and impossible in a hex id or hash. */
+const ARGUMENT_SENTINEL = "refund-to-card-ending-ZZQX";
+
 const CONFIG: GatewayConfig = {
   port: 0,
   host: "127.0.0.1",
@@ -145,7 +148,13 @@ describe("tool extraction", () => {
               model: "claude-opus-5",
               stop_reason: "tool_use",
               usage: USAGE,
-              content: [{ type: "tool_use", name: "refund_customer", input: { amount: 9000 } }],
+              content: [
+                {
+                  type: "tool_use",
+                  name: "refund_customer",
+                  input: { amount: 9000, memo: ARGUMENT_SENTINEL },
+                },
+              ],
             }),
             { status: 200, headers: { "content-type": "application/json" } },
           )) as unknown as typeof fetch,
@@ -196,12 +205,17 @@ describe("tool extraction", () => {
       await send();
 
       // The blunt version of the promise: grep the whole database.
+      //
+      // The needle is deliberately not something short like "9000". Hashes and
+      // ids are stored as hex, and a four-digit run of hex turns up in one by
+      // chance often enough to fail this test on an innocent day, which is how
+      // a real leak ends up dismissed as the usual flake.
       const tables = db
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
         .all() as { name: string }[];
       for (const { name } of tables) {
         const rows = db.prepare(`SELECT * FROM "${name}"`).all();
-        expect(JSON.stringify(rows)).not.toContain("9000");
+        expect(JSON.stringify(rows)).not.toContain(ARGUMENT_SENTINEL);
       }
     });
 
