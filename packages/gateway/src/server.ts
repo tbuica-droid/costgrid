@@ -254,10 +254,60 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     bodyLimit: 64 * 1024 * 1024,
   });
 
+  /*
+   * Metering that can fail without taking the request with it.
+   *
+   * The asymmetry here is the whole point, and getting it backwards is a
+   * correctness bug rather than a rough edge. **Deciding** whether a call may
+   * proceed is fail-closed: if policy evaluation throws, the request dies and
+   * nothing reaches the provider, which is what an enforcement product must
+   * do. **Recording** what happened is not. By the time anything is recorded
+   * the provider has already run the call and will bill for it, so refusing to
+   * hand the customer the answer they have just paid for adds a second failure
+   * to the first.
+   *
+   * Before this existed, a full disk or a locked database threw out of the
+   * handler and the caller got a 500 on a call that succeeded upstream. They
+   * were charged for tokens they never saw, and a retry charged them again.
+   *
+   * Losing a row is still serious: it is money that will appear on the
+   * provider's invoice and not in any CostGrid figure. So the failure is
+   * counted and surfaced on /health rather than only logged, because a line in
+   * a log nobody reads is the same as no line at all.
+   *
+   * There is deliberately no dead-letter file. The most likely reason a write
+   * fails is that the disk is full or read only, and a fallback that writes to
+   * that same disk fails for the same reason while looking like a safety net.
+   */
+  let meteringFailures = 0;
+  let lastMeteringFailure: { at: number; reason: string } | undefined;
+
+  function meter(what: string, write: () => void): void {
+    try {
+      write();
+    } catch (error) {
+      meteringFailures++;
+      const reason = error instanceof Error ? error.message : String(error);
+      lastMeteringFailure = { at: Date.now(), reason };
+      app.log.error(
+        { err: error, what, meteringFailures },
+        "METERING WRITE FAILED: this call is missing from CostGrid's figures but will " +
+          "still appear on the provider's invoice. The caller was served normally.",
+      );
+    }
+  }
+
   app.get("/health", async () => ({
+    // Still "ok", and still a 200. A metering failure must not pull the
+    // gateway out of a load balancer: that would turn losing a row into
+    // refusing every call, which is the trade this whole guard exists to
+    // avoid. Monitoring should alarm on meteringFailures, not on status.
     status: "ok",
     version: "0.1.0",
     hosted: config.hosted,
+    /** Rows that could not be written. Non-zero means figures are understated. */
+    meteringFailures,
+    ...(lastMeteringFailure ? { lastMeteringFailure } : {}),
     providers: ADAPTERS.filter((a) => config.hosted || config.providerKeys[a.id] !== undefined).map(
       (a) => ({ id: a.id, path: a.path }),
     ),
@@ -439,19 +489,24 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       if (!decision.allowed) {
         const blocked = decision.blockedBy!;
 
-        repository.recordCall({
-          ...baseRecord,
-          id: callId,
-          model: requestedModel,
-          durationMs: Date.now() - startedAt,
-          usage: ZERO_USAGE,
-          cost: ZERO_COST,
-          priced: true,
-          outcome: "blocked",
-          statusCode: 403,
-          errorMessage: blocked.reason,
+        // Nothing was spent here, and the refusal below happens either way:
+        // enforcement lives in the return, not in the write. Wrapping it means
+        // a failing disk cannot turn a clean 403 into a confusing 500.
+        meter("blocked-call", () => {
+          repository.recordCall({
+            ...baseRecord,
+            id: callId,
+            model: requestedModel,
+            durationMs: Date.now() - startedAt,
+            usage: ZERO_USAGE,
+            cost: ZERO_COST,
+            priced: true,
+            outcome: "blocked",
+            statusCode: 403,
+            errorMessage: blocked.reason,
+          });
+          repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
         });
-        repository.recordViolations(caller.tenantId, callId, decision.violations, startedAt);
 
         return reply.code(403).send({
           type: "error",
@@ -546,17 +601,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        repository.recordCall({
-          ...baseRecord,
-          id: randomUUID(),
-          model: requestedModel,
-          durationMs: Date.now() - startedAt,
-          usage: ZERO_USAGE,
-          cost: ZERO_COST,
-          priced: true,
-          outcome: "error",
-          errorMessage: message,
-        });
+        meter("upstream-error", () =>
+          repository.recordCall({
+            ...baseRecord,
+            id: randomUUID(),
+            model: requestedModel,
+            durationMs: Date.now() - startedAt,
+            usage: ZERO_USAGE,
+            cost: ZERO_COST,
+            priced: true,
+            outcome: "error",
+            errorMessage: message,
+          }),
+        );
         return reply.code(502).send({
           type: "error",
           error: { type: "upstream_unreachable", message },
@@ -577,7 +634,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         reply.header("x-costgrid-warnings", headerSafe(warnings.join("; ")));
       }
 
+      /*
+       * The post-spend write, wrapped.
+       *
+       * Everything below this point runs after the provider has produced
+       * tokens it will bill for, so nothing in here may be allowed to fail the
+       * response. `streamThrough` is handed the wrapped version too, which is
+       * why the streaming path needs no guard of its own.
+       */
       const record = (over: RecordOverrides): void => {
+        meter("call", () => recordUnsafe(over));
+      };
+
+      const recordUnsafe = (over: RecordOverrides): void => {
         const usage = over.usage ?? ZERO_USAGE;
         const model = over.model ?? requestedModel;
         const modifiers = over.modifiers ?? {};
@@ -663,6 +732,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
               at: startedAt,
             });
           } catch (error) {
+            // Narrower than the outer guard on purpose: a bad tool name should
+            // not cost us the call row, which is the one that carries the money.
             app.log.warn({ err: error }, "tool extraction failed");
           }
         }
