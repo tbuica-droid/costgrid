@@ -26,6 +26,7 @@ import {
 } from "@costgrid/db";
 import { ask, type AnalystConfig, formatPreflight, preflight } from "@costgrid/gateway";
 import { formatProposals } from "./advise.js";
+import { renderStatementHtml } from "./statement-html.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
@@ -51,7 +52,8 @@ Usage:
                                           each one replayed against the same window
                                           so the saving is shown before you enable
                                           it. Proposes only. Nothing is applied.
-  costgrid statement [--month YYYY-MM] [--format text|csv|json] [--out FILE]
+  costgrid statement [--month YYYY-MM] [--format text|csv|json|html] [--out FILE]
+                              [--company "Acme Ltd"]
                                           Monthly statement for finance: spend by team,
                                           movement against last month, budget status and
                                           what routing saved. Defaults to this month.
@@ -473,8 +475,8 @@ async function main(): Promise<void> {
       requireTenant();
       const month = flag(argv, "month") ?? monthOf();
       const format = flag(argv, "format") ?? "text";
-      if (format !== "text" && format !== "csv" && format !== "json") {
-        fail(`--format must be text, csv or json, got ${format}`);
+      if (format !== "text" && format !== "csv" && format !== "json" && format !== "html") {
+        fail(`--format must be text, csv, json or html, got ${format}`);
       }
 
       let statement;
@@ -491,7 +493,14 @@ async function main(): Promise<void> {
       }
 
       const rendered =
-        format === "csv"
+        format === "html"
+          ? renderStatementHtml(statement, {
+              // Whose statement this is. Defaults to the tenant's own name,
+              // because a document addressed to nobody does not get forwarded.
+              company: flag(argv, "company") ?? repository.getTenant(tenantId)?.name ?? tenantId,
+              outcomes: analytics.outcomes(tenantId, statement.range),
+            })
+          : format === "csv"
           ? statementToCsv(statement)
           : format === "json"
             ? // Money is bigint nanodollars, which JSON cannot hold. Serialising

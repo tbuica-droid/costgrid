@@ -210,11 +210,18 @@ happens for a few days.
 ### Week 4: send the statement to whoever owns the budget
 
 ```bash
-npx tsx packages/cli/src/main.ts statement --format csv --out september.csv
+npx tsx packages/cli/src/main.ts statement --format html \
+  --company "Your company" --out september.html
 ```
 
-Spend by team, how it moved since last month, what the rules saved. This is the
-artefact that makes the case internally.
+Open that file in a browser and print it to PDF. It is one page: what you spent,
+how it moved, which team spent it, what the rules saved, and what each figure
+rests on. It is written for someone who has never opened the dashboard.
+
+Use `--format csv` instead if your finance team would rather have the raw rows.
+
+This is the artefact that makes the case internally. If you send one thing to
+whoever owns the budget, send this.
 
 ---
 
