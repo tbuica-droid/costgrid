@@ -9,6 +9,9 @@
  * read back. The server returns a masked tail and nothing else.
  */
 
+import { auditSection, retentionSection, ssoSection } from "./console-security.js";
+import { button, count, escapeHtml, field, money, relativeTime } from "./ui.js";
+
 const state = { user: null, orgs: [], tenantId: null, view: "settings", flash: null };
 
 async function call(method, path, body) {
@@ -21,40 +24,6 @@ async function call(method, path, body) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload;
-}
-
-function escapeHtml(value) {
-  return String(value).replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-  );
-}
-
-const money = (decimalString) => `$${Number(decimalString).toFixed(2)}`;
-const count = (n) => n.toLocaleString("en-US");
-
-function relativeTime(timestamp) {
-  const seconds = Math.max(0, (Date.now() - timestamp) / 1000);
-  if (seconds < 90) return `${Math.round(seconds)}s ago`;
-  if (seconds < 5400) return `${Math.round(seconds / 60)}m ago`;
-  if (seconds < 172800) return `${Math.round(seconds / 3600)}h ago`;
-  return `${Math.round(seconds / 86400)}d ago`;
-}
-
-function field(label, name, type = "text", extra = "") {
-  return `<label style="display:block;margin-bottom:14px">
-    <span class="rail" style="display:block;margin-bottom:6px">${escapeHtml(label)}</span>
-    <input name="${name}" type="${type}" ${extra}
-      style="width:100%;max-width:420px;padding:9px 11px;border:1px solid var(--rule);
-             background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px" />
-  </label>`;
-}
-
-function button(text, attrs = "") {
-  return `<button ${attrs}
-    style="font-family:var(--mono);font-size:12px;letter-spacing:0.04em;padding:9px 16px;
-           border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer">
-    ${escapeHtml(text)}</button>`;
 }
 
 function flashBanner() {
@@ -100,11 +69,14 @@ async function renderSettings() {
   const tenantId = state.tenantId;
   const org = state.orgs.find((o) => o.tenantId === tenantId);
 
-  const [credentials, keys, billing, importState] = await Promise.all([
+  const [credentials, keys, billing, importState, sso, retention, audit] = await Promise.all([
     call("GET", `/console/${tenantId}/credentials`),
     call("GET", `/console/${tenantId}/keys`),
     call("GET", `/console/${tenantId}/billing`),
     call("GET", `/console/${tenantId}/import`),
+    call("GET", `/console/${tenantId}/sso`),
+    call("GET", `/console/${tenantId}/retention`),
+    call("GET", `/console/${tenantId}/audit/verify`),
   ]);
 
   const credentialRows = credentials.providers
@@ -163,7 +135,7 @@ async function renderSettings() {
     .map(
       (p) =>
         `<option value="${escapeHtml(p.id)}" ${p.id === billing.plan.id ? "selected" : ""}>
-           ${escapeHtml(p.name)} · ${money(p.monthlyBaseUsd)}/mo + ${p.spendFeeBps / 100}% of spend
+           ${escapeHtml(p.name)} · ${money(p.monthlyBaseUsd)}/month, unlimited calls
          </option>`,
     )
     .join("");
@@ -255,23 +227,19 @@ async function renderSettings() {
         <div class="kpi-sub">last 30 days · ${count(billing.calls)} calls</div>
       </div>
       <div class="card">
-        <div class="rail">Subscription</div>
-        <div class="kpi-value">${money(billing.baseUsd)}</div>
-        <div class="kpi-sub">${escapeHtml(billing.plan.name)} plan</div>
+        <div class="rail">Your plan</div>
+        <div class="kpi-value">${escapeHtml(billing.plan.name)}</div>
+        <div class="kpi-sub">unlimited calls and seats</div>
       </div>
       <div class="card">
-        <div class="rail">Usage fee</div>
-        <div class="kpi-value">${money(billing.spendFeeUsd)}</div>
-        <div class="kpi-sub">${billing.plan.spendFeeBps / 100}% of metered spend</div>
-      </div>
-      <div class="card">
-        <div class="rail">CostGrid total</div>
+        <div class="rail">What CostGrid costs</div>
         <div class="kpi-value accent-gold">${money(billing.totalUsd)}</div>
-        <div class="kpi-sub">${
-          billing.withinAllowance
-            ? `within ${count(billing.plan.includedCallsPerMonth)} included calls`
-            : `<span class="accent-rust">${count(billing.overageCalls)} calls over allowance</span>`
-        }</div>
+        <div class="kpi-sub">flat, every month</div>
+      </div>
+      <div class="card">
+        <div class="rail">Fee on your AI bill</div>
+        <div class="kpi-value">None</div>
+        <div class="kpi-sub">this product exists to shrink that bill</div>
       </div>
     </div>
     <form id="plan-form" style="display:flex;gap:8px;margin-top:14px;align-items:center">
@@ -279,7 +247,26 @@ async function renderSettings() {
       ${button("Change plan", 'type="submit"')}
     </form>
     <p class="section-note" style="margin-top:10px">Rate limit on this plan:
-      ${count(billing.plan.rateLimitPerMinute)} requests/minute.</p>`;
+      ${count(billing.plan.rateLimitPerMinute)} requests/minute.</p>
+
+    <h2 style="margin-top:26px">Company sign-in</h2>
+    <p class="section-note">Let people sign in with your company account instead of a CostGrid
+      password. Works with Microsoft, Okta, Google Workspace and anything else that speaks
+      OpenID Connect. Your identity provider decides who gets in, and we check that its answer
+      is genuine before trusting it.</p>
+    ${ssoSection(sso)}
+
+    <h2 style="margin-top:26px">How long we keep your data</h2>
+    <p class="section-note">Nothing is deleted unless you ask for it. Set a limit here and
+      CostGrid removes anything older once a day. Deleted data is gone from every report,
+      including months you have already sent out, so pick a window you can live with.</p>
+    ${retentionSection(retention)}
+
+    <h2 style="margin-top:26px">Record of changes</h2>
+    <p class="section-note">Every change someone makes is written down: who added a key, who
+      changed a budget, who signed in. Each entry is locked to the one before it, so an entry
+      cannot be altered or removed without this check failing.</p>
+    ${auditSection(audit)}`;
 }
 
 // ------------------------------------------------------------------- shell
@@ -359,6 +346,36 @@ document.addEventListener("submit", async (event) => {
       state.flash = {
         kind: "ok",
         text: `Imported ${result.rowsWritten} day/model rows from ${result.provider}.${unpriced}`,
+      };
+    } else if (form.id === "sso-form") {
+      const values = formValues(form);
+      // The technical endpoints are looked up from the issuer, so the person
+      // filling this in needs two fields from their IT team rather than five.
+      const endpoints = await call("POST", `/console/${state.tenantId}/sso/discover`, {
+        issuer: values.issuer,
+      });
+      await call("PUT", `/console/${state.tenantId}/sso`, {
+        issuer: values.issuer,
+        clientId: values.clientId,
+        clientSecret: values.clientSecret,
+        authorizeUrl: endpoints.authorizeUrl,
+        tokenUrl: endpoints.tokenUrl,
+        jwksUrl: endpoints.jwksUrl,
+        emailDomains: String(values.emailDomains || "")
+          .split(/[,\s]+/)
+          .filter(Boolean),
+        enforced: form.elements.enforced.checked,
+      });
+      state.flash = { kind: "ok", text: "Company sign-in saved. Try it from a private window before telling anyone." };
+    } else if (form.id === "retention-form") {
+      const { callDays, eventDays } = formValues(form);
+      await call("PUT", `/console/${state.tenantId}/retention`, {
+        callDays: Number(callDays),
+        eventDays: Number(eventDays),
+      });
+      state.flash = {
+        kind: "ok",
+        text: "Saved. Nothing has been deleted yet; the limit is applied once a day.",
       };
     } else if (form.classList.contains("cred-form")) {
       const { apiKey } = formValues(form);

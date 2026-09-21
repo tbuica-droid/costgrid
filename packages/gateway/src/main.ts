@@ -10,6 +10,7 @@ import {
   CostGridRepository,
   ImportsRepository,
   openDatabase,
+  Retention,
 } from "@costgrid/db";
 import { loadConfig } from "./config.js";
 import { assertToolPoliciesEnforceable, createServer } from "./server.js";
@@ -42,8 +43,29 @@ async function main(): Promise<void> {
 
   // Expired rows can never authenticate anything; sweeping them keeps the
   // table from growing without bound in a long-lived deployment.
-  const sweep = setInterval(() => accounts?.purgeExpiredSessions(), 60 * 60 * 1000);
+  const sweep = setInterval(() => {
+    accounts?.purgeExpiredSessions();
+    accounts?.sso.purgeExpiredRequests();
+  }, 60 * 60 * 1000);
   sweep.unref();
+
+  // Retention runs daily rather than hourly: it deletes, and a deletion job
+  // that runs often is a deletion job whose blast radius nobody watches. It
+  // never touches the audit log, which only a person may remove.
+  const retention = new Retention(db);
+  const applyRetention = (): void => {
+    try {
+      for (const [tenant, result] of retention.purgeAll()) {
+        app.log.info({ tenant, ...result }, "retention policy applied");
+      }
+    } catch (error) {
+      // Never take the gateway down over housekeeping. A failed purge means
+      // data is kept longer than asked, which is the safe direction to fail in.
+      app.log.error({ err: error }, "retention policy could not be applied");
+    }
+  };
+  const purge = setInterval(applyRetention, 24 * 60 * 60 * 1000);
+  purge.unref();
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, "shutting down");

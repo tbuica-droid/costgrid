@@ -39,13 +39,14 @@ openssl rand -base64 48
 
 It decrypts every tenant's provider credentials. Three consequences:
 
--  - **Losing it makes every stored credential unrecoverable.** Tenants would
-  have to re-enter their keys. The gateway detects this and says so rather than
-  sending garbage upstream. - **Leaking it, together with a database dump,
-  exposes every tenant's provider key.** Either alone is not enough. That is
-  the point of holding it outside the database. - **Changing it does not
-  re-encrypt anything.** There is no key-rotation path in this release;
-  rotating means asking every tenant to re-enter their key.
+- **Losing it makes every stored credential unrecoverable.** Tenants would have
+  to re-enter their keys. The gateway detects this and says so rather than
+  sending garbage upstream.
+- **Leaking it, together with a database dump, exposes every tenant's provider
+  key.** Either alone is not enough. That is the point of holding it outside
+  the database.
+- **Changing it does not re-encrypt anything.** There is no key-rotation path
+  in this release, so rotating means asking every tenant to re-enter their key.
 
 Keep it in a secrets manager, not in the image, not in the repo, not in a
 shell command that lands in history.
@@ -79,12 +80,12 @@ Provider keys and API keys cross this connection.
 
 The fastest path to showing value, and the one to use in a sales call:
 
-1.  1. They sign up at `/console`. 2. **Import**. They paste a provider *admin*
-   key and CostGrid pulls their last 90 days from the provider's usage report.
-   Their own numbers are on screen in under a minute, before anything is
-   integrated. 3. They add a provider API key and point one service at the
-   gateway. 4. Metered spend, per-agent attribution and enforcement start from
-   there.
+1. They sign up at `/console`.
+2. **Import.** They paste a provider *admin* key and CostGrid pulls their last
+   90 days from the provider's usage report. Their own numbers are on screen in
+   under a minute, before anything is integrated.
+3. They add a provider API key and point one service at the gateway.
+4. Metered spend, per-agent attribution and enforcement start from there.
 
 Step 2 matters because without it a prospect's first experience is an empty
 dashboard, which cannot be demoed and cannot be sold from.
@@ -126,6 +127,82 @@ not be treated as a pass.
 
 Expired sessions are swept hourly by the process itself. Nothing to do.
 
+## The audit log
+
+Every change a person makes is recorded: who signed in, who added a provider
+key, who changed a budget, who turned enforcement off. Metering already
+recorded what the software did; this records what people did to the software.
+
+Each entry carries the hash of the entry before it. Changing or removing any
+entry changes its hash, which breaks the link the next entry recorded, and
+every link after that. That makes a change **detectable**, which is what
+"tamper-evident" means. It is a weaker claim than "tamper-proof", and unlike
+that one it is true: the database belongs to the customer, and nothing stored
+in it can be made unchangeable.
+
+```bash
+costgrid audit list --days 30      # what happened
+costgrid audit verify              # does the chain still hold
+costgrid audit head                # the fingerprint to record elsewhere
+```
+
+**`audit head` is the part that turns detection into proof.** It prints a hash
+committing to the entire history. Copy it somewhere CostGrid cannot reach: an
+email to whoever owns the audit, a ticket, a board minute. Any later change to
+anything written before that moment becomes provable rather than merely
+suspected. Without that step, someone who deletes the newest entries leaves a
+chain that still verifies, because what is missing links to nothing.
+
+`costgrid audit verify` exits 2 when the chain does not hold, so it can be run
+on a schedule beside the pricing check.
+
+## Single sign-on
+
+OpenID Connect, one connection per organisation. Configured by an owner at
+`/console`, or by hand against `PUT /console/:tenantId/sso`.
+
+The customer needs to register one redirect URI with their identity provider,
+and the console prints the exact string to paste. **Set `COSTGRID_PUBLIC_URL`**
+before doing this: without it the redirect is built from whatever `Host` header
+arrived, which works but makes a mismatch confusing to diagnose.
+
+`emailDomains` is not a convenience. An identity provider issues valid tokens
+for everybody in its directory, and it is the same provider for thousands of
+organisations, so a token proves who somebody is and not that they belong here.
+The domain list is what turns the first into the second.
+
+With `enforced` on, password login is refused for addresses in those domains,
+including correct passwords. That is usually the reason a customer bought SSO.
+
+## Data retention
+
+Three windows, all defaulting to zero, which means keep indefinitely.
+
+```bash
+costgrid retention show
+costgrid retention set --calls 90 --events 365
+costgrid retention run             # apply now instead of waiting for the daily run
+```
+
+The gateway applies the policy once a day. It **never** deletes the audit log,
+even when an audit window is set: a job that erases evidence on a timer is
+indistinguishable from someone erasing evidence, and a retention setting would
+be a plausible way to do exactly that. Removing audit history takes
+`costgrid audit purge --before <date> --confirm`, run by a person, and it
+writes a record of itself into the chain it is cutting. An audit window may be
+zero or at least 365 days; anything shorter is not an audit trail.
+
+For a deletion request:
+
+```bash
+costgrid erase <organisation-id> --confirm
+```
+
+That removes everything belonging to one organisation, including its audit log,
+because an audit trail describing an organisation is data about that
+organisation. It prints what went, per table, which is usually what closes the
+request. It cannot be undone.
+
 ## What is deliberately not built
 
 **No payment processor.** Changing a plan records the intent; nobody's card is
@@ -135,11 +212,23 @@ which are shown for context and never used to compute the charge. An operator
 collects. Charging money automatically is a real-world action that belongs
 behind an explicit, deliberate integration.
 
-**SQLite, so one node.** Every construct in the schema is Postgres-portable and
-the repository layer is the only code that writes SQL, but the swap has not
-been made. Until it is: one gateway instance, one disk, no horizontal scale and
-no HA. For early customers this is genuinely fine; it is not fine at scale, and
-it should not be sold as if it were.
+**SQLite, so one node.** The schema is Postgres-portable, and that is now
+checked rather than claimed: `npm test` runs the migrations past a checker, and
+`npm run emit-postgres-schema` writes the translated DDL. Writing that checker
+found a real defect in the old claim, which is the argument for it. SQLite's
+`INTEGER` is 64-bit and Postgres's is 32-bit, so every nanodollar and every
+millisecond timestamp in the schema needs `BIGINT`. A copy-paste migration
+would have passed a smoke test and then overflowed at $2.15 of spend.
+
+The rest of the port has not been made. The driver is synchronous and Postgres
+is not, so every repository method and every caller changes. Until that is
+done: one gateway instance, one disk, no horizontal scale and no HA. For early
+customers this is genuinely fine. It is not fine at scale, it is the thing a
+public-sector or large-enterprise security review will stop on, and it should
+not be sold as if it were solved.
+
+The translated schema has not been run against a real Postgres. There was none
+on the machine where it was written.
 
 **In-process rate limiting.** Each instance enforces its own counter, so the
 effective limit is `plan limit x instances`. With one instance that is exact.
@@ -149,8 +238,9 @@ A multi-node deployment needs a shared counter.
 forgets their password needs an operator with database access. Adding a member
 to an organisation is currently a server-side call, not a UI flow.
 
-**No audit log of console actions.** Metering and policy events are recorded;
-who changed a credential or a plan is not.
+**No shared rate limiting across instances.** Covered above, and repeated here
+because it is the one gap that gets worse rather than better as a deployment
+grows.
 
 Each of these is a real gap rather than a rough edge. They are listed here so
 the decision to launch with them is made deliberately, and so a prospect asking

@@ -1,11 +1,10 @@
 import {
   type AccountsRepository,
   Analytics,
+  type AuditActor,
   type CostGridRepository,
-  type ImportsRepository,
   type Role,
   SESSION_TTL_MS,
-  toUtcDay,
   trailingWindow,
   type User,
 } from "@costgrid/db";
@@ -20,7 +19,6 @@ import {
 } from "@costgrid/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayConfig } from "./config.js";
-import { importerFor, IMPORTERS } from "./importers/index.js";
 import { ADAPTERS } from "./providers/index.js";
 
 /**
@@ -38,12 +36,11 @@ export interface ConsoleDeps {
   readonly accounts: AccountsRepository;
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
-  readonly imports: ImportsRepository;
   /** Overridable so tests never reach a real provider. */
   readonly fetchImpl?: typeof fetch | undefined;
 }
 
-interface ConsoleRequest extends FastifyRequest {
+export interface ConsoleRequest extends FastifyRequest {
   user?: User | undefined;
 }
 
@@ -61,7 +58,7 @@ export function readCookie(request: FastifyRequest, name: string): string | unde
   return undefined;
 }
 
-function setSessionCookie(
+export function setSessionCookie(
   reply: FastifyReply,
   token: string,
   expiresAt: number,
@@ -81,7 +78,7 @@ function setSessionCookie(
   reply.header("set-cookie", attributes.join("; "));
 }
 
-function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
+export function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
   const attributes = [
     `${SESSION_COOKIE}=`,
     "Path=/",
@@ -101,7 +98,7 @@ function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
  * declare its own origin — and matching it to the Host it reached us on —
  * blocks the classic forged-form attack without a token round-trip.
  */
-function sameOrigin(request: FastifyRequest): boolean {
+export function sameOrigin(request: FastifyRequest): boolean {
   const origin = request.headers.origin;
   if (typeof origin !== "string") {
     // No Origin header: not a browser-initiated cross-site POST. Same-origin
@@ -119,7 +116,7 @@ function sameOrigin(request: FastifyRequest): boolean {
 }
 
 export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
-  const { accounts, analytics, config, imports, repository } = deps;
+  const { accounts, analytics, config, repository } = deps;
   const secure = config.secureCookies;
 
   /** Resolve the session on every console request; does not itself reject. */
@@ -135,42 +132,11 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     request.user = accounts.resolveSession(token)?.user;
   });
 
-  /** Routes past this point need a logged-in user. */
-  function requireUser(request: ConsoleRequest, reply: FastifyReply): User | undefined {
-    if (!request.user) {
-      void reply.code(401).send({ error: "not signed in" });
-      return undefined;
-    }
-    return request.user;
-  }
+  const { requireUser, requireRole } = createGuards(accounts);
+  const { audit, sso } = accounts;
 
-  /**
-   * Resolve the tenant from the request and confirm membership.
-   *
-   * Never trusts a tenant id on its own — otherwise any signed-in user could
-   * administer any organisation by guessing an id.
-   */
-  function requireRole(
-    request: ConsoleRequest,
-    reply: FastifyReply,
-    tenantId: string,
-    minimum: Role = "member",
-  ): { user: User; role: Role } | undefined {
-    const user = requireUser(request, reply);
-    if (!user) return undefined;
-
-    const role = accounts.roleIn(user.id, tenantId);
-    if (!role) {
-      // 404 rather than 403: a non-member should not learn the org exists.
-      void reply.code(404).send({ error: "organisation not found" });
-      return undefined;
-    }
-    if (minimum === "owner" && role !== "owner") {
-      void reply.code(403).send({ error: "this action requires the owner role" });
-      return undefined;
-    }
-    return { user, role };
-  }
+  /** Shorthand for "this signed-in person did it", which is most entries. */
+  const by = (user: User): AuditActor => ({ kind: "user", id: user.id, label: user.email });
 
   // -------------------------------------------------------------- accounts
 
@@ -197,6 +163,13 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
         .send({ error: error instanceof Error ? error.message : "could not create account" });
     }
 
+    audit.record(created.tenantId, {
+      actor: by(created.user),
+      action: "organisation.created",
+      subject: organisation,
+      detail: { email: created.user.email, role: "owner" },
+    });
+
     const session = accounts.createSession(created.user.id);
     setSessionCookie(reply, session.token, session.expiresAt, secure);
 
@@ -211,10 +184,45 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     const email = typeof body?.["email"] === "string" ? body["email"] : "";
     const password = typeof body?.["password"] === "string" ? body["password"] : "";
 
+    // An organisation that has turned on single sign-on has decided passwords
+    // are not an acceptable way in, and leaving this path open would make that
+    // decision cosmetic. Checked before the password is verified, so a correct
+    // password is refused just as firmly as a wrong one.
+    const connection = sso.forEmail(email);
+    if (connection?.enforced === true) {
+      return reply.code(403).send({
+        error: "your organisation requires single sign-on",
+        sso: true,
+      });
+    }
+
     const user = accounts.authenticate(email, password);
     if (!user) {
+      // Recorded where there is an organisation it belongs to. A run of these
+      // is what an attack on an account looks like from the inside, and it is
+      // one of the few things an audit log can show that nothing else does.
+      const existing = accounts.findUserByEmail(email);
+      if (existing) {
+        for (const membership of accounts.membershipsOf(existing.id)) {
+          audit.record(membership.tenantId, {
+            actor: { kind: "user", id: existing.id, label: existing.email },
+            action: "auth.sign-in-failed",
+            subject: existing.email,
+            detail: { method: "password" },
+          });
+        }
+      }
       // One message for both causes, so this cannot enumerate accounts.
       return reply.code(401).send({ error: "email or password is incorrect" });
+    }
+
+    for (const membership of accounts.membershipsOf(user.id)) {
+      audit.record(membership.tenantId, {
+        actor: by(user),
+        action: "auth.signed-in",
+        subject: user.email,
+        detail: { method: "password" },
+      });
     }
 
     const session = accounts.createSession(user.id, SESSION_TTL_MS);
@@ -267,7 +275,8 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
   app.put("/console/:tenantId/credentials/:provider", async (request: ConsoleRequest, reply) => {
     const { tenantId, provider } = request.params as { tenantId: string; provider: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
 
     if (!ADAPTERS.some((a) => a.id === provider)) {
       return reply.code(400).send({ error: `unknown provider: ${provider}` });
@@ -296,15 +305,31 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
       apiKey,
       baseUrl === "" ? undefined : baseUrl,
     );
+    audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "credential.added",
+      subject: provider,
+      // Not even the mask. An audit log is exported, and a masked tail in an
+      // export is a masked tail wherever that export ends up.
+      detail: { baseUrl: baseUrl === "" ? null : (baseUrl ?? null) },
+    });
+
     // Echo only the mask. The key never travels back out of the server.
     return reply.code(200).send({ provider: stored.provider, hint: stored.hint });
   });
 
   app.delete("/console/:tenantId/credentials/:provider", async (request: ConsoleRequest, reply) => {
     const { tenantId, provider } = request.params as { tenantId: string; provider: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
 
     accounts.deleteCredential(tenantId, provider as Provider);
+    audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "credential.removed",
+      subject: provider,
+      detail: {},
+    });
     return { ok: true };
   });
 
@@ -318,99 +343,42 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
   app.post("/console/:tenantId/keys", async (request: ConsoleRequest, reply) => {
     const { tenantId } = request.params as { tenantId: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
 
     const body = request.body as Record<string, unknown> | undefined;
     const name = typeof body?.["name"] === "string" ? body["name"].trim() : "";
     if (name === "") return reply.code(400).send({ error: "name is required" });
 
     const created = repository.createApiKey(tenantId, name);
+    audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "apikey.created",
+      subject: created.id,
+      detail: { name },
+    });
     // The only time the plaintext is ever returned.
     return reply.code(201).send({ id: created.id, key: created.plaintext, name });
   });
 
   app.delete("/console/:tenantId/keys/:keyId", async (request: ConsoleRequest, reply) => {
     const { tenantId, keyId } = request.params as { tenantId: string; keyId: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
 
     if (!repository.listApiKeys(tenantId).some((k) => k.id === keyId)) {
       return reply.code(404).send({ error: "key not found" });
     }
     repository.revokeApiKey(keyId);
+    audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "apikey.revoked",
+      subject: keyId,
+      detail: {},
+    });
     return { ok: true };
   });
 
-  // ------------------------------------------------------- historical import
-
-  app.get("/console/:tenantId/import", async (request: ConsoleRequest, reply) => {
-    const { tenantId } = request.params as { tenantId: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
-
-    return {
-      providers: IMPORTERS.map((i) => ({ provider: i.provider, keyHint: i.keyHint })),
-      hasImports: imports.hasImports(tenantId),
-      runs: imports.recentRuns(tenantId),
-    };
-  });
-
-  /**
-   * Backfill history from a provider's admin API.
-   *
-   * The admin key is used for the duration of this request and then dropped.
-   * It is never written anywhere — not the database, not the log. A one-off
-   * backfill does not justify holding a credential that can read an entire
-   * organisation's usage.
-   */
-  app.post("/console/:tenantId/import/:provider", async (request: ConsoleRequest, reply) => {
-    const { tenantId, provider } = request.params as { tenantId: string; provider: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
-
-    const importer = importerFor(provider);
-    if (!importer) return reply.code(400).send({ error: `unknown provider: ${provider}` });
-
-    const body = request.body as Record<string, unknown> | undefined;
-    const adminKey = typeof body?.["adminKey"] === "string" ? body["adminKey"].trim() : "";
-    if (adminKey === "") return reply.code(400).send({ error: "adminKey is required" });
-
-    const days = typeof body?.["days"] === "number" ? body["days"] : 90;
-    if (!Number.isInteger(days) || days < 1 || days > 365) {
-      return reply.code(400).send({ error: "days must be an integer between 1 and 365" });
-    }
-
-    const to = new Date();
-    const from = new Date(to.getTime() - days * 86_400_000);
-    const runId = imports.startRun(tenantId, importer.provider, toUtcDay(from), toUtcDay(to));
-
-    try {
-      const result = await importer.run({
-        apiKey: adminKey,
-        from,
-        to,
-        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-      });
-      const written = imports.putRows(tenantId, result.rows);
-      imports.finishRun(runId, written);
-
-      return {
-        provider: importer.provider,
-        fromDay: toUtcDay(from),
-        toDay: toUtcDay(to),
-        rowsWritten: written,
-        // Named so nobody mistakes an unpriced model for free traffic.
-        unpricedModels: result.unpricedModels,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      imports.failRun(runId, message);
-      return reply.code(502).send({ error: `import failed: ${message}` });
-    }
-  });
-
-  app.delete("/console/:tenantId/import", async (request: ConsoleRequest, reply) => {
-    const { tenantId } = request.params as { tenantId: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
-    return { deleted: imports.deleteAll(tenantId) };
-  });
 
   // --------------------------------------------------------------- billing
 
@@ -448,7 +416,8 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
   app.put("/console/:tenantId/plan", async (request: ConsoleRequest, reply) => {
     const { tenantId } = request.params as { tenantId: string };
-    if (!requireRole(request, reply, tenantId, "owner")) return;
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
 
     const body = request.body as Record<string, unknown> | undefined;
     const plan = typeof body?.["plan"] === "string" ? body["plan"] : "";
@@ -457,9 +426,72 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     // No payment processor is wired up: this records the intent, and an
     // operator collects. Charging a card is a real-world action that belongs
     // behind an explicit integration, not a PUT.
+    const previous = accounts.planOf(tenantId);
     accounts.setPlan(tenantId, plan);
+    audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "plan.changed",
+      subject: plan,
+      detail: { from: previous, to: plan },
+    });
     return { plan, note: "Plan recorded. Billing is invoiced manually in this release." };
   });
+}
+
+/**
+ * The two checks every console route starts with.
+ *
+ * Shared rather than duplicated because the security routes added alongside
+ * this file need exactly the same rules, and a second copy of an
+ * authorisation check is a second place for it to drift.
+ */
+export function createGuards(accounts: AccountsRepository): {
+  requireUser: (request: ConsoleRequest, reply: FastifyReply) => User | undefined;
+  requireRole: (
+    request: ConsoleRequest,
+    reply: FastifyReply,
+    tenantId: string,
+    minimum?: Role,
+  ) => { user: User; role: Role } | undefined;
+} {
+  /** Routes past this point need a logged-in user. */
+  function requireUser(request: ConsoleRequest, reply: FastifyReply): User | undefined {
+    if (!request.user) {
+      void reply.code(401).send({ error: "not signed in" });
+      return undefined;
+    }
+    return request.user;
+  }
+
+  /**
+   * Resolve the tenant from the request and confirm membership.
+   *
+   * Never trusts a tenant id on its own: otherwise any signed-in user could
+   * administer any organisation by guessing an id.
+   */
+  function requireRole(
+    request: ConsoleRequest,
+    reply: FastifyReply,
+    tenantId: string,
+    minimum: Role = "member",
+  ): { user: User; role: Role } | undefined {
+    const user = requireUser(request, reply);
+    if (!user) return undefined;
+
+    const role = accounts.roleIn(user.id, tenantId);
+    if (!role) {
+      // 404 rather than 403: a non-member should not learn the org exists.
+      void reply.code(404).send({ error: "organisation not found" });
+      return undefined;
+    }
+    if (minimum === "owner" && role !== "owner") {
+      void reply.code(403).send({ error: "this action requires the owner role" });
+      return undefined;
+    }
+    return { user, role };
+  }
+
+  return { requireUser, requireRole };
 }
 
 export { SESSION_COOKIE, maskSecret };

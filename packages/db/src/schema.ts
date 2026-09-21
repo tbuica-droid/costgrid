@@ -7,6 +7,14 @@
  * and money as INTEGER nanodollars. The repository layer is the only code that
  * speaks SQL, so swapping the driver is a contained change.
  *
+ * That portability is checked rather than asserted. `portability.ts` runs over
+ * these migrations in the test suite and refuses anything Postgres would not
+ * take, and it also carries the one substitution that is not optional:
+ * **SQLite's INTEGER is 64-bit and Postgres's is 32-bit**, so every column
+ * here holding nanodollars or a millisecond timestamp becomes BIGINT. Copying
+ * this file to Postgres unchanged would work in testing and overflow at $2.15
+ * of real spend.
+ *
  * Multi-tenancy is present from the first migration even though the first
  * deployment is single-tenant. Retrofitting a tenant column onto a metering
  * table that already has production rows is the kind of migration that causes
@@ -481,6 +489,152 @@ export const MIGRATIONS: readonly Migration[] = [
       ) STRICT;
 
       CREATE INDEX idx_autopilot_actions_tenant ON autopilot_actions(tenant_id, acted_at);
+    `,
+  },
+  {
+    version: 11,
+    name: "audit-sso-retention",
+    // The three things a security review asks for that metering alone does
+    // not answer: who did it, how they proved who they were, and how long any
+    // of it is kept.
+    //
+    // These arrive together because they are one story. An audit log is only
+    // evidence if the identity behind each entry is trustworthy, and a
+    // retention policy that silently erased the audit log would undo both.
+    sql: `
+      -- The audit log: a hash chain, not a table of rows.
+      --
+      -- A log an administrator can edit proves nothing, and the administrator
+      -- is exactly who an audit is about. Each entry therefore carries the
+      -- hash of the one before it, so changing or removing any entry changes
+      -- every hash after it and the chain stops verifying from that point.
+      --
+      -- This does not make the log unchangeable. Nothing in a database the
+      -- customer owns can be. It makes a change *detectable*, which is the
+      -- property the word "tamper-evident" actually names, and the one worth
+      -- claiming.
+      --
+      -- 'seq' is per tenant and gapless. A gap is itself a finding, which is
+      -- why it is not an autoincrement shared across tenants.
+      CREATE TABLE audit_log (
+        tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        seq          INTEGER NOT NULL,
+        occurred_at  INTEGER NOT NULL,
+
+        -- Who acted. 'system' covers scheduled work with no human behind it;
+        -- recording it as a person would be a small lie in the one table
+        -- whose whole value is not containing any.
+        actor_kind   TEXT NOT NULL CHECK (actor_kind IN ('user', 'api-key', 'system', 'autopilot')),
+        actor_id     TEXT NOT NULL,
+        -- An email or key name, captured at the time. Denormalised on purpose:
+        -- the log must still read correctly after the account is deleted.
+        actor_label  TEXT NOT NULL,
+
+        action       TEXT NOT NULL,
+        -- What was acted on: a policy id, a provider name, an email.
+        subject      TEXT NOT NULL,
+        -- Canonical JSON. Never credentials, never prompt or response content.
+        detail       TEXT NOT NULL,
+
+        prev_hash    TEXT NOT NULL,
+        hash         TEXT NOT NULL,
+
+        PRIMARY KEY (tenant_id, seq)
+      ) STRICT;
+
+      CREATE INDEX idx_audit_time ON audit_log(tenant_id, occurred_at);
+      CREATE INDEX idx_audit_action ON audit_log(tenant_id, action, occurred_at);
+
+      -- Single sign-on, as OpenID Connect.
+      --
+      -- OIDC rather than SAML because every identity provider a customer is
+      -- likely to have (Entra ID, Okta, Google Workspace, Ping) speaks it, and
+      -- it needs no XML signature stack to verify safely.
+      --
+      -- One connection per organisation. Two would raise the question of which
+      -- one governs an address, and the honest answer to that question is a
+      -- feature nobody has asked for yet.
+      CREATE TABLE sso_connections (
+        tenant_id         TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+        -- Exactly as the provider states it. Compared against the 'iss' claim
+        -- on every token, so a mismatch here fails closed.
+        issuer            TEXT NOT NULL,
+        client_id         TEXT NOT NULL,
+        -- AES-256-GCM under the same master key as provider credentials.
+        encrypted_secret  TEXT NOT NULL,
+        secret_hint       TEXT NOT NULL,
+
+        -- Resolved once from the issuer's discovery document and stored, so a
+        -- login does not depend on the provider's metadata endpoint being up.
+        authorize_url     TEXT NOT NULL,
+        token_url         TEXT NOT NULL,
+        jwks_url          TEXT NOT NULL,
+
+        -- Lower-cased email domains this connection governs, comma separated.
+        -- An identity provider will happily issue a token for any address in
+        -- its directory; this is what stops one tenant's connection admitting
+        -- someone into another tenant.
+        email_domains     TEXT NOT NULL,
+
+        -- Give a matching address an account on first sign-in. Off means an
+        -- owner must add the person first.
+        auto_provision    INTEGER NOT NULL DEFAULT 1 CHECK (auto_provision IN (0, 1)),
+        -- Refuse password login for addresses in email_domains. The point of
+        -- buying SSO is usually that this is on.
+        enforced          INTEGER NOT NULL DEFAULT 0 CHECK (enforced IN (0, 1)),
+        enabled           INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+
+        created_at        INTEGER NOT NULL,
+        updated_at        INTEGER NOT NULL
+      ) STRICT;
+
+      -- One row per sign-in attempt in flight, deleted the moment it is used.
+      --
+      -- This is what makes the callback safe. 'state' ties the response to a
+      -- request this server started, 'nonce' ties the token to it, and
+      -- 'code_verifier' proves the code is being redeemed by whoever asked for
+      -- it. All three are single use: the row is consumed, not read.
+      CREATE TABLE sso_requests (
+        state          TEXT PRIMARY KEY,
+        tenant_id      TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        nonce          TEXT NOT NULL,
+        code_verifier  TEXT NOT NULL,
+        redirect_uri   TEXT NOT NULL,
+        created_at     INTEGER NOT NULL,
+        expires_at     INTEGER NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_sso_requests_expiry ON sso_requests(expires_at);
+
+      -- How an account proves who it is. Existing rows are password accounts,
+      -- which is what they are.
+      --
+      -- An account provisioned by SSO gets a password hash of a random value
+      -- nobody has ever seen, so password login fails by construction rather
+      -- than by a check somebody could forget to write. This column exists so
+      -- the state is reportable, not so it is enforceable.
+      ALTER TABLE users ADD COLUMN auth_source TEXT NOT NULL DEFAULT 'password';
+
+      -- How long data is kept.
+      --
+      -- Three windows rather than one because the three kinds of record answer
+      -- to different people. Call detail is operational, enforcement history
+      -- is what a budget owner argues from, and the audit log is evidence.
+      -- Zero means keep indefinitely, which is the default: deleting a
+      -- customer's data because they never configured anything would be the
+      -- worst possible default.
+      CREATE TABLE retention (
+        tenant_id    TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+        -- Per-call rows, tool invocations, outcomes, imported daily usage.
+        call_days    INTEGER NOT NULL DEFAULT 0 CHECK (call_days >= 0),
+        -- Rule firings.
+        event_days   INTEGER NOT NULL DEFAULT 0 CHECK (event_days >= 0),
+        -- The audit log, with a floor. A one-week audit trail is not one, and
+        -- a retention setting is a plausible way to quietly destroy evidence,
+        -- so the shortest this may be is a year.
+        audit_days   INTEGER NOT NULL DEFAULT 0 CHECK (audit_days = 0 OR audit_days >= 365),
+        updated_at   INTEGER NOT NULL
+      ) STRICT;
     `,
   },
 ];

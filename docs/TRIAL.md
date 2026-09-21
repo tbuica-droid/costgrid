@@ -41,11 +41,13 @@ compromised service can be cut off in CostGrid without rotating the key.
 
 Follow [QUICKSTART.md](./QUICKSTART.md). In short:
 
-1.  1. `npm install && npm run build` 2. Put your provider key in `.env` (the
-   quickstart shows a way that keeps it out of your shell history). 3. `npx tsx
-   packages/cli/src/main.ts init`. Creates the local tenant, prints an API key
-   once. 4. `npm run gateway`. Listens on `127.0.0.1:8787`. 5. Point one
-   service at it and make a call. Open the dashboard.
+1. `npm install && npm run build`
+2. Put your provider key in `.env`. The quickstart shows a way that keeps it
+   out of your shell history.
+3. `npx tsx packages/cli/src/main.ts init`. Creates the local tenant and prints
+   an API key once.
+4. `npm run gateway`. Listens on `127.0.0.1:8787`.
+5. Point one service at it and make a call, then open the dashboard.
 
 Five minutes to a first metered call. Start with a single non-critical service
 rather than your whole fleet; there is no benefit to switching everything on day
@@ -75,6 +77,26 @@ npx tsx packages/cli/src/main.ts policy budget dept:Engineering 500.00 \
 **Week 4. The statement.** Run `costgrid statement --format csv` and send it to
 whoever owns the budget. That conversation is the actual product. If it does
 not happen, or lands flat, CostGrid is not worth a line item for you.
+
+## If somebody will ask you about security
+
+Three commands answer most of what a security questionnaire asks, and they are
+worth running once during the trial so you know what the answers are:
+
+```bash
+costgrid audit list --days 30   # who changed what
+costgrid audit verify           # proof the record has not been edited
+costgrid retention show         # how long data is kept
+```
+
+The audit log links each entry to the one before it, so an entry cannot be
+changed or removed without the check failing. `costgrid audit head` prints a
+fingerprint of the whole history. Record it somewhere outside CostGrid and any
+later change becomes provable.
+
+Nothing here is legal advice, and CostGrid does not make you compliant with
+anything. What it gives you is a record of what your software did and who
+changed the rules, which is usually what the question is really after.
 
 ## What it costs afterwards
 
@@ -111,19 +133,21 @@ costs more trust than it saves time.
 
 Stated up front, because finding out in week three wastes your time:
 
--  - **Bedrock and Vertex are supported but unproven.** Both adapters exist and
+- **Bedrock and Vertex are supported but unproven.** Both adapters exist and
   are tested, but neither has run against a live AWS or GCP account. I did not
   have one. Run `costgrid preflight bedrock` (or `vertex`) before routing
-  anything real, and tell me if it fails. - **It governs API spend, not seat
-  licences.** If your AI bill is people using a chat product in a browser,
-  there is nothing here to meter. That spend is flat and predictable, which is
-  why it does not need governing. - **It is in the request path.** If the
-  gateway is down, calls through it fail. That is the cost of being able to
-  refuse a call rather than report on it afterwards. Run it beside the service
-  that calls it. - **One node, SQLite.** Fine for a team; not yet a
-  high-availability deployment. The schema is Postgres-portable but the swap
-  has not been made. - **No payment processor.** Plan changes record intent;
-  there is nothing to charge your card because nothing charges cards yet.
+  anything real, and tell me if it fails.
+- **It governs API spend, not seat licences.** If your AI bill is people using
+  a chat product in a browser, there is nothing here to meter. That spend is
+  flat and predictable, which is why it does not need governing.
+- **It is in the request path.** If the gateway is down, calls through it fail.
+  That is the cost of being able to refuse a call rather than report on it
+  afterwards. Run it beside the service that calls it.
+- **One node, SQLite.** Fine for a team, not yet a high-availability
+  deployment. The schema is Postgres-portable and that is now checked by the
+  test suite, but the driver swap has not been made.
+- **No payment processor.** Plan changes record intent. There is nothing to
+  charge your card because nothing charges cards yet.
 
 ## Getting help during the trial
 

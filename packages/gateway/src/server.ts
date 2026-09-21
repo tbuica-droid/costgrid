@@ -27,6 +27,8 @@ import {
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
+import { registerImport } from "./console-import.js";
+import { registerSecurity } from "./console-security.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
@@ -277,9 +279,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       accounts: accounts!,
       repository,
       analytics,
-      imports,
       fetchImpl: deps.fetchImpl,
     });
+    registerImport(app, { accounts: accounts!, imports, fetchImpl: deps.fetchImpl });
+    registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
   }
   registerDashboard(app, { hosted: config.hosted });
 

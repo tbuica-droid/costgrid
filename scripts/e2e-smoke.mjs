@@ -490,6 +490,40 @@ const statementJson = JSON.parse(await cli(["statement", "--format", "json"]));
 // Money must survive as an exact decimal string, never a float.
 check("json money is a string", typeof statementJson.total, "string");
 
+console.log("\n12b. the audit log: recorded, and provably unedited");
+/*
+ * Everything above this line changed something: keys, policies, rates, an
+ * autopilot level. All of it went through the CLI, which is how a self-hosted
+ * deployment is administered, so this is the case that matters most. The chain
+ * is then broken on purpose, from outside the application, to check that the
+ * verifier actually notices rather than merely claiming to.
+ */
+const auditOut = await cli(["audit", "list", "--days", "1"]);
+check("audit records the policies that were created", /policy\.created/.test(auditOut), true);
+check("audit records the rate override", /rate\.overridden/.test(auditOut), true);
+check("audit names who did it", /cli:/.test(auditOut), true);
+// Prompts and arguments never reach the audit log, same as everywhere else.
+check("audit carries no message content", /refund-to-card|Hello/.test(auditOut), false);
+
+const verifyOut = await cli(["audit", "verify"]);
+check("chain verifies", /entries verify|entry verifies/.test(verifyOut), true);
+
+const headOut = await cli(["audit", "head"]);
+const headHash = /Head hash:\s+([0-9a-f]{64})/.exec(headOut)?.[1];
+check("head is a sha-256 fingerprint", typeof headHash, "string");
+
+// Tamper with it the way somebody covering their tracks would: not through
+// CostGrid at all, but by editing the database directly.
+const tamperDb = new (await import("better-sqlite3")).default(DB);
+tamperDb
+  .prepare("UPDATE audit_log SET actor_label = 'somebody.else' WHERE seq = 1")
+  .run();
+tamperDb.close();
+
+const afterTamper = await cli(["audit", "verify"]);
+check("edit is detected", /does not verify/.test(afterTamper), true);
+check("it names the entry", /Entry 1/.test(afterTamper), true);
+
 console.log("\n13. CLI report\n");
 console.log(await cli(["report", "--days", "1"]));
 

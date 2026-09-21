@@ -11,7 +11,10 @@ import {
   type Provider,
   verifyPassword,
 } from "@costgrid/core";
+import { AuditLog } from "./audit.js";
 import type { Db } from "./database.js";
+import { Retention } from "./retention.js";
+import { SsoRepository } from "./sso.js";
 
 export type Role = "owner" | "member";
 
@@ -61,9 +64,28 @@ export class AccountsRepository {
   /** Derived once at startup from COSTGRID_MASTER_KEY; never persisted. */
   readonly #masterKey: Buffer;
 
+  /**
+   * The rest of the control plane, composed here rather than wired separately.
+   *
+   * All three need exactly what this class already holds, and all three are
+   * control-plane concerns: who may sign in, what was done, and how long it is
+   * kept. Hanging them here means every route that has an `accounts` has them
+   * too, so an audit entry is never skipped because the recorder was not
+   * threaded through one more constructor.
+   *
+   * They remain independent classes. A self-hosted deployment with no master
+   * key constructs `AuditLog` and `Retention` on their own.
+   */
+  readonly audit: AuditLog;
+  readonly sso: SsoRepository;
+  readonly retention: Retention;
+
   constructor(db: Db, masterKey: Buffer) {
     this.#db = db;
     this.#masterKey = masterKey;
+    this.audit = new AuditLog(db);
+    this.sso = new SsoRepository(db, masterKey);
+    this.retention = new Retention(db);
   }
 
   // ------------------------------------------------------------------ users

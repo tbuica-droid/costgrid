@@ -54,7 +54,33 @@ export interface GatewayConfig {
   readonly masterKeySecret: string | undefined;
   /** Set Secure on session cookies. Must be true behind TLS; false breaks local http. */
   readonly secureCookies: boolean;
+  /**
+   * The address browsers reach this deployment at, with no trailing slash.
+   *
+   * Single sign-on needs it: the redirect a customer registers with their
+   * identity provider must match the one sent on every sign-in, byte for byte.
+   * Left unset, it is taken from the request, which works but leaves the
+   * matching to whatever Host header arrived. Set it in any real deployment.
+   */
+  readonly publicUrl: string | undefined;
   readonly logLevel: string;
+}
+
+function publicUrl(): string | undefined {
+  const raw = process.env["COSTGRID_PUBLIC_URL"];
+  if (raw === undefined || raw.trim() === "") return undefined;
+
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`COSTGRID_PUBLIC_URL is not a valid URL, got ${JSON.stringify(raw)}`);
+  }
+  if (parsed.protocol !== "https:" && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+    throw new Error("COSTGRID_PUBLIC_URL must be https outside local development");
+  }
+  return trimmed;
 }
 
 function integer(name: string, fallback: number): number {
@@ -152,6 +178,7 @@ export function loadConfig(): GatewayConfig {
     hosted,
     masterKeySecret,
     secureCookies: boolean("COSTGRID_SECURE_COOKIES", hosted),
+    publicUrl: publicUrl(),
     port: integer("COSTGRID_PORT", 8787),
     host: process.env["COSTGRID_HOST"]?.trim() || "127.0.0.1",
     databasePath: process.env["COSTGRID_DB"]?.trim() || "./costgrid.db",

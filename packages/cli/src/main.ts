@@ -28,6 +28,7 @@ import {
 import { ask, type AnalystConfig, formatPreflight, preflight } from "@costgrid/gateway";
 import { formatProposals } from "./advise.js";
 import { renderStatementHtml } from "./statement-html.js";
+import { auditCommand, eraseCommand, recordCli, retentionCommand } from "./security.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
@@ -61,6 +62,17 @@ Usage:
                                           Monthly statement for finance: spend by team,
                                           movement against last month, budget status and
                                           what routing saved. Defaults to this month.
+  costgrid audit [list|verify|head] [--days N] [--action <prefix>]
+                                          Who changed what, and proof the record
+                                          has not been edited. "verify" checks it;
+                                          "head" prints the fingerprint to write
+                                          down somewhere outside CostGrid.
+  costgrid retention [show|set|run] [--calls N] [--events N] [--audit N]
+                                          How long data is kept. Zero, the default,
+                                          keeps everything. "run" applies it now.
+  costgrid erase <organisation-id> --confirm
+                                          Delete everything belonging to one
+                                          organisation. Cannot be undone.
   costgrid policy list                    Show configured policies
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
                               [--fallback <model>]
@@ -242,6 +254,23 @@ async function main(): Promise<void> {
   const repository = new CostGridRepository(db);
   const analytics = new Analytics(db);
 
+  /**
+   * Create a policy and record that somebody did.
+   *
+   * Wrapped rather than recorded at each call site: there are five commands
+   * that create a policy, and the sixth one added would have been the one that
+   * quietly went unrecorded.
+   */
+  const createPolicy = (spec: Parameters<CostGridRepository["createPolicy"]>[1]): string => {
+    const id = repository.createPolicy(tenantId, spec);
+    recordCli(db, tenantId, "policy.created", id, {
+      name: spec.name,
+      kind: spec.rule.kind,
+      action: spec.action,
+    });
+    return id;
+  };
+
   const requireTenant = (): void => {
     if (!repository.getTenant(tenantId)) {
       fail(`tenant "${tenantId}" does not exist. Run "costgrid init" first`);
@@ -254,9 +283,11 @@ async function main(): Promise<void> {
         console.log(`Tenant "${tenantId}" already exists.`);
       } else {
         repository.createTenant(argv[1] ?? "Local", tenantId);
+        recordCli(db, tenantId, "organisation.created", tenantId, { name: argv[1] ?? "Local" });
         console.log(`Created tenant "${tenantId}".`);
       }
       const key = repository.createApiKey(tenantId, "default");
+      recordCli(db, tenantId, "apikey.created", key.id, { name: "default" });
       console.log(`\nAPI key (shown once, store it now):\n\n  ${key.plaintext}\n`);
       console.log("Use it as the x-costgrid-key header, or set COSTGRID_ALLOW_ANONYMOUS=true");
       console.log("to meter without one while you are the only caller.");
@@ -269,9 +300,12 @@ async function main(): Promise<void> {
       if (sub === "create") {
         const name = argv[2] ?? fail("key create needs an agent name");
         const key = repository.createApiKey(tenantId, name);
+        recordCli(db, tenantId, "apikey.created", key.id, { name });
         console.log(`API key for "${name}" (shown once):\n\n  ${key.plaintext}\n`);
       } else if (sub === "revoke") {
-        repository.revokeApiKey(argv[2] ?? fail("key revoke needs a key id"));
+        const keyId = argv[2] ?? fail("key revoke needs a key id");
+        repository.revokeApiKey(keyId);
+        recordCli(db, tenantId, "apikey.revoked", keyId);
         console.log("Revoked.");
       } else {
         fail(`unknown key subcommand ${JSON.stringify(sub)}`);
@@ -407,6 +441,13 @@ async function main(): Promise<void> {
           ...(impact !== undefined ? { maxImpactPct: Number(impact) } : {}),
           ...(actions !== undefined ? { maxActions: Number(actions) } : {}),
         });
+        // Granting or revoking the software's authority to change rules by
+        // itself is precisely the kind of decision an audit log is for.
+        recordCli(db, tenantId, "autopilot.level-changed", settings.level, {
+          level: settings.level,
+          maxImpactPct: settings.maxImpactPct,
+          maxActions: settings.maxActions,
+        });
         console.log(`Autopilot is now ${settings.level}.`);
         if (sub === "apply") {
           console.log(
@@ -421,6 +462,7 @@ async function main(): Promise<void> {
 
       if (sub === "undo") {
         const n = pilot.undoAll(tenantId);
+        recordCli(db, tenantId, "autopilot.undone", tenantId, { rulesDisabled: n });
         console.log(
           n === 0
             ? "Nothing to undo."
@@ -764,6 +806,12 @@ async function main(): Promise<void> {
           fail(error instanceof Error ? error.message : String(error));
         }
         repository.setRateOverride(tenantId, rate);
+        // A rate override changes every figure the product reports, so it is
+        // one of the few settings an auditor will want dated and attributed.
+        recordCli(db, tenantId, "rate.overridden", provider, {
+          discountPercent: discount,
+          source: "manual",
+        });
         console.log(`${provider} is now priced at ${discount}% off list.`);
         console.log("Calls recorded from here on use this rate; history keeps the price it was");
         console.log("recorded at, and every row keeps its catalog price alongside.");
@@ -801,6 +849,11 @@ async function main(): Promise<void> {
           ...rate,
           evidence: { from: range.from, to: range.to, reported, catalog: basis.total },
         });
+        recordCli(db, tenantId, "rate.overridden", provider, {
+          discountPercent: Number(discountPercent(rate).toFixed(4)),
+          source: "derived",
+          windowDays: days,
+        });
 
         const pct = discountPercent(rate);
         console.log(
@@ -833,6 +886,23 @@ async function main(): Promise<void> {
       }
 
       fail(`unknown rates subcommand ${JSON.stringify(sub)}`);
+      break;
+    }
+
+    case "audit": {
+      requireTenant();
+      auditCommand(db, tenantId, argv);
+      break;
+    }
+
+    case "retention": {
+      requireTenant();
+      retentionCommand(db, tenantId, argv);
+      break;
+    }
+
+    case "erase": {
+      eraseCommand(db, argv);
       break;
     }
 
@@ -877,7 +947,7 @@ async function main(): Promise<void> {
         }
 
         const action = parseAction(flag(argv, "action"));
-        const id = repository.createPolicy(tenantId, {
+        const id = createPolicy({
           name: fallbackModel ? `${window}ly budget, fallback ${fallbackModel}` : `${window}ly budget`,
           scope,
           rule: {
@@ -933,7 +1003,7 @@ async function main(): Promise<void> {
               : { kind: "run-depth" as const, limit };
         }
 
-        const id = repository.createPolicy(tenantId, {
+        const id = createPolicy({
           name: sub === "run-budget" ? `run budget $${raw}` : `${sub} ${raw}`,
           scope,
           rule,
@@ -953,7 +1023,7 @@ async function main(): Promise<void> {
       if (sub === "allow") {
         const models = argv.slice(2).filter((a) => !a.startsWith("--"));
         if (models.length === 0) fail("policy allow needs at least one model id");
-        const id = repository.createPolicy(tenantId, {
+        const id = createPolicy({
           name: "model allowlist",
           scope: { kind: "tenant" },
           rule: { kind: "model-allowlist", models },
@@ -970,7 +1040,7 @@ async function main(): Promise<void> {
         if (tools.length === 0) fail(`policy ${sub} needs at least one tool name`);
 
         const directOnly = argv.includes("--direct-only");
-        const id = repository.createPolicy(tenantId, {
+        const id = createPolicy({
           name: sub === "deny-tool" ? `deny ${tools.join(",")}` : `allow only ${tools.join(",")}`,
           scope,
           rule:
@@ -1016,7 +1086,7 @@ async function main(): Promise<void> {
         // action here that can quietly degrade their product, so switching it
         // on has to be a deliberate second step.
         const action = parseAction(flag(argv, "action") ?? "monitor");
-        const id = repository.createPolicy(tenantId, {
+        const id = createPolicy({
           name: `route to ${toModel}`,
           scope,
           rule: { kind: "route", toModel, ...(from && from.length > 0 ? { from } : {}) },
@@ -1033,7 +1103,9 @@ async function main(): Promise<void> {
       }
 
       if (sub === "disable") {
-        repository.setPolicyEnabled(argv[2] ?? fail("policy disable needs a policy id"), false);
+        const policyId = argv[2] ?? fail("policy disable needs a policy id");
+        repository.setPolicyEnabled(policyId, false);
+        recordCli(db, tenantId, "policy.disabled", policyId);
         console.log("Disabled.");
         break;
       }

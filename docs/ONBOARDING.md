@@ -256,11 +256,53 @@ and it will tell you in a minute whether yours is fine:
 `costgrid preflight bedrock`. If it fails, that is a bug on our side, and the
 output is written to be pasted straight into an email to me.
 
+**Someone in security is going to ask us questions. What do we tell them?**
+Three commands cover most of a questionnaire:
+
+```bash
+costgrid audit list --days 30   # who changed what, and when
+costgrid audit verify           # proof that record has not been edited
+costgrid retention show         # how long data is kept
+```
+
+CostGrid keeps a record of every change a person makes: who added a provider
+key, who changed a budget, who switched a rule off. Each entry is linked to the
+one before it by a fingerprint, so an entry cannot be altered or deleted
+without `verify` noticing. Run `costgrid audit head` and keep the hash it
+prints somewhere outside CostGrid, such as an email to whoever owns the audit.
+That is what turns "we would notice" into something you can show.
+
+To be clear about what this is not: CostGrid does not make you compliant with
+any regulation, and nothing here is legal advice. It gives you a record of what
+your software did and who changed the rules. That is usually what is actually
+being asked for.
+
+**How long do you keep our data, and can you delete it?**
+Forever by default, because deleting your cost history without being asked
+would be the worst possible default. Set your own limits with
+`costgrid retention set --calls 90 --events 365`, and they apply once a day.
+`costgrid erase <organisation-id> --confirm` removes everything belonging to an
+organisation and prints what went, which is usually what a deletion request
+needs to close it.
+
+The audit log is the one thing a schedule never deletes. Erasing evidence on a
+timer looks exactly like erasing evidence, so removing it takes a deliberate
+command from a person, and that command records itself.
+
+**Can we use our company login instead of passwords?**
+Yes, if you are on the hosted version. It speaks OpenID Connect, which covers
+Microsoft Entra ID, Okta, Google Workspace and Ping. An owner sets it up in the
+console, and once it is enforced a password will not get anybody in, including
+somebody who knows the right one. Self-hosted deployments have no accounts at
+all, so there is nothing to sign in to.
+
 **What is it not good at?**
 It measures what your *software* spends on AI, not what your staff spend on
 chat subscriptions. If your bill is people typing into a browser, there is
 nothing here to measure. It also runs on a single server today: right for one
-team, not yet right if losing that server would be a crisis.
+team, not yet right if losing that server would be a crisis. If your security
+review asks about high availability, that is the honest answer, and it is the
+next thing being worked on.
 
 ---
 
