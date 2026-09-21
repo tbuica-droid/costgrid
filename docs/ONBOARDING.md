@@ -238,8 +238,44 @@ able to stop a call rather than report on it afterwards. Run it next to the
 service that uses it, and keep rules in watch-only mode until you trust it.
 
 **Will it slow us down?**
-One hop on your own network, and streamed responses pass straight through. In
-practice, no.
+No. CostGrid adds about a millisecond. A call to an AI model takes between half
+a second and several seconds and varies by hundreds of milliseconds from one
+call to the next, so our share of the wait is roughly two tenths of one
+percent, which is smaller than the variation you already live with.
+
+That figure is measured, not estimated, and you can reproduce it on your own
+hardware in one command:
+
+```bash
+npm run bench
+```
+
+It compares three things: a call straight to the provider, the same call
+through a proxy that does nothing at all, and the same call through CostGrid.
+The middle one matters, because putting *any* extra process in the path costs
+something and only the difference above that is ours.
+
+One honest gap: at very high concurrency we do not publish a figure yet,
+because measuring it on a single machine puts the load generator and the
+gateway in competition for the same processor and the result says more about
+the machine than the software. That needs separate hardware before the number
+means anything.
+
+**What happens if CostGrid itself stops?**
+Calls through it fail. That is deliberate, and it is the one real difference
+between this and a reporting dashboard. A tool that only watches your traffic
+can step aside when it is unwell, because nothing is lost by doing so. A tool
+that enforces a budget cannot: if it waves traffic through whenever it is
+unhealthy, your spending limit stops applying at exactly the moment something
+is going wrong, which is when a runaway loop is most likely to be running.
+
+Run it next to the service that calls it, and keep every rule in watch-only
+mode until you trust it.
+
+One thing it will not do is punish you for its own failures. If CostGrid cannot
+write to its database, you still get the answer the provider produced and
+charged you for. The missing record is counted and reported on the health
+endpoint rather than silently dropped.
 
 **How do we stop using it?**
 Point your base URL back at the provider. That is the whole revert, and nothing

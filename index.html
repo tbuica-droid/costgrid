@@ -420,11 +420,11 @@ x-costgrid-department: Support</pre></div>
       </div>
       <div class="qa__item">
         <h3 class="qa__q">Will it slow us down?</h3>
-        <p class="qa__a">One hop on your own network, and streamed responses pass straight through. In practice, no.</p>
+        <p class="qa__a">No. CostGrid adds about a millisecond. Asking an AI model takes between half a second and several seconds, so this is roughly two tenths of one percent of the wait, which is smaller than the difference between one call and the next. We measured it rather than guessed, and the <a href="#engineering">numbers and the method are below</a>.</p>
       </div>
       <div class="qa__item">
         <h3 class="qa__q">What if it goes down?</h3>
-        <p class="qa__a">Those calls fail, and we will not pretend otherwise. That is the price of being able to stop a call instead of reporting on it afterwards. Run it next to the service that uses it, and leave every rule in watch-only mode until you trust it.</p>
+        <p class="qa__a">Those calls fail, and we will not pretend otherwise. That is the price of being able to stop a call instead of reporting on it afterwards: a tool that steps aside when it is unwell is a tool your budget cap steps aside with. Run it next to the service that uses it, and leave every rule in watch-only mode until you trust it.</p>
       </div>
       <div class="qa__item">
         <h3 class="qa__q">Are the prices right?</h3>
@@ -434,6 +434,135 @@ x-costgrid-department: Support</pre></div>
         <h3 class="qa__q">What is it not good at?</h3>
         <p class="qa__a">It watches what your <em>software</em> spends on AI, not what your staff spend on chat subscriptions. If your bill is people typing into a browser, there is nothing here to measure. AWS Bedrock and Google Vertex work but have not yet been run against a live account, so there is a one-minute check that tells you if yours is fine. And it runs on a single server today: right for one team, not yet right if losing that server would be a crisis.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05b for the engineer -->
+<section class="band" id="engineering">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">05b &middot; For whoever has to approve this</p>
+      <h2 class="h2">In your request path, so here are the numbers and the boundaries.</h2>
+      <p class="lede">Anything sitting between your software and a model provider has to answer two
+        questions before it earns a place there. These are ours, measured rather than claimed.</p>
+    </div>
+
+    <div>
+      <h3 class="qa__q">Overhead: about 1ms, or roughly 0.2% of a real call.</h3>
+      <p class="body">A provider call takes 500ms to several seconds and varies by hundreds of
+        milliseconds between one call and the next. CostGrid adds about 1.2ms of its own work
+        on top of the unavoidable loopback hop of around 1.6ms. That work is an indexed key
+        lookup, rule evaluation in memory, and one local write.</p>
+
+      <p class="swipe-hint" style="margin-top:var(--cg-space-5)">Swipe the table for p50 &amp; p99 &#8594;</p>
+      <div class="cg-table__scroll">
+        <table class="cg-table">
+          <thead>
+            <tr>
+              <th>Measured on a local stub, against a do-nothing proxy</th>
+              <th class="cg-table__num">p50</th>
+              <th class="cg-table__num">p99</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Round trip, 1 request in flight</td>
+              <td class="cg-table__num cg-num">1.2ms</td>
+              <td class="cg-table__num cg-num">2ms</td>
+            </tr>
+            <tr>
+              <td>Time to first byte, streaming, 1 in flight</td>
+              <td class="cg-table__num cg-num">0.8ms</td>
+              <td class="cg-table__num cg-num">1.6ms</td>
+            </tr>
+            <tr>
+              <td>Round trip, 10 in flight</td>
+              <td class="cg-table__num cg-num">1.3ms</td>
+              <td class="cg-table__num cg-num">4ms</td>
+            </tr>
+            <tr>
+              <td>50 in flight</td>
+              <td class="cg-table__num" colspan="2">Not yet published. See below.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="body" style="margin-top:var(--cg-space-5)">Three arms, not two. Comparing
+        <em>direct</em> against <em>through CostGrid</em> would measure our work and the cost of
+        adding any process to the path at the same time, and only the first is ours to answer
+        for. So the benchmark also runs a null proxy that forwards bytes and does nothing else.
+        That is the floor, and the figures above are what CostGrid costs on top of it.</p>
+
+      <p class="body"><strong>High concurrency is not published, because we cannot yet measure it
+        honestly.</strong> On one machine the load generator, the proxy and the provider compete
+        for the same cores, and at 50 requests in flight the noise is larger than the thing being
+        measured: CostGrid comes out apparently faster than a proxy doing strictly less work,
+        which is impossible. That needs separate hosts before it means anything. We would rather
+        leave a row empty than fill it with a number your own load test would contradict.</p>
+
+      <p class="body">Run it yourself. It takes one command and no account:</p>
+      <div class="cg-code"><pre class="cg-code__pre">git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install
+npm run bench</pre></div>
+      <p class="body" style="margin-top:var(--cg-space-3)">Your hardware will give different
+        figures than ours. That is the point of shipping the benchmark instead of a badge.</p>
+    </div>
+
+    <div>
+      <h3 class="qa__q">Fail-closed, deliberately.</h3>
+      <p class="body">If CostGrid is not running, calls through it fail. That is a design decision
+        rather than a limitation, and it is the one real difference between this and a dashboard.</p>
+
+      <p class="body">Tools that only watch your traffic can afford to fail open, because nothing
+        is lost when they step aside. A tool that enforces cannot. A gateway that waves traffic
+        through whenever it is unhealthy has a budget ceiling that stops applying at exactly the
+        moment things are going wrong, which is the moment a runaway loop is most likely to be
+        running. You cannot sell <em>it stops the call</em> and <em>it never stands in the
+        way</em> in the same sentence, so we have picked one and said which.</p>
+
+      <p class="swipe-hint" style="margin-top:var(--cg-space-5)">Swipe the table to compare &#8594;</p>
+      <div class="cg-table__scroll">
+        <table class="cg-table">
+          <thead>
+            <tr>
+              <th>What happens when</th>
+              <th>A reporting tool</th>
+              <th>CostGrid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>The provider returns an error</td>
+              <td>Logs it</td>
+              <td>Passes their status and body back untouched, and records the attempt</td>
+            </tr>
+            <tr>
+              <td>The proxy itself is down</td>
+              <td>Traffic continues, unwatched, budget unenforced</td>
+              <td>Connections refused, so a cap cannot be exceeded while nobody is looking</td>
+            </tr>
+            <tr>
+              <td>A call would break a budget</td>
+              <td>Appears on a dashboard afterwards</td>
+              <td>Refused, or quietly moved to a cheaper model, before it is sent</td>
+            </tr>
+            <tr>
+              <td>Our own database cannot be written to</td>
+              <td>n/a</td>
+              <td>You still get the answer you paid for. The lost row is counted and reported
+                on the health endpoint</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="body" style="margin-top:var(--cg-space-5)">That last row was a bug until recently.
+        A failed write used to take the whole request with it, which meant the provider billed you
+        for an answer we then refused to hand over. Deciding whether a call may proceed fails
+        closed; writing down what it did does not. The money is already spent by then, and
+        withholding the response adds a second failure to the first.</p>
     </div>
   </div>
 </section>

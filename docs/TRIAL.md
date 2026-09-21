@@ -142,7 +142,10 @@ Stated up front, because finding out in week three wastes your time:
   flat and predictable, which is why it does not need governing.
 - **It is in the request path.** If the gateway is down, calls through it fail.
   That is the cost of being able to refuse a call rather than report on it
-  afterwards. Run it beside the service that calls it.
+  afterwards, and it is deliberate: a gateway that steps aside when unhealthy
+  is a budget cap that stops applying exactly when it is needed. Run it beside
+  the service that calls it. The latency it adds is about a millisecond, which
+  `npm run bench` will reproduce on your own hardware.
 - **One node, SQLite.** Fine for a team, not yet a high-availability
   deployment. The schema is Postgres-portable and that is now checked by the
   test suite, but the driver swap has not been made.
