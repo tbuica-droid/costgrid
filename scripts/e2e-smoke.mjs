@@ -422,6 +422,32 @@ const undone = await cli(["autopilot", "undo"]);
 check("undo is one command", /Switched off|Nothing to undo/.test(undone), true);
 await cli(["autopilot", "off"]);
 
+console.log("\n10f. drift: the model invented a tool it was never given");
+/*
+ * Section 9 granted topo-parent search_kb and refund_customer. This call
+ * invokes something that was never in any request, which is the one kind of
+ * hallucination this product can observe rather than judge.
+ */
+res = await call(
+  { model: "claude-haiku-4-5", max_tokens: 100, tools: [{ name: "search_kb" }] },
+  { "x-costgrid-agent": "topo-parent" },
+);
+await res.text();
+
+const driftOut = await cli(["drift", "--days", "1"]);
+check("drift runs", /WHAT CHANGED/.test(driftOut), true);
+// Thin history: newness is withheld, invented tools are not.
+check(
+  "withholds newness without a baseline",
+  /not enough history|Only invented tool calls/.test(driftOut),
+  true,
+);
+check(
+  "says what it cannot tell you",
+  /cannot tell you what is/.test(driftOut),
+  true,
+);
+
 console.log("\n11. negotiated rate: figures reconcile with an invoice");
 await cli(["rates", "set", "anthropic", "--discount", "18"]);
 res = await call({ model: "claude-haiku-4-5", max_tokens: 100 }, { "x-costgrid-agent": "enterprise" });

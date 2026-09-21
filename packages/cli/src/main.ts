@@ -13,6 +13,7 @@ import {
   Advisor,
   Analytics,
   Autopilot,
+  Drift,
   backupDatabase,
   Briefings,
   render as renderBriefing,
@@ -47,6 +48,9 @@ Usage:
                                           English. --show-data prints exactly
                                           what would be sent, and sends nothing.
                                           Explains only; it cannot change a rule.
+  costgrid drift [--days N]               What your agents started doing that they
+                                          never did before, including tools the
+                                          model invented and was never given.
   costgrid advise [--days N] [--format json]
                                           Read your own traffic and propose rules,
                                           each one replayed against the same window
@@ -209,6 +213,19 @@ function analystConfig(): AnalystConfig | undefined {
     ...(baseUrl ? { baseUrl } : {}),
     demo: !own && !!demo,
   };
+}
+
+/** Wrap prose to a width, for terminal output that has to stay readable. */
+function wrapAt(text: string, width: number): string[] {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    if (line === "") line = word;
+    else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else { out.push(line); line = word; }
+  }
+  if (line !== "") out.push(line);
+  return out;
 }
 
 async function main(): Promise<void> {
@@ -443,6 +460,82 @@ async function main(): Promise<void> {
       }
 
       fail(`unknown autopilot command ${JSON.stringify(sub)}. Try status, monitor, apply, off, run or undo.`);
+      break;
+    }
+
+    case "drift": {
+      requireTenant();
+      const days = Number(flag(argv, "days") ?? 7);
+      if (!Number.isInteger(days) || days < 1 || days > 365) {
+        fail(`--days must be an integer 1..365, got ${days}`);
+      }
+
+      const report = new Drift(db).report(tenantId, trailingWindow(days));
+      const RULE = "\u2500".repeat(72);
+      console.log("");
+      console.log(RULE);
+      console.log(`  WHAT CHANGED \u00b7 last ${days} day(s)`);
+      console.log(RULE);
+
+      /*
+       * The limits of this check print whether or not anything was found.
+       * A reader who sees an empty report needs to know what it was looking
+       * for as much as one who sees a full one.
+       */
+      const limits = () => {
+        console.log("");
+        console.log(RULE);
+        console.log("  CostGrid can tell you what is unusual. It cannot tell you what is");
+        console.log("  wrong. Most new behaviour is a release.");
+        console.log(RULE);
+        console.log("");
+      };
+
+      if (report.signals.length === 0) {
+        console.log("");
+        console.log(
+          report.established
+            ? "  Nothing new. Every agent did what it has done before."
+            : `  Nothing new, and not enough history yet to be sure. ${report.baselineCalls}\n` +
+              "  call(s) before this window; 500 are needed before \"never done this\n" +
+              "  before\" means anything. Invented tool calls are still reported.",
+        );
+        limits();
+        break;
+      }
+
+      const invented = report.signals.filter((x) => x.kind === "invented-tool");
+      const rest = report.signals.filter((x) => x.kind !== "invented-tool");
+
+      if (invented.length > 0) {
+        console.log("");
+        console.log("  THE MODEL INVENTED SOMETHING");
+        for (const sig of invented) {
+          console.log("");
+          console.log(`  ${sig.headline}`);
+          for (const line of wrapAt(sig.evidence, 68)) console.log(`     ${line}`);
+          console.log(
+            `     costgrid policy deny-tool agent:${sig.agentId} ${sig.subject ?? "<tool>"} --action monitor`,
+          );
+        }
+      }
+
+      if (rest.length > 0) {
+        console.log("");
+        console.log("  NEW, WHICH USUALLY MEANS A DEPLOY");
+        for (const sig of rest) {
+          console.log("");
+          console.log(`  ${sig.headline}`);
+          for (const line of wrapAt(sig.evidence, 68)) console.log(`     ${line}`);
+        }
+      }
+
+      if (!report.established) {
+        console.log("");
+        console.log("  Only invented tool calls are shown: there is not yet enough history");
+        console.log("  for the rest, which needs 500 calls before this window.");
+      }
+      limits();
       break;
     }
 
