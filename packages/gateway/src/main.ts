@@ -7,11 +7,13 @@ import {
 import {
   AccountsRepository,
   Analytics,
+  Anchors,
   CostGridRepository,
   ImportsRepository,
   openDatabase,
   Retention,
 } from "@costgrid/db";
+import { AnchorSender } from "./anchor-sender.js";
 import { loadConfig } from "./config.js";
 import { assertToolPoliciesEnforceable, createServer } from "./server.js";
 
@@ -66,6 +68,40 @@ async function main(): Promise<void> {
   };
   const purge = setInterval(applyRetention, 24 * 60 * 60 * 1000);
   purge.unref();
+
+  /*
+   * Anchoring, when the operator has somewhere to send to.
+   *
+   * Off unless both a destination and a signing key are configured. Turning it
+   * on by default would mean inventing a destination, and an anchor sent
+   * nowhere is worse than none at all: it looks like the guarantee is in place.
+   */
+  if (config.anchorUrl !== undefined && config.anchorKey !== undefined) {
+    const sender = new AnchorSender(new Anchors(db), {
+      url: config.anchorUrl,
+      privateKey: config.anchorKey,
+      log: app.log,
+    });
+    const anchor = (): void => {
+      void sender.run().catch((error: unknown) => {
+        app.log.error({ err: error }, "the audit anchor run failed");
+      });
+    };
+    anchor();
+    const anchoring = setInterval(anchor, config.anchorIntervalMinutes * 60 * 1000);
+    anchoring.unref();
+    app.log.info(
+      { every: `${config.anchorIntervalMinutes}m` },
+      "anchoring the audit log to an external receiver",
+    );
+  } else if (config.hosted) {
+    // Worth saying at boot rather than leaving somebody to discover during an
+    // audit that the fingerprint was only ever on this machine.
+    app.log.warn(
+      "audit anchoring is off. The audit log can be checked here, but nothing outside this " +
+        "host holds a copy of its fingerprint. Set COSTGRID_ANCHOR_URL and COSTGRID_ANCHOR_KEY.",
+    );
+  }
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, "shutting down");

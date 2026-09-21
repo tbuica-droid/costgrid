@@ -257,6 +257,22 @@ export class AuditLog {
     return row ?? { seq: 0, hash: GENESIS_HASH };
   }
 
+  /**
+   * The hash recorded at one sequence number.
+   *
+   * Used to settle an anchor against the log. Note what it does *not* prove on
+   * its own: somebody who rewrote an entry and recomputed every hash after it
+   * leaves a chain that verifies perfectly and returns a different value here.
+   * That is precisely why the comparison is made against an anchor the
+   * receiver holds rather than against anything on this machine.
+   */
+  hashAt(tenantId: string, seq: number): string | undefined {
+    const row = this.#db
+      .prepare("SELECT hash FROM audit_log WHERE tenant_id = ? AND seq = ?")
+      .get(tenantId, seq) as { hash: string } | undefined;
+    return row?.hash;
+  }
+
   list(
     tenantId: string,
     options: {

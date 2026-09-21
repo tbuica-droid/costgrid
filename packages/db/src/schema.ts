@@ -7,13 +7,19 @@
  * and money as INTEGER nanodollars. The repository layer is the only code that
  * speaks SQL, so swapping the driver is a contained change.
  *
- * That portability is checked rather than asserted. `portability.ts` runs over
- * these migrations in the test suite and refuses anything Postgres would not
- * take, and it also carries the one substitution that is not optional:
- * **SQLite's INTEGER is 64-bit and Postgres's is 32-bit**, so every column
- * here holding nanodollars or a millisecond timestamp becomes BIGINT. Copying
- * this file to Postgres unchanged would work in testing and overflow at $2.15
- * of real spend.
+ * That portability is tested rather than asserted, and the test runs the DDL
+ * against an actual PostgreSQL rather than pattern-matching it. The one
+ * substitution that is not optional: **SQLite's INTEGER is 64-bit and
+ * Postgres's is 32-bit**, so columns holding nanodollars or millisecond
+ * timestamps become BIGINT. Copying this file to Postgres unchanged would pass
+ * a smoke test and overflow at $2.15 of real spend.
+ *
+ * Read "portable" narrowly. It means this schema applies cleanly and behaves
+ * the same on both engines. It does not mean CostGrid runs on Postgres: the
+ * driver is synchronous, every repository method and caller would become
+ * async, placeholders change, and `strftime` in the analytics queries has no
+ * Postgres equivalent. See `portability.ts` and `docs/HOSTING.md` for the
+ * standing inventory of what is left.
  *
  * Multi-tenancy is present from the first migration even though the first
  * deployment is single-tenant. Retrofitting a tenant column onto a metering
@@ -635,6 +641,56 @@ export const MIGRATIONS: readonly Migration[] = [
         audit_days   INTEGER NOT NULL DEFAULT 0 CHECK (audit_days = 0 OR audit_days >= 365),
         updated_at   INTEGER NOT NULL
       ) STRICT;
+    `,
+  },
+  {
+    version: 12,
+    name: "anchors",
+    // Sending the audit log's fingerprint somewhere CostGrid does not control.
+    //
+    // The hash chain makes a change detectable by whoever holds an older copy
+    // of the head. Until now the only mechanism for that was telling an
+    // administrator to write it down, which makes the guarantee depend on the
+    // diligence of the person an audit is most likely to be about.
+    //
+    // An anchor is that fingerprint, signed and sent on a schedule to a system
+    // the operator controls separately: a SIEM, a log collector, an auditor's
+    // endpoint. What it buys is precise, and worth stating plainly rather than
+    // overselling. It does not make tampering impossible: whoever controls the
+    // host controls the sender and the signing key. It makes tampering
+    // *loud*, because the receiver independently holds the old head and sees
+    // a stream that stops, skips, or disagrees with itself.
+    //
+    // The anchors are therefore themselves a chain. Each one carries the
+    // sequence it covers and the previous anchor's hash, so a receiver can
+    // tell "nothing happened" apart from "nothing reached me".
+    sql: `
+      CREATE TABLE anchors (
+        tenant_id     TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        -- Position in the anchor stream, independent of the audit sequence.
+        -- A gap here is the signal a receiver watches for.
+        anchor_no     INTEGER NOT NULL,
+        -- The audit head this anchor commits to.
+        audit_seq     INTEGER NOT NULL,
+        audit_hash    TEXT NOT NULL,
+        -- Links anchors to each other, so the stream cannot be thinned out
+        -- without the remaining anchors disagreeing.
+        prev_anchor   TEXT NOT NULL,
+        -- The exact bytes that were signed, kept so a dispute can be settled
+        -- against what was actually sent rather than what we would send now.
+        payload       TEXT NOT NULL,
+        signature     TEXT NOT NULL,
+        created_at    INTEGER NOT NULL,
+        -- Delivery is tracked separately from creation. An anchor that was
+        -- never accepted is the interesting one.
+        delivered_at  INTEGER,
+        attempts      INTEGER NOT NULL DEFAULT 0,
+        last_error    TEXT,
+        PRIMARY KEY (tenant_id, anchor_no)
+      ) STRICT;
+
+      CREATE INDEX idx_anchors_undelivered
+        ON anchors(tenant_id, delivered_at, created_at);
     `,
   },
 ];

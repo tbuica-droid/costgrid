@@ -62,11 +62,13 @@ Usage:
                                           Monthly statement for finance: spend by team,
                                           movement against last month, budget status and
                                           what routing saved. Defaults to this month.
-  costgrid audit [list|verify|head] [--days N] [--action <prefix>]
+  costgrid audit [list|verify|head|keys|anchors] [--days N] [--action <prefix>]
                                           Who changed what, and proof the record
-                                          has not been edited. "verify" checks it;
-                                          "head" prints the fingerprint to write
-                                          down somewhere outside CostGrid.
+                                          has not been edited. "verify" checks it.
+                                          "keys" makes a signing key and "anchors"
+                                          shows the fingerprints sent to your own
+                                          log collector, so the proof does not
+                                          live only on this machine.
   costgrid retention [show|set|run] [--calls N] [--events N] [--audit N]
                                           How long data is kept. Zero, the default,
                                           keeps everything. "run" applies it now.

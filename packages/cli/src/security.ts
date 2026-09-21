@@ -1,7 +1,9 @@
 import {
+  Anchors,
   type AuditActor,
   AuditLog,
   type Db,
+  generateAnchorKeys,
   describeVerification,
   MIN_AUDIT_DAYS,
   Retention,
@@ -158,7 +160,65 @@ export function auditCommand(db: Db, tenantId: string, argv: string[]): void {
     return;
   }
 
-  fail(`unknown audit subcommand ${JSON.stringify(sub)}`);
+  if (sub === "keys") {
+    // Printed once, to be copied. The private half stays here; the public half
+    // goes to whoever receives the anchors, and is not a secret.
+    const keys = generateAnchorKeys();
+    console.log("Give the PUBLIC key to whoever receives your anchors.");
+    console.log("Keep the PRIVATE key on this machine, in COSTGRID_ANCHOR_KEY.");
+    console.log("");
+    console.log("--- public, safe to share ---");
+    console.log(keys.publicKey.trim());
+    console.log("");
+    console.log("--- private, treat as a credential ---");
+    console.log(keys.privateKey.trim());
+    console.log("");
+    console.log("With only the public key, a receiver can prove an anchor came from this");
+    console.log("CostGrid and has not been altered. They cannot forge one, which is why");
+    console.log("this is a signature rather than a shared password.");
+    return;
+  }
+
+  if (sub === "anchors") {
+    const anchors = new Anchors(db);
+    const recent = anchors.recent(tenantId, 20);
+    if (recent.length === 0) {
+      console.log("No anchors yet.");
+      console.log("");
+      console.log("Without them, the fingerprint of your audit log exists only on this");
+      console.log("machine, so anyone who can change the log can change the fingerprint");
+      console.log("with it. Set COSTGRID_ANCHOR_URL and COSTGRID_ANCHOR_KEY to send it");
+      console.log('somewhere else. Generate a key with "costgrid audit keys".');
+      return;
+    }
+
+    const pending = anchors.undelivered(tenantId, 1000);
+    console.log(`COSTGRID AUDIT ANCHORS · ${recent.length} most recent`);
+    console.log("");
+    for (const a of recent) {
+      const state = a.deliveredAt === undefined ? `UNDELIVERED (${a.attempts} tries)` : "delivered";
+      console.log(
+        `  #${String(a.payload.anchorNo).padStart(5)}  ${a.payload.at.slice(0, 19).replace("T", " ")}  ` +
+          `entries ${String(a.payload.auditSeq).padStart(6)}  ${state}`,
+      );
+      if (a.lastError !== undefined) console.log(`          last error: ${a.lastError}`);
+    }
+    console.log("");
+    if (pending.length > 0) {
+      console.log(`${pending.length} anchor(s) never reached the receiver.`);
+      console.log("Until they do, there is a gap in the archive, and a gap is exactly what");
+      console.log("somebody covering their tracks would leave. Fix the destination.");
+    } else {
+      console.log("Every anchor reached the receiver. They hold an independent copy of");
+      console.log("your audit log's fingerprint, so a change here can be proved there.");
+    }
+    return;
+  }
+
+  fail(
+    `unknown audit subcommand ${JSON.stringify(sub)}. ` +
+      "Expected list, verify, head, keys, anchors or purge.",
+  );
 }
 
 /** `costgrid retention [show|set|run]` */

@@ -63,6 +63,18 @@ export interface GatewayConfig {
    * matching to whatever Host header arrived. Set it in any real deployment.
    */
   readonly publicUrl: string | undefined;
+  /**
+   * Where to send the audit log's fingerprint, and what to sign it with.
+   *
+   * Anchoring is off unless both are set. It is the difference between a hash
+   * chain that somebody could check and one a separate system is already
+   * checking, so it is worth switching on, but it needs somewhere to send to
+   * and turning it on by default would invent that destination.
+   */
+  readonly anchorUrl: string | undefined;
+  readonly anchorKey: string | undefined;
+  /** Minutes between anchors. A heartbeat, so silence is itself a signal. */
+  readonly anchorIntervalMinutes: number;
   readonly logLevel: string;
 }
 
@@ -81,6 +93,24 @@ function publicUrl(): string | undefined {
     throw new Error("COSTGRID_PUBLIC_URL must be https outside local development");
   }
   return trimmed;
+}
+
+function anchorUrl(): string | undefined {
+  const raw = process.env["COSTGRID_ANCHOR_URL"];
+  if (raw === undefined || raw.trim() === "") return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    throw new Error(`COSTGRID_ANCHOR_URL is not a valid URL, got ${JSON.stringify(raw)}`);
+  }
+  // An anchor is evidence in transit. Sending it in clear text would let
+  // anyone on the path drop or alter it, which is the whole thing it guards.
+  if (parsed.protocol !== "https:" && parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
+    throw new Error("COSTGRID_ANCHOR_URL must be https outside local development");
+  }
+  return parsed.toString();
 }
 
 function integer(name: string, fallback: number): number {
@@ -179,6 +209,9 @@ export function loadConfig(): GatewayConfig {
     masterKeySecret,
     secureCookies: boolean("COSTGRID_SECURE_COOKIES", hosted),
     publicUrl: publicUrl(),
+    anchorUrl: anchorUrl(),
+    anchorKey: optional("COSTGRID_ANCHOR_KEY"),
+    anchorIntervalMinutes: integer("COSTGRID_ANCHOR_INTERVAL_MINUTES", 60),
     port: integer("COSTGRID_PORT", 8787),
     host: process.env["COSTGRID_HOST"]?.trim() || "127.0.0.1",
     databasePath: process.env["COSTGRID_DB"]?.trim() || "./costgrid.db",

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { MIGRATIONS, portabilityFindings, postgresSchema, toPostgres } from "../src/index.js";
+import {
+  MIGRATIONS,
+  portabilityFindings,
+  postgresSchema,
+  toPostgres,
+  unclassifiedColumns,
+} from "../src/index.js";
 
 describe("Postgres portability", () => {
   it("finds nothing unportable in the migrations", () => {
@@ -9,13 +15,31 @@ describe("Postgres portability", () => {
     expect(portabilityFindings()).toEqual([]);
   });
 
-  it("widens every integer, because nanodollars do not fit in 32 bits", () => {
+  it("widens money, because nanodollars do not fit in 32 bits", () => {
     // The bug this file exists for. SQLite's INTEGER is 64-bit and Postgres's
     // is not, so a straight copy of the schema overflows at $2.15 of spend and
     // at any timestamp after 1970.
-    const translated = toPostgres("cost_total INTEGER NOT NULL DEFAULT 0");
-    expect(translated).toBe("cost_total BIGINT NOT NULL DEFAULT 0");
-    expect(postgresSchema()).not.toMatch(/\bINTEGER\b/);
+    expect(toPostgres("cost_total INTEGER NOT NULL DEFAULT 0")).toBe(
+      "cost_total BIGINT NOT NULL DEFAULT 0",
+    );
+    expect(toPostgres("started_at INTEGER NOT NULL")).toBe("started_at BIGINT NOT NULL");
+  });
+
+  it("does not widen what does not need widening", () => {
+    // An earlier version turned all 84 integer columns into BIGINT, which is
+    // safe and lazy in equal measure: eight bytes for a column holding 0 or 1.
+    // SQLite has one integer type and cannot express the difference; Postgres
+    // has three, and throwing that away is not a translation, it is a shrug.
+    expect(toPostgres("streamed INTEGER NOT NULL CHECK (streamed IN (0, 1))")).toBe(
+      "streamed SMALLINT NOT NULL CHECK (streamed IN (0, 1))",
+    );
+    expect(toPostgres("duration_ms INTEGER NOT NULL")).toBe("duration_ms INTEGER NOT NULL");
+  });
+
+  it("refuses to guess at a column nobody has classified", () => {
+    // A silent default is how the next migration quietly gets the wrong type.
+    expect(() => toPostgres("mystery_column INTEGER NOT NULL")).toThrow(/no Postgres width/);
+    expect(unclassifiedColumns()).toEqual([]);
   });
 
   it("holds a nanodollar figure that would overflow a 32-bit column", () => {

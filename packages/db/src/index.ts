@@ -14,3 +14,4 @@ export * from "./audit.js";
 export * from "./retention.js";
 export * from "./sso.js";
 export * from "./portability.js";
+export * from "./anchor.js";

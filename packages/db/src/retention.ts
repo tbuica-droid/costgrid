@@ -104,6 +104,9 @@ const TENANT_TABLES = [
   "sso_connections",
   "sso_requests",
   "audit_log",
+  // The local copies only. Anchors already delivered live at the receiver,
+  // which is the point of them, and are outside anything this can reach.
+  "anchors",
 ] as const;
 
 export class Retention {

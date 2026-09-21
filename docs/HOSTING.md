@@ -156,6 +156,52 @@ chain that still verifies, because what is missing links to nothing.
 `costgrid audit verify` exits 2 when the chain does not hold, so it can be run
 on a schedule beside the pricing check.
 
+### Anchoring it somewhere you control
+
+A hash chain proves something to whoever holds an older copy of the head.
+`costgrid audit head` prints one for a person to file somewhere, which makes
+the guarantee depend on that person remembering, and the person an audit
+concerns is the one being asked to remember.
+
+Anchoring removes that dependency. CostGrid signs its current fingerprint and
+posts it on a schedule to a system you control separately: a SIEM, a log
+collector, an auditor's endpoint.
+
+```bash
+costgrid audit keys           # make a signing key, once
+```
+
+```bash
+COSTGRID_ANCHOR_URL=https://siem.internal/costgrid
+COSTGRID_ANCHOR_KEY="$(cat /run/secrets/costgrid_anchor_key)"
+COSTGRID_ANCHOR_INTERVAL_MINUTES=60
+```
+
+The receiver needs only the **public** key. They can then prove an anchor came
+from your CostGrid unaltered, and they cannot forge one, which is why this is a
+signature rather than a shared secret: an anchor in their archive is evidence
+even when the two of you disagree.
+
+**Be precise about what this buys, because it is not immutability.** Whoever
+controls the host controls the sender and the key. They can stop anchoring, and
+they can sign a false anchor. What they cannot do is reach into the receiver
+and change an anchor already delivered. So:
+
+| Tampering | How it surfaces |
+|---|---|
+| An old entry is edited | The head no longer matches the anchor already held for that sequence |
+| Recent entries are deleted | The head moves backwards, below a sequence already committed to |
+| The chain is rebuilt to hide an edit | Local verification passes; the archived anchor still disagrees |
+| Anchoring is switched off first | The stream stops, and anchors are sent on a heartbeat so silence is itself the signal |
+
+The last row is why an anchor is sent even when nothing has changed, and why
+it carries its own sequence number. Alarm on **absence**, not only on content.
+
+`costgrid audit anchors` shows what was sent and what never arrived.
+Undelivered anchors are the interesting ones: a gap in the archive is exactly
+what somebody covering their tracks would leave, so they are retried
+indefinitely rather than dropped.
+
 ## Single sign-on
 
 OpenID Connect, one connection per organisation. Configured by an owner at
@@ -212,23 +258,47 @@ which are shown for context and never used to compute the charge. An operator
 collects. Charging money automatically is a real-world action that belongs
 behind an explicit, deliberate integration.
 
-**SQLite, so one node.** The schema is Postgres-portable, and that is now
-checked rather than claimed: `npm test` runs the migrations past a checker, and
-`npm run emit-postgres-schema` writes the translated DDL. Writing that checker
-found a real defect in the old claim, which is the argument for it. SQLite's
-`INTEGER` is 64-bit and Postgres's is 32-bit, so every nanodollar and every
-millisecond timestamp in the schema needs `BIGINT`. A copy-paste migration
-would have passed a smoke test and then overflowed at $2.15 of spend.
+**SQLite, so one node. This is the biggest gap, and Postgres alone does not
+close it.**
 
-The rest of the port has not been made. The driver is synchronous and Postgres
-is not, so every repository method and every caller changes. Until that is
-done: one gateway instance, one disk, no horizontal scale and no HA. For early
-customers this is genuinely fine. It is not fine at scale, it is the thing a
-public-sector or large-enterprise security review will stop on, and it should
-not be sold as if it were solved.
+Two separate things get conflated here, so they are separated below.
 
-The translated schema has not been run against a real Postgres. There was none
-on the machine where it was written.
+*Postgres portability.* The schema is validated against a real PostgreSQL, not
+reasoned about: `npm test` applies the generated DDL to PostgreSQL 18 (via
+PGlite, which is Postgres compiled from the same C sources to WebAssembly),
+writes production-scale values, and runs the money aggregates on SQLite and
+Postgres over identical rows to check they agree exactly.
+
+That found two real defects that static checking had missed. SQLite's `INTEGER`
+is 64-bit and Postgres's is 32-bit, so every nanodollar and millisecond
+timestamp needs `BIGINT` or it overflows at $2.15 of spend. And the checker
+originally read only the migrations, so `strftime` in the analytics queries and
+`PRAGMA`/`sqlite_master` in the retention code were reported as portable when
+they are not.
+
+*What remains, which is most of it.* The schema is one component. Still
+outstanding: the driver is synchronous and `pg` is not, so every repository
+method and every caller becomes async; parameter placeholders change from `?`
+to `$1`; the `strftime` day-bucketing must be rewritten as
+`to_char(to_timestamp(...))` and its day boundaries re-tested, because those
+figures appear on customer statements; schema introspection needs
+`information_schema`; connection pooling, transaction and locking behaviour,
+error handling and backup procedures are all different. Calling the current
+state "the schema half done" would be generous. **It is generated and validated
+DDL, and the application-level port has not started.**
+
+*Postgres is not high availability.* Even with the port finished, the result is
+one application server talking to one database server, which is two single
+points of failure rather than one. Actual HA additionally needs: more than one
+gateway instance, which today is blocked by the in-process rate limiter below;
+a shared store for that limiter; database replication with tested failover;
+health checks that a load balancer acts on; a restore procedure somebody has
+actually run against a real backup; and a documented recovery objective. None
+of that exists.
+
+So the honest position for a security review: one gateway instance, one disk,
+no horizontal scale, no failover. Fine for a team. Not fine where losing that
+machine is an incident, and it should not be sold as if it were.
 
 **In-process rate limiting.** Each instance enforces its own counter, so the
 effective limit is `plan limit x instances`. With one instance that is exact.

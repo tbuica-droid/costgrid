@@ -4,16 +4,23 @@
  *
  *   npm run emit-postgres-schema > costgrid-postgres.sql
  *
- * This is the schema half of the Postgres port, and only that half. The
- * repository layer still speaks to a synchronous SQLite driver, so running
- * this script does not give you a CostGrid on Postgres. What it gives you is a
- * schema that has been translated deliberately rather than by hand on the day,
- * with the one difference that actually bites already handled: SQLite's
- * INTEGER is 64-bit and Postgres's is 32-bit, which every nanodollar and every
- * millisecond timestamp in this product would overflow.
+ * This is generated and validated DDL. It is not a Postgres port, and calling
+ * it "half" of one would be generous: the schema is a single component beside
+ * connection management, async drivers, placeholder syntax, transaction and
+ * locking behaviour, date functions, schema introspection, error handling,
+ * backups and deployment. None of those have been done.
  *
- * Not yet run against a real Postgres. There was none on the machine where
- * this was written, and saying so is cheaper than someone finding out.
+ * What it is worth: the DDL is applied to a real PostgreSQL in the test suite,
+ * with production-scale values written and read back, and the money aggregates
+ * run on both engines over identical rows and compared. So the one difference
+ * that actually bites is handled rather than waiting to be discovered on the
+ * day: SQLite's INTEGER is 64-bit and Postgres's is 32-bit, which every
+ * nanodollar and every millisecond timestamp in this product would overflow.
+ *
+ * Validated via PGlite, which is Postgres built from the same C sources to
+ * WebAssembly. That makes the parser, planner, types and constraints the real
+ * ones. It is a single in-process connection, so it says nothing about
+ * pooling, lock contention under concurrency, replication or server tuning.
  */
 import { postgresSchema } from "../packages/db/dist/index.js";
 
