@@ -428,27 +428,19 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
         id: invoice.plan.id,
         name: invoice.plan.name,
         monthlyBaseUsd: toUsdString(invoice.plan.monthlyBase, 2),
-        spendFeeBps: invoice.plan.spendFeeBps,
-        includedCallsPerMonth: invoice.plan.includedCallsPerMonth,
         rateLimitPerMinute: invoice.plan.rateLimitPerMinute,
-        seats: invoice.plan.seats,
       },
       period: window,
       // Kept as separate lines: what the customer's AI cost them, and what
-      // CostGrid charges for governing it, are different numbers.
+      // CostGrid charges for governing it, are different numbers. The first
+      // never feeds the second.
       meteredSpendUsd: toUsdString(invoice.meteredSpend, 6),
       calls: invoice.calls,
-      baseUsd: toUsdString(invoice.base, 2),
-      spendFeeUsd: toUsdString(invoice.spendFee, 6),
-      totalUsd: toUsdString(invoice.total, 6),
-      overageCalls: invoice.overageCalls,
-      withinAllowance: invoice.withinAllowance,
+      totalUsd: toUsdString(invoice.total, 2),
       availablePlans: Object.values(PLANS).map((p) => ({
         id: p.id,
         name: p.name,
         monthlyBaseUsd: toUsdString(p.monthlyBase, 2),
-        spendFeeBps: p.spendFeeBps,
-        includedCallsPerMonth: p.includedCallsPerMonth,
         rateLimitPerMinute: p.rateLimitPerMinute,
       })),
     };

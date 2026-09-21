@@ -1,11 +1,27 @@
-import { mulDiv, type Nanodollars, usd } from "./money.js";
+import { type Nanodollars, usd } from "./money.js";
 
 /**
  * What CostGrid charges its own customers.
  *
+ * A flat monthly fee and nothing else. No share of the customer's spend, and
+ * no per-call metering.
+ *
+ * The spend share was removed deliberately and should not come back. This
+ * product exists to reduce a customer's AI bill, so charging a percentage of
+ * that bill meant the better it worked the less it earned, and any buyer who
+ * did the arithmetic could see we were paid to save them less. A product whose
+ * entire claim is honest numbers cannot hold a contradiction like that in its
+ * price list.
+ *
+ * Per-call allowances went with it for a plainer reason: CostGrid is
+ * self-hosted. The customer runs the binary and holds the database, so we
+ * cannot count their calls, and an allowance nobody can measure is not a term,
+ * it is decoration. It is also a real advantage, since every hosted competitor
+ * meters requests because they are storing them.
+ *
  * Deliberately separate from the *metering* of a customer's provider spend.
  * Conflating "what your AI cost you" with "what we charge you for telling you"
- * is how a FinOps vendor loses the trust its numbers depend on — the two
+ * is how a FinOps vendor loses the trust its numbers depend on: the two
  * appear as distinct lines everywhere.
  *
  * This computes an invoice basis. It does not talk to a payment processor;
@@ -21,17 +37,11 @@ export interface Plan {
   /** Charged every month regardless of usage. */
   readonly monthlyBase: Nanodollars;
   /**
-   * Share of the customer's metered provider spend, in basis points.
+   * Requests per minute, per tenant, at the gateway.
    *
-   * Priced as a fraction of spend because that is what the product acts on:
-   * a customer whose bill CostGrid halves should pay less, not the same.
+   * An abuse guard, not a meter. Nothing here is billed by volume.
    */
-  readonly spendFeeBps: number;
-  /** Metered calls included before the platform stops accepting traffic. */
-  readonly includedCallsPerMonth: number;
-  /** Requests per minute, per tenant, at the gateway. */
   readonly rateLimitPerMinute: number;
-  readonly seats: number;
 }
 
 export const PLANS: Readonly<Record<PlanId, Plan>> = {
@@ -39,28 +49,19 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
     id: "free",
     name: "Free",
     monthlyBase: 0n,
-    spendFeeBps: 0,
-    includedCallsPerMonth: 10_000,
     rateLimitPerMinute: 60,
-    seats: 2,
   },
   team: {
     id: "team",
     name: "Team",
     monthlyBase: usd("99.00"),
-    spendFeeBps: 200, // 2% of metered spend
-    includedCallsPerMonth: 1_000_000,
     rateLimitPerMinute: 600,
-    seats: 10,
   },
   business: {
     id: "business",
     name: "Business",
     monthlyBase: usd("499.00"),
-    spendFeeBps: 100, // 1% — the rate falls as volume rises
-    includedCallsPerMonth: 20_000_000,
     rateLimitPerMinute: 6_000,
-    seats: 100,
   },
 };
 
@@ -76,17 +77,16 @@ export function isPlanId(id: string): id is PlanId {
 
 export interface InvoiceBasis {
   readonly plan: Plan;
-  /** The customer's own provider spend over the period, as metered. */
+  /**
+   * The customer's own provider spend over the period, as metered.
+   *
+   * Carried for the invoice to show beside the charge, never to compute it.
+   * Seeing "you spent $8,400 on AI, we charged you $99" is the whole argument
+   * for the product on one line.
+   */
   readonly meteredSpend: Nanodollars;
   readonly calls: number;
-  /** Fixed monthly charge. */
-  readonly base: Nanodollars;
-  /** Usage component, derived from metered spend. */
-  readonly spendFee: Nanodollars;
   readonly total: Nanodollars;
-  /** Calls beyond the plan's allowance; zero when within it. */
-  readonly overageCalls: number;
-  readonly withinAllowance: boolean;
 }
 
 /**
@@ -109,17 +109,10 @@ export function computeInvoice(
     throw new RangeError(`metered spend cannot be negative, got ${meteredSpend}`);
   }
 
-  const spendFee = mulDiv(meteredSpend, BigInt(plan.spendFeeBps), 10_000n);
-  const overageCalls = Math.max(0, calls - plan.includedCallsPerMonth);
-
   return {
     plan,
     meteredSpend,
     calls,
-    base: plan.monthlyBase,
-    spendFee,
-    total: plan.monthlyBase + spendFee,
-    overageCalls,
-    withinAllowance: overageCalls === 0,
+    total: plan.monthlyBase,
   };
 }

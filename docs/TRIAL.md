@@ -78,15 +78,23 @@ not happen, or lands flat, CostGrid is not worth a line item for you.
 
 ## What it costs afterwards
 
-| Plan | Monthly | On metered spend | Calls included | Seats |
+| Plan | Monthly | Calls | Seats | Fee on your AI bill |
 |---|---|---|---|---|
-| Free | $0 | — | 10,000 | 2 |
-| Team | $99 | 2% | 1,000,000 | 10 |
-| Business | $499 | 1% | 20,000,000 | 100 |
+| Free | $0 | Unlimited | 2 | None |
+| Team | $99 | Unlimited | Unlimited | None |
+| Business | $499 | Unlimited | Unlimited | None |
 
-The percentage falls as volume rises on purpose: the fee should not grow faster
-than the value of governing the spend. The routing report tells you what
-CostGrid is saving you, so you can check the trade rather than take it on faith.
+One flat fee, and no share of what you spend on AI. That is deliberate: this
+product exists to shrink your AI bill, so a fee taken as a percentage of that
+bill would pay us to shrink it less.
+
+Calls are unlimited because CostGrid runs on your own machines. Your volume
+costs us nothing, so there is nothing to meter.
+
+**The savings guarantee.** If after 60 days the savings report does not show
+CostGrid saved you more than you paid us, we refund the subscription. The
+report is produced by the software rather than by us, and it shows how every
+figure was worked out, so you can check it rather than take it on faith.
 
 ## If you have an enterprise agreement
 

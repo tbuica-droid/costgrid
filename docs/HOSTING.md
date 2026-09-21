@@ -129,10 +129,11 @@ Expired sessions are swept hourly by the process itself. Nothing to do.
 ## What is deliberately not built
 
 **No payment processor.** Changing a plan records the intent; nobody's card is
-charged. `GET /console/:tenant/billing` returns the invoice basis. Base fee,
-usage fee, metered spend, call count. And an operator collects. Charging money
-automatically is a real-world action that belongs behind an explicit,
-deliberate integration.
+charged. `GET /console/:tenant/billing` returns the invoice basis: the flat
+monthly fee, and beside it the customer's own metered AI spend and call count,
+which are shown for context and never used to compute the charge. An operator
+collects. Charging money automatically is a real-world action that belongs
+behind an explicit, deliberate integration.
 
 **SQLite, so one node.** Every construct in the schema is Postgres-portable and
 the repository layer is the only code that writes SQL, but the swap has not

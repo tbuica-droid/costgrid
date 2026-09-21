@@ -148,12 +148,9 @@ describe("session tokens", () => {
 });
 
 describe("billing", () => {
-  it("charges base plus a share of metered spend", () => {
-    // Team: $99 base + 2% of $10,000 = $99 + $200
+  it("charges the flat monthly fee and nothing else", () => {
     const invoice = computeInvoice("team", usd("10000.00"), 5_000);
-    expect(invoice.base).toBe(usd("99.00"));
-    expect(invoice.spendFee).toBe(usd("200.00"));
-    expect(invoice.total).toBe(usd("299.00"));
+    expect(invoice.total).toBe(usd("99.00"));
   });
 
   it("charges nothing on the free plan", () => {
@@ -161,29 +158,30 @@ describe("billing", () => {
     expect(invoice.total).toBe(0n);
   });
 
-  it("keeps the customer's spend separate from our fee", () => {
-    // The two must never be conflated: one is what their AI cost, the other
-    // is what we charge for governing it.
+  /*
+   * The property that replaced the old spend share, and the reason it was
+   * removed: this product reduces a customer's AI bill, so a fee taken as a
+   * percentage of that bill fell as the product worked. A buyer doing the
+   * arithmetic could see we were paid to save them less.
+   */
+  it("charges the same however much the customer spends", () => {
+    const small = computeInvoice("team", usd("100.00"), 1_000);
+    const large = computeInvoice("team", usd("250000.00"), 9_000_000);
+    expect(small.total).toBe(large.total);
+  });
+
+  it("keeps the customer's spend on the invoice without billing on it", () => {
+    // Shown side by side, because "you spent $50,000, we charged you $499" is
+    // the argument for the product on one line.
     const invoice = computeInvoice("business", usd("50000.00"), 1_000);
     expect(invoice.meteredSpend).toBe(usd("50000.00"));
-    expect(invoice.spendFee).toBe(usd("500.00")); // 1%
-    expect(invoice.total).toBe(usd("999.00")); // $499 base + $500
+    expect(invoice.total).toBe(usd("499.00"));
   });
 
-  it("flags calls beyond the plan allowance", () => {
-    const within = computeInvoice("free", 0n, 9_000);
-    expect(within.withinAllowance).toBe(true);
-    expect(within.overageCalls).toBe(0);
-
-    const over = computeInvoice("free", 0n, 12_500);
-    expect(over.withinAllowance).toBe(false);
-    expect(over.overageCalls).toBe(2_500);
-  });
-
-  it("rounds the spend fee rather than truncating it", () => {
-    // 2% of $0.01 is $0.0002 exactly; a rate that does not divide evenly must
-    // still land on a whole nanodollar without bias.
-    expect(computeInvoice("team", usd("0.01"), 1).spendFee).toBe(usd("0.0002"));
+  it("never meters calls, because a self-hosted product cannot count them", () => {
+    const quiet = computeInvoice("free", 0n, 0);
+    const busy = computeInvoice("free", 0n, 50_000_000);
+    expect(quiet.total).toBe(busy.total);
   });
 
   it("validates its inputs", () => {
@@ -192,9 +190,8 @@ describe("billing", () => {
     expect(() => planFor("enterprise")).toThrow(/unknown plan/);
   });
 
-  it("raises the rate limit and lowers the fee as plans grow", () => {
+  it("raises the rate limit as plans grow", () => {
     expect(PLANS.free.rateLimitPerMinute).toBeLessThan(PLANS.team.rateLimitPerMinute);
     expect(PLANS.team.rateLimitPerMinute).toBeLessThan(PLANS.business.rateLimitPerMinute);
-    expect(PLANS.business.spendFeeBps).toBeLessThan(PLANS.team.spendFeeBps);
   });
 });

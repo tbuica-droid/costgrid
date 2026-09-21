@@ -590,7 +590,7 @@ describe("hosted control plane", () => {
 
   // ---------------------------------------------------------------- billing
 
-  it("reports the invoice basis with our fee separate from their spend", async () => {
+  it("reports the invoice with our flat fee beside their spend", async () => {
     const acme = await signup();
     const tenantId = acme.json().tenantId;
     const cookie = cookieFrom(acme);
@@ -615,10 +615,11 @@ describe("hosted control plane", () => {
     ).json();
 
     expect(billing.plan.id).toBe("team");
-    expect(billing.meteredSpendUsd).toBe("0.017500"); // their AI spend
-    expect(billing.baseUsd).toBe("99.00"); // our subscription
-    expect(billing.spendFeeUsd).toBe("0.000350"); // 2% of theirs
-    expect(billing.totalUsd).toBe("99.000350");
+    // Their AI spend and our fee appear side by side, and the first never
+    // feeds the second.
+    expect(billing.meteredSpendUsd).toBe("0.017500");
+    expect(billing.totalUsd).toBe("99.00");
+    expect(billing.spendFeeUsd).toBeUndefined();
   });
 
   it("changes plan, and rejects an unknown one", async () => {
