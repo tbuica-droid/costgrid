@@ -49,6 +49,8 @@ a:hover{text-decoration-color:var(--cg-ink)}
 .hdr-links{display:none;gap:var(--cg-space-5);font-size:var(--cg-text-sm);color:var(--cg-ink-soft)}
 .hdr-links a{text-decoration:none;color:var(--cg-ink-soft)}
 .hdr-links a:hover{color:var(--cg-ink)}
+.hdr-gh{display:inline-flex;align-items:center}
+.hdr-gh img{display:block;border-radius:3px}
 
 /* hero */
 .hero{padding:var(--cg-space-7) 0 var(--cg-space-8)}
@@ -195,9 +197,13 @@ a:hover{text-decoration-color:var(--cg-ink)}
     <nav class="hdr-nav">
       <span class="hdr-links">
         <a href="#how">How it works</a>
+        <a href="#engineering">Guarantees</a>
         <a href="#topology-section">What it shows you</a>
         <a href="#pricing">Pricing</a>
         <a href="./demo/">Demo</a>
+        <a class="hdr-gh" href="https://github.com/tbuica-droid/costgrid" aria-label="CostGrid on GitHub">
+          <img src="https://img.shields.io/github/stars/tbuica-droid/costgrid?style=flat" alt="GitHub stars" width="86" height="20" loading="lazy">
+        </a>
       </span>
       <a href="#trial" class="cg-btn cg-btn--sm cg-btn--primary">Start free trial</a>
     </nav>
@@ -218,6 +224,19 @@ a:hover{text-decoration-color:var(--cg-ink)}
       <a href="./demo/" class="cg-btn cg-btn--lg cg-btn--secondary">Click through the dashboard</a>
     </div>
     <p class="fine">30 days free &middot; runs on your own computers &middot; no card</p>
+
+    <div style="max-width:640px">
+      <p class="eyebrow" style="margin:0 0 var(--cg-space-2)">Quickstart &middot; on your own machine</p>
+      <pre class="shell" id="heroShell"><span class="c"># clone it, add your own provider key, run it</span>
+git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install
+cp .env.example .env   <span class="c"># paste your Anthropic or OpenAI key in here</span>
+npm run gateway:dev</pre>
+      <div class="actions" style="margin-top:var(--cg-space-3);align-items:center">
+        <button type="button" id="heroCopy" class="cg-btn cg-btn--sm cg-btn--secondary">Copy</button>
+        <span class="fine">No account, no card &middot; your key never leaves this machine</span>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -563,6 +582,10 @@ npm run bench</pre></div>
         for an answer we then refused to hand over. Deciding whether a call may proceed fails
         closed; writing down what it did does not. The money is already spent by then, and
         withholding the response adds a second failure to the first.</p>
+
+      <p class="body" style="margin-top:var(--cg-space-3)">This is the actual difference between
+        an enforcement gateway and an observability layer like Helicone or Portkey. Both will show
+        you what happened. Only one of them can stop it from happening.</p>
     </div>
   </div>
 </section>
@@ -636,7 +659,7 @@ npm run bench</pre></div>
 
     <div class="two-col">
       <div>
-        <div class="col-head">Option A: get set up with me</div>
+        <div class="col-head">Option A &middot; Guided &mdash; talk to me first</div>
         <form id="trialForm" novalidate>
           <div class="two-up">
             <label class="cg-field"><span class="cg-field__label">Name</span>
@@ -685,7 +708,7 @@ npm run bench</pre></div>
       </div>
 
       <div>
-        <div class="col-head">Option B: start right now, alone</div>
+        <div class="col-head">Option B &middot; Self-serve &mdash; on your machine, right now</div>
         <pre class="shell"><span class="c"># 1. get it</span>
 git clone https://github.com/tbuica-droid/costgrid
 cd costgrid &amp;&amp; npm install &amp;&amp; npm run build
@@ -774,6 +797,29 @@ npm run gateway
    * pre-filled message to a real inbox instead. Put a hosted form endpoint in
    * ENDPOINT to POST JSON instead; the mail path is then skipped.
    */
+  var heroCopy = document.getElementById('heroCopy');
+  var heroShell = document.getElementById('heroShell');
+  if (heroCopy && heroShell) {
+    heroCopy.addEventListener('click', function () {
+      var text = heroShell.textContent;
+      var done = function () {
+        heroCopy.textContent = 'Copied';
+        setTimeout(function () { heroCopy.textContent = 'Copy'; }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) { /* nothing to do */ }
+        document.body.removeChild(ta);
+        done();
+      }
+    });
+  }
+
   var ENDPOINT = '';
   var INBOX = 'tomasbuica@outlook.com';
   var form = document.getElementById('trialForm');
