@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CostGrid &middot; see and control what your AI spends</title>
+<meta name="description" content="See what your software spends on AI, split the bill by team, and stop it going over a limit you set. One line of setup. 30 days free, on your own computers.">
+<meta property="og:title" content="CostGrid · see and control what your AI spends">
+<meta property="og:description" content="Your software calls AI and the bill arrives a month later with no way to tell who spent what. CostGrid shows you the cost of every call and stops the spending before it goes too far.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://costgrid.dev/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2316130f'/><rect x='3' y='9' width='2' height='4' fill='%23faf8f4'/><rect x='7' y='5' width='2' height='8' fill='%23faf8f4'/><rect x='11' y='4' width='2' height='9' fill='%23a63a22'/></svg>">
+<link rel="canonical" href="https://costgrid.dev/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="./costgrid-ui.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,300..700&display=swap">
+<style>
+*{box-sizing:border-box}
+.site{container-type:inline-size;container-name:site;width:100%}
+html,body{margin:0;padding:0}
+body{background:var(--cg-paper);color:var(--cg-ink)}
+img,svg,iframe{max-width:100%}
+h1,h2,h3,p{text-wrap:pretty}
+a{color:var(--cg-ink);text-decoration:underline;text-decoration-color:var(--cg-rule);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--cg-ink)}
+::selection{background:var(--cg-ink);color:var(--cg-paper)}
+
+.wrap{width:100%;max-width:1160px;margin:0 auto;padding:0 var(--cg-space-5)}
+.band{padding:var(--cg-space-8) 0}
+.band--sunk{background:var(--cg-surface-sunk)}
+.band--ink{background:var(--cg-ink);color:var(--cg-paper)}
+.band--ink a{color:var(--cg-paper);text-decoration-color:rgba(250,248,244,.45)}
+.band--ink a:hover{text-decoration-color:var(--cg-paper)}
+/* Grid children default to min-width:auto, so one wide thing inside a column
+   (a long code line, the topology canvas) stretches the column past the
+   viewport and drags its siblings off-screen. */
+.stack>*,.steps>*,.topo>*,.two-col>*,.rows>*,.row>*,.market>*,.figures>*,.cards>*,.statstrip>*,.frame{min-width:0}
+.stack{display:grid;gap:var(--cg-space-5)}
+.stack--wide{gap:var(--cg-space-6)}
+.lede-wide{max-width:64ch}
+.rule-top{border-top:1px solid var(--cg-rule)}
+
+/* header */
+.hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:var(--cg-space-4);height:56px;background:rgba(250,248,244,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--cg-rule-hair)}
+.hdr-inner{display:flex;align-items:center;justify-content:space-between;gap:var(--cg-space-4);width:100%;max-width:1160px;margin:0 auto;padding:0 var(--cg-space-5)}
+.wordmark{font-family:var(--cg-font-display);font-size:var(--cg-text-xl);letter-spacing:var(--cg-tracking-tight);text-decoration:none}
+.hdr-nav{display:flex;align-items:center;gap:var(--cg-space-5)}
+.hdr-links{display:none;gap:var(--cg-space-5);font-size:var(--cg-text-sm);color:var(--cg-ink-soft)}
+.hdr-links a{text-decoration:none;color:var(--cg-ink-soft)}
+.hdr-links a:hover{color:var(--cg-ink)}
+.hdr-gh{display:inline-flex;align-items:center}
+.hdr-gh img{display:block;border-radius:3px}
+
+/* hero */
+.hero{padding:var(--cg-space-7) 0 var(--cg-space-8)}
+.hero h1{margin:0;font-family:var(--cg-font-display);font-weight:var(--cg-weight-regular);font-size:clamp(2.25rem,7.2cqw,4.25rem);line-height:1.02;letter-spacing:var(--cg-tracking-tight);max-width:17ch;text-wrap:balance}
+.hero h1 .turn{color:var(--cg-over)}
+.hero__lede{margin:0;font-size:clamp(1.0625rem,2.4cqw,1.375rem);line-height:var(--cg-leading-snug);max-width:46ch}
+.hero__sub{margin:0;font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:46ch}
+.actions{display:flex;flex-wrap:wrap;gap:var(--cg-space-3)}
+.fine{margin:0;font-size:var(--cg-text-sm);color:var(--cg-ink-faint)}
+
+/* market figures */
+.market{display:grid;gap:var(--cg-space-6)}
+.market__note{margin:0;font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:40ch}
+.figures{display:grid;gap:var(--cg-space-5)}
+.fig__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--cg-space-4);padding-bottom:var(--cg-space-2)}
+.fig__year{font-size:var(--cg-text-sm);color:var(--cg-ink-faint)}
+.fig__val{font-family:var(--cg-font-display);font-size:clamp(2rem,6cqw,3rem);line-height:1;letter-spacing:var(--cg-tracking-tight)}
+.fig__val sup{font-size:.45em;vertical-align:.7em;margin-left:.05em}
+.fig__val--over{color:var(--cg-over)}
+
+/* stat strip */
+.statstrip{display:grid;gap:var(--cg-space-6) var(--cg-space-6)}
+.band--ink .cg-stat__value{color:var(--cg-paper)}
+.band--ink .cg-stat__label{color:rgba(250,248,244,.6)}
+.band--ink .cg-stat__note{color:rgba(250,248,244,.74)}
+
+/* generic section head */
+.head{display:grid;gap:var(--cg-space-3);max-width:34ch}
+.head--wide{max-width:46ch}
+.eyebrow{font-size:var(--cg-text-xs);font-weight:var(--cg-weight-medium);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint)}
+.band--ink .eyebrow{color:rgba(250,248,244,.6)}
+.h2{margin:0;font-family:var(--cg-font-display);font-weight:var(--cg-weight-regular);font-size:clamp(1.75rem,4.4cqw,2.5rem);line-height:var(--cg-leading-tight);letter-spacing:var(--cg-tracking-tight);text-wrap:balance}
+.lede{margin:0;font-size:var(--cg-text-lg);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:60ch}
+.body{margin:0;font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:66ch}
+
+/* steps */
+.steps{display:grid;gap:var(--cg-space-6)}
+.step h3{margin:0 0 var(--cg-space-3);font-size:var(--cg-text-lg);font-weight:var(--cg-weight-bold);letter-spacing:-.01em}
+.step .cg-code{margin-bottom:var(--cg-space-3)}
+.step p{margin:0;font-size:var(--cg-text-sm);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft)}
+
+/* feature rows */
+.rows{border-top:1px solid var(--cg-rule)}
+.row{display:grid;gap:var(--cg-space-2);padding:var(--cg-space-5) 0;border-bottom:1px solid var(--cg-rule-hair)}
+.row:last-child{border-bottom:1px solid var(--cg-rule)}
+.row h3{margin:0;font-size:var(--cg-text-xl);font-weight:var(--cg-weight-bold);letter-spacing:-.015em}
+.row p{margin:0;font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:64ch}
+.row__tag{justify-self:start}
+
+/* demo */
+.frame{border:1px solid var(--cg-rule);background:var(--cg-surface)}
+.frame__bar{display:flex;align-items:center;gap:var(--cg-space-2);padding:var(--cg-space-2) var(--cg-space-4);border-bottom:1px solid var(--cg-rule-hair);font-size:var(--cg-text-xs);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint)}
+.frame__dot{width:7px;height:7px;border-radius:50%;background:var(--cg-ink);flex:none}
+.demo-embed{display:none}
+.demo-tap{display:block;text-decoration:none;color:inherit}
+.demo-tap__grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--cg-space-5) var(--cg-space-4);padding:var(--cg-space-5)}
+
+/* topology */
+.topo{display:grid;gap:var(--cg-space-5)}
+.topo__scroll{overflow-x:auto}
+.topo__legend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--cg-space-2) var(--cg-space-5);padding:var(--cg-space-2) var(--cg-space-4);border-bottom:1px solid var(--cg-rule-hair);font-size:var(--cg-text-xs);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:-1px;margin-right:6px}
+.dot--a{background:var(--cg-ink)}
+.dot--m{background:var(--cg-ink-faint)}
+.dot--t{border:1.5px solid var(--cg-ink-soft)}
+#topology{min-width:560px;aspect-ratio:1.6/1;padding:4px}
+#topology-panel{border:1px solid var(--cg-rule);background:var(--cg-surface);padding:var(--cg-space-5);font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);min-height:180px}
+
+/* questions */
+.qa{border-top:1px solid var(--cg-rule)}
+.qa__item{padding:var(--cg-space-5) 0;border-bottom:1px solid var(--cg-rule-hair);display:grid;gap:var(--cg-space-2)}
+.qa__item:last-child{border-bottom:1px solid var(--cg-rule)}
+.qa__q{margin:0;font-size:var(--cg-text-lg);font-weight:var(--cg-weight-bold)}
+.qa__a{margin:0;font-size:var(--cg-text-base);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft);max-width:70ch}
+
+/* pricing */
+.plan__name{font-size:var(--cg-text-base);font-weight:var(--cg-weight-bold)}
+.plan__who{display:block;font-size:var(--cg-text-xs);color:var(--cg-ink-faint);margin-top:2px}
+.cg-table td.price{font-family:var(--cg-font-display);font-size:var(--cg-text-xl)}
+.swipe-hint{margin:0 0 var(--cg-space-3);font-size:var(--cg-text-xs);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint)}
+
+/* trial */
+.two-col{display:grid;gap:var(--cg-space-7)}
+.col-head{font-size:var(--cg-text-xs);font-weight:var(--cg-weight-medium);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint);padding-bottom:var(--cg-space-3);border-bottom:1px solid var(--cg-rule);margin-bottom:var(--cg-space-5)}
+.two-up{display:grid;gap:0 var(--cg-space-4)}
+.cg-input,.cg-select,.cg-textarea{font-size:16px}
+.term{margin:0;font-size:var(--cg-text-sm);line-height:var(--cg-leading-normal);color:var(--cg-ink-soft)}
+.shell{margin:0;font-family:var(--cg-font-mono);font-size:var(--cg-text-sm);line-height:1.75;background:var(--cg-ink);color:#e9e4da;padding:var(--cg-space-5);border-radius:var(--cg-radius-sm);white-space:pre-wrap;overflow-wrap:anywhere}
+.shell .c{color:rgba(233,228,218,.55)}
+
+/* research */
+.cards{display:grid;border-top:1px solid var(--cg-rule)}
+.cards a{display:block;padding:var(--cg-space-4) 0;border-bottom:1px solid var(--cg-rule-hair);text-decoration:none}
+.cards a:hover .card__t{text-decoration:underline}
+.card__k{font-size:var(--cg-text-xs);letter-spacing:var(--cg-tracking-label);text-transform:uppercase;color:var(--cg-ink-faint);margin-bottom:var(--cg-space-2)}
+.card__t{font-size:var(--cg-text-base);line-height:var(--cg-leading-snug)}
+.sources{display:flex;flex-wrap:wrap;gap:var(--cg-space-2) var(--cg-space-4);font-size:var(--cg-text-sm);color:var(--cg-ink-soft)}
+.sources .k{letter-spacing:var(--cg-tracking-label);text-transform:uppercase;font-size:var(--cg-text-xs);color:var(--cg-ink-faint)}
+
+/* close */
+.close h2{margin:0;font-family:var(--cg-font-display);font-weight:var(--cg-weight-regular);font-size:clamp(1.875rem,6cqw,3.25rem);line-height:1.06;letter-spacing:var(--cg-tracking-tight);max-width:24ch;text-wrap:balance}
+.band--ink .cg-btn--secondary{color:var(--cg-paper);border-color:rgba(250,248,244,.4)}
+.band--ink .cg-btn--secondary:hover{border-color:var(--cg-paper)}
+.band--ink .cg-btn--primary{background:var(--cg-paper);color:var(--cg-ink)}
+.band--ink .cg-btn--primary:hover:not(:disabled){background:#fff}
+.colophon{border-top:1px solid rgba(250,248,244,.18);margin-top:var(--cg-space-7);padding-top:var(--cg-space-5);display:flex;flex-wrap:wrap;gap:var(--cg-space-2) var(--cg-space-6);justify-content:space-between;font-size:var(--cg-text-xs);color:rgba(250,248,244,.6)}
+
+@container site (min-width:620px){
+  .two-up{grid-template-columns:1fr 1fr}
+  .row{grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:var(--cg-space-5)}
+  .row h3{grid-column:1}
+  .row p{grid-column:1}
+  .row__tag{grid-column:2;grid-row:1/span 2;align-self:center}
+  .cards{grid-template-columns:repeat(3,1fr);gap:0 var(--cg-space-5)}
+  .statstrip{grid-template-columns:1fr 1fr}
+}
+@container site (min-width:768px){
+  .band{padding:var(--cg-space-9) 0}
+  .hero{padding:var(--cg-space-8) 0 var(--cg-space-9)}
+  .market{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:end;gap:var(--cg-space-7)}
+  .figures{grid-template-columns:1fr 1fr;gap:var(--cg-space-6)}
+  .steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--cg-space-5)}
+  .swipe-hint{display:none}
+}
+@container site (min-width:860px){
+  .hdr-links{display:flex}
+  .statstrip{grid-template-columns:repeat(4,1fr)}
+  .demo-embed{display:block}
+  .demo-tap{display:none}
+  .two-col{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--cg-space-7)}
+  .topo{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start}
+  .topo__scroll{overflow:visible}
+  #topology{min-width:0}
+  .topo__hint{display:none}
+}
+</style>
+</head>
+<body class="cg-root">
+<div class="site">
+
+<header class="hdr">
+  <div class="hdr-inner">
+    <a class="wordmark" href="#top">CostGrid</a>
+    <nav class="hdr-nav">
+      <span class="hdr-links">
+        <a href="#how">How it works</a>
+        <a href="#engineering">Guarantees</a>
+        <a href="#topology-section">What it shows you</a>
+        <a href="#pricing">Pricing</a>
+        <a href="./demo/">Demo</a>
+        <a class="hdr-gh" href="https://github.com/tbuica-droid/costgrid" aria-label="CostGrid on GitHub">
+          <img src="https://img.shields.io/github/stars/tbuica-droid/costgrid?style=flat" alt="GitHub stars" width="86" height="20" loading="lazy">
+        </a>
+      </span>
+      <a href="#trial" class="cg-btn cg-btn--sm cg-btn--primary">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- hero -->
+<section class="hero">
+  <div class="wrap stack">
+    <p class="eyebrow" style="margin:0">Cost control for the AI inside your software</p>
+    <h1>AI is getting cheaper every month. <span class="turn">Your AI bill is going up anyway.</span></h1>
+    <p class="hero__lede">Your software calls AI, and the bill arrives a month later with no way to tell who spent what. CostGrid sits in front of those calls. It shows you the cost of every one, splits it by team, and stops the spending before it goes past a limit you set.</p>
+    <p class="hero__sub">One line of setup. Nothing to install, no code to rewrite.</p>
+    <div class="actions">
+      <a href="#trial" class="cg-btn cg-btn--lg cg-btn--primary">Start the free trial</a>
+      <a href="./demo/" class="cg-btn cg-btn--lg cg-btn--secondary">Click through the dashboard</a>
+    </div>
+    <p class="fine">30 days free &middot; runs on your own computers &middot; no card</p>
+
+    <div style="max-width:640px">
+      <p class="eyebrow" style="margin:0 0 var(--cg-space-2)">Quickstart &middot; on your own machine</p>
+      <pre class="shell" id="heroShell"><span class="c"># clone it, add your own provider key, run it</span>
+git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install
+cp .env.example .env   <span class="c"># paste your Anthropic or OpenAI key in here</span>
+npm run gateway:dev</pre>
+      <div class="actions" style="margin-top:var(--cg-space-3);align-items:center">
+        <button type="button" id="heroCopy" class="cg-btn cg-btn--sm cg-btn--secondary">Copy</button>
+        <span class="fine">No account, no card &middot; your key never leaves this machine</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- the market -->
+<section class="band band--sunk">
+  <div class="wrap market">
+    <div>
+      <p class="eyebrow" style="margin:0 0 var(--cg-space-5)">Enterprise GenAI spend</p>
+      <div class="figures">
+        <div>
+          <div class="fig__row"><span class="fig__year">2026</span><span class="fig__val cg-num">$69.1<sup>B</sup></span></div>
+          <div class="cg-meter__track"><div class="cg-meter__fill" style="width:33%"></div></div>
+        </div>
+        <div>
+          <div class="fig__row"><span class="fig__year">2030</span><span class="fig__val fig__val--over cg-num">$207.3<sup>B</sup></span></div>
+          <div class="cg-meter__track"><div class="cg-meter__fill cg-meter__fill--over" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="market__note">Prices fall roughly 10&times; a year. Spend triples. Falling prices don&rsquo;t shrink the bill. They grow it.</p>
+  </div>
+</section>
+
+<!-- research stats -->
+<section class="band band--ink">
+  <div class="wrap statstrip">
+    <div class="cg-stat cg-stat--lg">
+      <span class="cg-stat__value cg-num">21.8%</span>
+      <span class="cg-stat__note">of head-to-head pairs, the cheaper-listed model costs more, by up to 28&times;</span>
+    </div>
+    <div class="cg-stat cg-stat--lg">
+      <span class="cg-stat__value cg-num">1 in 5</span>
+      <span class="cg-stat__note">firms has mature agent governance &middot; Deloitte</span>
+    </div>
+    <div class="cg-stat cg-stat--lg">
+      <span class="cg-stat__value cg-num">97%</span>
+      <span class="cg-stat__note">of AI security incidents lacked access controls &middot; IBM</span>
+    </div>
+    <div class="cg-stat cg-stat--lg">
+      <span class="cg-stat__value cg-num">Aug 2026</span>
+      <span class="cg-stat__note">EU AI Act fines begin</span>
+    </div>
+  </div>
+</section>
+
+<!-- 01 how it works -->
+<section class="band" id="how">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">01 &middot; How it works</p>
+      <h2 class="h2">Three small changes, none of them to your own code.</h2>
+      <p class="lede">Your calls still go to the same place and come back the same way. CostGrid sits in the middle and reads what each one used.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <h3>01 &nbsp;Point the base URL</h3>
+        <div class="cg-code"><pre class="cg-code__pre">client = Anthropic(
+  base_url="https://costgrid.acme.dev",
+  api_key="unused",
+)</pre></div>
+        <p>Your AI account key lives inside CostGrid, so the services calling through it never hold one. Anthropic, OpenAI, AWS Bedrock and Google Vertex.</p>
+      </div>
+      <div class="step">
+        <h3>02 &nbsp;Label the traffic</h3>
+        <div class="cg-code"><pre class="cg-code__pre">x-costgrid-agent: chat-bot
+x-costgrid-department: Support</pre></div>
+        <p>Two optional headers turn one AI bill into a bill you can split by team. Calls with no label are still measured, just marked <em>unassigned</em>, so nothing goes missing.</p>
+      </div>
+      <div class="step">
+        <h3>03 &nbsp;Set the rules</h3>
+        <div class="cg-code"><pre class="cg-code__pre">costgrid policy budget \
+  dept:Engineering 500.00 \
+  --fallback claude-haiku-4-5</pre></div>
+        <p>Budgets per team or agent, model allowlists, output caps. Start every rule in <span class="cg-badge">monitor</span> to watch what it <em>would</em> have done.</p>
+      </div>
+    </div>
+    <div class="cg-callout rule-top" style="border-left:0;padding:var(--cg-space-5) 0 0">
+      <div class="cg-callout__title">Time to your first measured call</div>
+      <div class="cg-callout__body">about five minutes, on your own machine</div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 what you get -->
+<section class="band band--sunk" id="product">
+  <div class="wrap stack stack--wide">
+    <div class="head">
+      <p class="eyebrow">02 &middot; What you get</p>
+      <h2 class="h2">Reporting a saving is advice. Making one is a product.</h2>
+    </div>
+    <div class="rows">
+      <div class="row">
+        <h3>You pay for what actually ran</h3>
+        <p>Every number comes from the provider&rsquo;s own count of what you used, not from a guess. Prices for 53 models, checked against the published rates.</p>
+        <span class="cg-badge row__tag">no guessing</span>
+      </div>
+      <div class="row">
+        <h3>A limit that won&rsquo;t break your product</h3>
+        <p>Nobody turns on a hard cut-off, because it breaks things at 3am. A CostGrid limit can switch to a cheaper model instead, so your customers still get an answer.</p>
+        <span class="cg-badge cg-badge--saved row__tag">the difference</span>
+      </div>
+      <div class="row">
+        <h3>Savings you can check</h3>
+        <p>When CostGrid moves work to a cheaper model, it records what the old way would have cost. You see the difference rather than taking our word for it.</p>
+        <span class="cg-badge row__tag">measured</span>
+      </div>
+      <div class="row">
+        <h3>A monthly bill finance can use</h3>
+        <p>Spend by team, how it moved since last month, and what the rules saved. Covers the same calendar month your provider invoices. Exports to CSV.</p>
+        <span class="cg-badge row__tag">CSV export</span>
+      </div>
+      <div class="row">
+        <h3>Ask it, instead of learning it</h3>
+        <p>Type <em>&ldquo;why did spend go up last week&rdquo;</em> and get an answer in plain English. It runs on your own AI account, it is shown the numbers and nothing else, and every figure it quotes is checked against your data. It explains. It cannot change a rule or a budget.</p>
+        <span class="cg-badge row__tag">optional</span>
+      </div>
+    </div>
+    <p class="fine">Every figure is exact to a fraction of a cent, and nothing is rounded until you see it.</p>
+  </div>
+</section>
+
+<!-- 03 see it working -->
+<section class="band" id="demo">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">03 &middot; See it working</p>
+      <h2 class="h2">The actual dashboard, running on sample traffic.</h2>
+      <p class="lede">Not a mockup and not a video. This is the product&rsquo;s own dashboard bundle, served against a snapshot of 526 real calls from six different AI tools. Every number in it was computed by the same code that would price your traffic. Click into it.</p>
+    </div>
+
+    <div class="frame demo-embed">
+      <div class="frame__bar"><span class="frame__dot"></span>Live demo &middot; sample traffic</div>
+      <iframe src="./demo/" title="CostGrid dashboard demo" loading="lazy" style="display:block;width:100%;height:min(72vh,620px);border:0;background:var(--cg-paper)"></iframe>
+    </div>
+
+    <a href="./demo/" class="frame demo-tap">
+      <div class="frame__bar"><span class="frame__dot"></span>Live demo &middot; sample traffic</div>
+      <div class="demo-tap__grid">
+        <div class="cg-stat cg-stat--md"><span class="cg-stat__label">Spend</span><span class="cg-stat__value cg-num">$22.40</span></div>
+        <div class="cg-stat cg-stat--md"><span class="cg-stat__label">Calls</span><span class="cg-stat__value cg-num">526</span></div>
+        <div class="cg-stat cg-stat--md"><span class="cg-stat__label">Cache hit ratio</span><span class="cg-stat__value cg-num">27.8%</span></div>
+        <div class="cg-stat cg-stat--md"><span class="cg-stat__label">Saved by switching models</span><span class="cg-stat__value cg-stat__value--saved cg-num">$1.62</span></div>
+      </div>
+      <div style="padding:0 var(--cg-space-5) var(--cg-space-5)">
+        <span class="cg-btn cg-btn--md cg-btn--primary">Open the dashboard</span>
+        <p class="fine" style="margin-top:var(--cg-space-3)">Best on a wider screen. It is a real dashboard, not a summary.</p>
+      </div>
+    </a>
+
+    <div class="actions">
+      <a href="./demo/" target="_blank" rel="noopener" class="cg-btn cg-btn--md cg-btn--primary">Open the demo full-screen</a>
+      <a href="#trial" class="cg-btn cg-btn--md cg-btn--secondary">Run it on your own traffic</a>
+    </div>
+  </div>
+</section>
+
+<!-- 04 topology -->
+<section class="band band--sunk" id="topology-section">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">04 &middot; What you actually run</p>
+      <h2 class="h2">Nobody can tell you what their AI can reach.</h2>
+    </div>
+    <p class="body">Most companies now run AI that acts on its own: it calls other software, looks things up, and hands work to other AI. Those are agents, and almost nobody has an accurate picture of what theirs can touch. They have a diagram from six months ago and a lot of hope. CostGrid draws the real one from your own traffic: which agents use which AI, what tools they can reach, and who hands work to whom. Not from your documentation, but from what your software actually did this week.</p>
+    <p class="body">Then you can draw a line around any of it. One command stops an agent being given a tool, and stops every agent it passes work to from being given it either. It works because a model cannot use a tool it was never handed.</p>
+
+    <div class="cg-callout">
+      <div class="cg-code"><pre class="cg-code__pre" style="background:transparent;padding:0;white-space:pre-wrap">costgrid policy deny-tool agent:support refund_customer</pre></div>
+      <div class="cg-callout__body" style="margin-top:var(--cg-space-2)">Tool <em>names</em> only. What they were called with is never stored.</div>
+    </div>
+
+    <div class="topo">
+      <div class="frame">
+        <div class="topo__legend">
+          <span><span class="dot dot--a"></span>Agent</span>
+          <span><span class="dot dot--m"></span>Model</span>
+          <span><span class="dot dot--t"></span>Tool</span>
+          <span style="margin-left:auto">&mdash;&mdash; extracted &nbsp; &middot;&middot;&middot;&middot; illustrative</span>
+        </div>
+        <div class="topo__scroll"><div id="topology"></div></div>
+      </div>
+      <div id="topology-panel"></div>
+    </div>
+    <p class="fine topo__hint">Scroll the diagram sideways to see all of it.</p>
+    <p class="fine">Drawn by hand here so it reads clearly. <a href="./demo/">The demo has the real one</a>, built from actual calls.</p>
+  </div>
+</section>
+
+<!-- 05 straight answers -->
+<section class="band" id="questions">
+  <div class="wrap stack stack--wide">
+    <div class="head">
+      <p class="eyebrow">05 &middot; Straight answers</p>
+      <h2 class="h2">The questions you are about to ask.</h2>
+    </div>
+    <div class="qa">
+      <div class="qa__item">
+        <h3 class="qa__q">Do you see our data?</h3>
+        <p class="qa__a">No. CostGrid runs on your own servers. There is no CostGrid service in the middle. It records how many tokens were used, which model, what it cost and your labels. Never the prompts or the answers.</p>
+      </div>
+      <div class="qa__item">
+        <h3 class="qa__q">Will it slow us down?</h3>
+        <p class="qa__a">No. CostGrid adds about a millisecond. Asking an AI model takes between half a second and several seconds, so this is roughly two tenths of one percent of the wait, which is smaller than the difference between one call and the next. We measured it rather than guessed, and the <a href="#engineering">numbers and the method are below</a>.</p>
+      </div>
+      <div class="qa__item">
+        <h3 class="qa__q">What if it goes down?</h3>
+        <p class="qa__a">Those calls fail, and we will not pretend otherwise. That is the price of being able to stop a call instead of reporting on it afterwards: a tool that steps aside when it is unwell is a tool your budget cap steps aside with. Run it next to the service that uses it, and leave every rule in watch-only mode until you trust it.</p>
+      </div>
+      <div class="qa__item">
+        <h3 class="qa__q">Are the prices right?</h3>
+        <p class="qa__a">53 models, checked against the providers&rsquo; published rates by a script that fails the build if anything drifts. If the price list goes more than 45 days without a check, the dashboard says so on the page.</p>
+      </div>
+      <div class="qa__item">
+        <h3 class="qa__q">What is it not good at?</h3>
+        <p class="qa__a">It watches what your <em>software</em> spends on AI, not what your staff spend on chat subscriptions. If your bill is people typing into a browser, there is nothing here to measure. AWS Bedrock and Google Vertex work but have not yet been run against a live account, so there is a one-minute check that tells you if yours is fine. And it runs on a single server today: right for one team, not yet right if losing that server would be a crisis.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05b for the engineer -->
+<section class="band" id="engineering">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">05b &middot; For whoever has to approve this</p>
+      <h2 class="h2">In your request path, so here are the numbers and the boundaries.</h2>
+      <p class="lede">Anything sitting between your software and a model provider has to answer two
+        questions before it earns a place there. These are ours, measured rather than claimed.</p>
+    </div>
+
+    <div>
+      <h3 class="qa__q">Overhead: about 1ms, or roughly 0.2% of a real call.</h3>
+      <p class="body">A provider call takes 500ms to several seconds and varies by hundreds of
+        milliseconds between one call and the next. CostGrid adds about 1.2ms of its own work
+        on top of the unavoidable loopback hop of around 1.6ms. That work is an indexed key
+        lookup, rule evaluation in memory, and one local write.</p>
+
+      <p class="swipe-hint" style="margin-top:var(--cg-space-5)">Swipe the table for p50 &amp; p99 &#8594;</p>
+      <div class="cg-table__scroll">
+        <table class="cg-table">
+          <thead>
+            <tr>
+              <th>Measured on a local stub, against a do-nothing proxy</th>
+              <th class="cg-table__num">p50</th>
+              <th class="cg-table__num">p99</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Round trip, 1 request in flight</td>
+              <td class="cg-table__num cg-num">1.2ms</td>
+              <td class="cg-table__num cg-num">2ms</td>
+            </tr>
+            <tr>
+              <td>Time to first byte, streaming, 1 in flight</td>
+              <td class="cg-table__num cg-num">0.8ms</td>
+              <td class="cg-table__num cg-num">1.6ms</td>
+            </tr>
+            <tr>
+              <td>Round trip, 10 in flight</td>
+              <td class="cg-table__num cg-num">1.3ms</td>
+              <td class="cg-table__num cg-num">4ms</td>
+            </tr>
+            <tr>
+              <td>50 in flight</td>
+              <td class="cg-table__num" colspan="2">Not yet published. See below.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="body" style="margin-top:var(--cg-space-5)">Three arms, not two. Comparing
+        <em>direct</em> against <em>through CostGrid</em> would measure our work and the cost of
+        adding any process to the path at the same time, and only the first is ours to answer
+        for. So the benchmark also runs a null proxy that forwards bytes and does nothing else.
+        That is the floor, and the figures above are what CostGrid costs on top of it.</p>
+
+      <p class="body"><strong>High concurrency is not published, because we cannot yet measure it
+        honestly.</strong> On one machine the load generator, the proxy and the provider compete
+        for the same cores, and at 50 requests in flight the noise is larger than the thing being
+        measured: CostGrid comes out apparently faster than a proxy doing strictly less work,
+        which is impossible. That needs separate hosts before it means anything. We would rather
+        leave a row empty than fill it with a number your own load test would contradict.</p>
+
+      <p class="body">Run it yourself. It takes one command and no account:</p>
+      <div class="cg-code"><pre class="cg-code__pre">git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install
+npm run bench</pre></div>
+      <p class="body" style="margin-top:var(--cg-space-3)">Your hardware will give different
+        figures than ours. That is the point of shipping the benchmark instead of a badge.</p>
+    </div>
+
+    <div>
+      <h3 class="qa__q">Fail-closed, deliberately.</h3>
+      <p class="body">If CostGrid is not running, calls through it fail. That is a design decision
+        rather than a limitation, and it is the one real difference between this and a dashboard.</p>
+
+      <p class="body">Tools that only watch your traffic can afford to fail open, because nothing
+        is lost when they step aside. A tool that enforces cannot. A gateway that waves traffic
+        through whenever it is unhealthy has a budget ceiling that stops applying at exactly the
+        moment things are going wrong, which is the moment a runaway loop is most likely to be
+        running. You cannot sell <em>it stops the call</em> and <em>it never stands in the
+        way</em> in the same sentence, so we have picked one and said which.</p>
+
+      <p class="swipe-hint" style="margin-top:var(--cg-space-5)">Swipe the table to compare &#8594;</p>
+      <div class="cg-table__scroll">
+        <table class="cg-table">
+          <thead>
+            <tr>
+              <th>What happens when</th>
+              <th>A reporting tool</th>
+              <th>CostGrid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>The provider returns an error</td>
+              <td>Logs it</td>
+              <td>Passes their status and body back untouched, and records the attempt</td>
+            </tr>
+            <tr>
+              <td>The proxy itself is down</td>
+              <td>Traffic continues, unwatched, budget unenforced</td>
+              <td>Connections refused, so a cap cannot be exceeded while nobody is looking</td>
+            </tr>
+            <tr>
+              <td>A call would break a budget</td>
+              <td>Appears on a dashboard afterwards</td>
+              <td>Refused, or quietly moved to a cheaper model, before it is sent</td>
+            </tr>
+            <tr>
+              <td>Our own database cannot be written to</td>
+              <td>n/a</td>
+              <td>You still get the answer you paid for. The lost row is counted and reported
+                on the health endpoint</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="body" style="margin-top:var(--cg-space-5)">That last row was a bug until recently.
+        A failed write used to take the whole request with it, which meant the provider billed you
+        for an answer we then refused to hand over. Deciding whether a call may proceed fails
+        closed; writing down what it did does not. The money is already spent by then, and
+        withholding the response adds a second failure to the first.</p>
+
+      <p class="body" style="margin-top:var(--cg-space-3)">This is the actual difference between
+        an enforcement gateway and an observability layer like Helicone or Portkey. Both will show
+        you what happened. Only one of them can stop it from happening.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 06 pricing -->
+<section class="band band--sunk" id="pricing">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">06 &middot; Pricing</p>
+      <h2 class="h2">You run the software. The fee is for the product, not for hosting your data.</h2>
+      <p class="lede">Thirty days free on every plan, and the source is public. Read it before you run it.</p>
+    </div>
+    <div>
+      <p class="swipe-hint">Swipe the table for included calls &amp; seats &#8594;</p>
+      <div class="cg-table__scroll">
+        <table class="cg-table">
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th class="cg-table__num">Monthly</th>
+              <th class="cg-table__num">Calls</th>
+              <th class="cg-table__num">Seats</th>
+              <th class="cg-table__num">Fee on your AI bill</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="plan__name">Free</span><span class="plan__who">One team, evaluating</span></td>
+              <td class="cg-table__num price cg-num">$0</td>
+              <td class="cg-table__num">Unlimited</td>
+              <td class="cg-table__num cg-num">2</td>
+              <td class="cg-table__num">None</td>
+            </tr>
+            <tr>
+              <td><span class="plan__name">Team</span><span class="plan__who">The usual starting point</span></td>
+              <td class="cg-table__num price cg-num">$99</td>
+              <td class="cg-table__num">Unlimited</td>
+              <td class="cg-table__num">Unlimited</td>
+              <td class="cg-table__num">None</td>
+            </tr>
+            <tr>
+              <td><span class="plan__name">Business</span><span class="plan__who">Multiple teams, split billing</span></td>
+              <td class="cg-table__num price cg-num">$499</td>
+              <td class="cg-table__num">Unlimited</td>
+              <td class="cg-table__num">Unlimited</td>
+              <td class="cg-table__num">None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="body">One flat fee. We never take a percentage of your AI bill, because this product
+            exists to shrink that bill and we would be paid to shrink it less. Calls are
+            unlimited because CostGrid runs on your machines, so your volume costs us
+            nothing.<br><br>
+            <strong>The savings guarantee.</strong> If after 60 days the savings report does
+            not show CostGrid saved you more than you paid us, we refund the subscription.
+            The report is produced by the software, not by us, and you can read exactly how
+            every figure was worked out.</p>
+  </div>
+</section>
+
+<!-- 07 trial -->
+<section class="band" id="trial" style="scroll-margin-top:56px">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">07 &middot; Start free</p>
+      <h2 class="h2">Thirty days, free, on your own computers.</h2>
+      <p class="lede">No card and no sales call. Stopping is a one-line revert: point your base URL back at the provider and everything keeps working.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="col-head">Option A &middot; Guided &mdash; talk to me first</div>
+        <form id="trialForm" novalidate>
+          <div class="two-up">
+            <label class="cg-field"><span class="cg-field__label">Name</span>
+              <input class="cg-input" type="text" name="name" id="f_name" placeholder="Jane Okafor" autocomplete="name" required>
+            </label>
+            <label class="cg-field"><span class="cg-field__label">Work email</span>
+              <input class="cg-input" type="email" name="email" id="f_email" placeholder="jane@company.com" autocomplete="email" required>
+            </label>
+          </div>
+          <div class="two-up">
+            <label class="cg-field"><span class="cg-field__label">Company</span>
+              <input class="cg-input" type="text" name="company" id="f_company" placeholder="Acme" autocomplete="organization">
+            </label>
+            <label class="cg-field"><span class="cg-field__label">Monthly LLM spend</span>
+              <select class="cg-select" name="spend" id="f_spend">
+                <option value="">Prefer not to say</option>
+                <option>Under $1k</option>
+                <option>$1k &ndash; $5k</option>
+                <option>$5k &ndash; $25k</option>
+                <option>$25k &ndash; $100k</option>
+                <option>Over $100k</option>
+              </select>
+            </label>
+          </div>
+          <label class="cg-field"><span class="cg-field__label">What does your software use the API for?</span>
+            <textarea class="cg-textarea" name="context" id="f_context" placeholder="Support triage bot and a docs agent, both on Claude. Two teams, no idea which one is spending what."></textarea>
+          </label>
+          <button type="submit" id="f_submit" class="cg-btn cg-btn--lg cg-btn--primary cg-btn--block">Request the trial</button>
+          <p class="fine" style="margin-top:var(--cg-space-3)">Goes straight to my inbox. No CRM, no drip sequence, no third party. Usually answered same day.</p>
+        </form>
+
+        <div id="mailFallback" hidden style="margin-top:var(--cg-space-5)">
+          <div class="cg-callout cg-callout--warning">
+            <div class="cg-callout__title">If your mail app didn&rsquo;t open</div>
+            <div class="cg-callout__body">Copy this and send it to <a href="mailto:tomasbuica@outlook.com">tomasbuica@outlook.com</a>.</div>
+            <div class="cg-code" style="margin-top:var(--cg-space-3)"><pre class="cg-code__pre" id="mailBody" style="white-space:pre-wrap"></pre></div>
+            <button type="button" id="copyBtn" class="cg-btn cg-btn--sm cg-btn--secondary" style="margin-top:var(--cg-space-3)">Copy to clipboard</button>
+          </div>
+        </div>
+
+        <div id="sentNote" hidden style="margin-top:var(--cg-space-5)">
+          <div class="cg-callout">
+            <div class="cg-callout__body"><strong>Your mail app should be open with the message drafted.</strong> Send it and I&rsquo;ll reply with a setup call or written onboarding, whichever you prefer. Nothing to wait for in the meantime. Option B works right now.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="col-head">Option B &middot; Self-serve &mdash; on your machine, right now</div>
+        <pre class="shell"><span class="c"># 1. get it</span>
+git clone https://github.com/tbuica-droid/costgrid
+cd costgrid &amp;&amp; npm install &amp;&amp; npm run build
+
+<span class="c"># 2. your provider key goes in .env</span>
+cp .env.example .env
+
+<span class="c"># 3. create the tenant and run it</span>
+npx tsx packages/cli/src/main.ts init
+npm run gateway
+
+<span class="c"># 4. point a client at 127.0.0.1:8787</span>
+<span class="c">#     and open the dashboard</span></pre>
+        <div class="actions" style="margin-top:var(--cg-space-5)">
+          <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/ONBOARDING.md" class="cg-btn cg-btn--md cg-btn--secondary">Setup guide</a>
+          <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/TRIAL.md" class="cg-btn cg-btn--md cg-btn--secondary">What the trial involves</a>
+        </div>
+        <div class="rule-top" style="margin-top:var(--cg-space-6);padding-top:var(--cg-space-4)">
+          <p class="term">Week 1: measure, set no rules.<br>
+          Week 2: add budgets in <span class="cg-badge">monitor</span>.<br>
+          Week 3: enforce one, or add a fallback.<br>
+          Week 4: send the statement to whoever owns the budget.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 where this came from -->
+<section class="band band--sunk">
+  <div class="wrap stack stack--wide">
+    <div class="head head--wide">
+      <p class="eyebrow">08 &middot; Where this came from</p>
+      <h2 class="h2">A cost model first, a product second.</h2>
+    </div>
+    <p class="body">CostGrid began as research into why AI bills rise while token prices fall, across six modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact, driven from a single assumptions sheet. The routing maths in the product is that model. The difference is that the product measures your real numbers instead of assuming them.</p>
+    <div class="cards">
+      <a href="./thesis.html">
+        <div class="card__k">The thesis</div>
+        <div class="card__t">Why unit price is the wrong thing to watch &#8594;</div>
+      </a>
+      <a href="./dashboard.html">
+        <div class="card__k">Research dashboard</div>
+        <div class="card__t">The original model, illustrative figures &#8594;</div>
+      </a>
+      <a href="https://github.com/tbuica-droid/costgrid/raw/main/CostGrid_Token_Cost_Model.xlsx">
+        <div class="card__k">The workbook</div>
+        <div class="card__t">2023&ndash;2030 forecast model &middot; XLSX &#8594;</div>
+      </a>
+    </div>
+    <div class="sources">
+      <span class="k">Grounded in</span>
+      <span>NIST AI RMF</span>
+      <span>EY &middot; The Total Cost of Agents</span>
+      <span>Stanford HAI AI Index 2026</span>
+      <span>Citadel Securities</span>
+      <a href="https://github.com/tbuica-droid/costgrid#references">12 papers &#8594;</a>
+    </div>
+  </div>
+</section>
+
+<!-- close -->
+<section class="band band--ink close">
+  <div class="wrap">
+    <h2>AI is cheap. Trusting it is not. Know what yours can reach.</h2>
+    <div class="actions" style="margin-top:var(--cg-space-6)">
+      <a href="#trial" class="cg-btn cg-btn--lg cg-btn--primary">Start the free trial</a>
+      <a href="./demo/" class="cg-btn cg-btn--lg cg-btn--secondary">See the dashboard</a>
+      <a href="https://github.com/tbuica-droid/costgrid" class="cg-btn cg-btn--lg cg-btn--secondary">View the repository</a>
+    </div>
+    <p style="margin:var(--cg-space-6) 0 0;font-size:var(--cg-text-base);color:rgba(250,248,244,.74)">Questions before you install anything? <a href="mailto:tomasbuica@outlook.com?subject=CostGrid">tomasbuica@outlook.com</a></p>
+    <div class="colophon">
+      <span>CostGrid &middot; built by Tomas Buica &middot; MIT licensed</span>
+      <span>Demo and forecast figures are illustrative, not a real organization</span>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+(function () {
+  /*
+   * Lead capture without a backend. The site is static, so the form composes a
+   * pre-filled message to a real inbox instead. Put a hosted form endpoint in
+   * ENDPOINT to POST JSON instead; the mail path is then skipped.
+   */
+  var heroCopy = document.getElementById('heroCopy');
+  var heroShell = document.getElementById('heroShell');
+  if (heroCopy && heroShell) {
+    heroCopy.addEventListener('click', function () {
+      var text = heroShell.textContent;
+      var done = function () {
+        heroCopy.textContent = 'Copied';
+        setTimeout(function () { heroCopy.textContent = 'Copy'; }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) { /* nothing to do */ }
+        document.body.removeChild(ta);
+        done();
+      }
+    });
+  }
+
+  var ENDPOINT = '';
+  var INBOX = 'tomasbuica@outlook.com';
+  var form = document.getElementById('trialForm');
+  if (!form) return;
+  var fallback = document.getElementById('mailFallback');
+  var sentNote = document.getElementById('sentNote');
+  var bodyBox = document.getElementById('mailBody');
+  var copyBtn = document.getElementById('copyBtn');
+  var submit = document.getElementById('f_submit');
+
+  function value(id) { return (document.getElementById(id).value || '').trim(); }
+
+  function compose() {
+    return [
+      'Name:    ' + value('f_name'),
+      'Email:   ' + value('f_email'),
+      'Company: ' + (value('f_company') || '—'),
+      'Spend:   ' + (value('f_spend') || 'not stated'),
+      '',
+      'What they use the API for:',
+      value('f_context') || '(not stated)',
+      '',
+      'Sent from costgrid.dev'
+    ].join('\n');
+  }
+
+  /* Mark the first invalid field rather than relying on native bubbles,
+     which are suppressed by novalidate. */
+  function firstInvalid() {
+    var name = document.getElementById('f_name');
+    var email = document.getElementById('f_email');
+    if (!name.value.trim()) return name;
+    if (!email.checkValidity()) return email;
+    return null;
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var bad = firstInvalid();
+    if (bad) { bad.style.borderColor = 'var(--cg-over)'; bad.focus(); return; }
+
+    var body = compose();
+    var subject = 'CostGrid trial: ' + (value('f_company') || value('f_name'));
+
+    if (ENDPOINT) {
+      submit.disabled = true;
+      submit.textContent = 'Sending…';
+      fetch(ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          name: value('f_name'), email: value('f_email'), company: value('f_company'),
+          spend: value('f_spend'), context: value('f_context')
+        })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('rejected');
+        form.hidden = true;
+        sentNote.hidden = false;
+        sentNote.querySelector('.cg-callout__body').innerHTML =
+          '<strong>Sent, thank you.</strong> I read these myself and usually reply the same day.';
+      }).catch(function () {
+        submit.disabled = false;
+        submit.textContent = 'Request the trial';
+        bodyBox.textContent = body;
+        fallback.hidden = false;
+      });
+      return;
+    }
+
+    bodyBox.textContent = body;
+    sentNote.hidden = false;
+    window.location.href =
+      'mailto:' + INBOX + '?subject=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(body);
+
+    // Webmail users get no handler and nothing happens, so surface the
+    // copy-paste route rather than leaving them stuck.
+    setTimeout(function () { fallback.hidden = false; }, 1200);
+  });
+
+  copyBtn.addEventListener('click', function () {
+    var text = bodyBox.textContent;
+    var done = function () {
+      copyBtn.textContent = 'Copied';
+      setTimeout(function () { copyBtn.textContent = 'Copy to clipboard'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) { /* nothing to do */ }
+      document.body.removeChild(ta);
+      done();
+    }
+  });
+
+  ['f_name', 'f_email'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', function (e) {
+      e.target.style.borderColor = '';
+    });
+  });
+})();
+</script>
+<script src="./topology.js"></script>
+</body>
+</html>
