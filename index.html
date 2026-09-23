@@ -230,6 +230,8 @@
       .plan.featured .tick { color: var(--signal); }
       .tag { border-radius: 999px; background: var(--signal); color: #fff; padding: 4px 10px;
         font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+      .source-card { transition: border-color 0.15s; }
+      .source-card:hover { border-color: var(--signal); }
       .guarantee { display: flex; gap: 12px; align-items: flex-start; border: 1px solid rgba(166,58,34,0.4);
         background: rgba(166,58,34,0.08); border-radius: 6px; padding: 12px 16px; max-width: 360px; }
 
@@ -651,6 +653,42 @@
         <span class="label">FAQ</span>
         <h2 class="head">The questions engineers actually ask.</h2>
         <div id="faq" style="margin-top: 32px"></div>
+      </div>
+    </section>
+
+    <!-- WHERE THIS CAME FROM -->
+    <section class="section deep">
+      <div class="wrap">
+        <span class="label">Where this came from</span>
+        <h2 class="head">A cost model first, a product second.</h2>
+        <p class="lede">
+          CostGrid began as research into why AI bills rise while token prices fall, across six
+          modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact,
+          driven from a single assumptions sheet. The routing maths in the product is that model.
+          The difference is that the product measures your real numbers instead of assuming them.
+        </p>
+        <div class="grid g3" style="margin-top: 32px">
+          <a class="card source-card" href="./thesis.html" style="padding: 20px; text-decoration: none; display: block">
+            <span class="label">The thesis</span>
+            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">Why unit price is the wrong thing to watch →</p>
+          </a>
+          <a class="card source-card" href="./dashboard.html" style="padding: 20px; text-decoration: none; display: block">
+            <span class="label">Research dashboard</span>
+            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">The original model, illustrative figures →</p>
+          </a>
+          <a class="card source-card" href="https://github.com/tbuica-droid/costgrid/raw/main/CostGrid_Token_Cost_Model.xlsx" style="padding: 20px; text-decoration: none; display: block">
+            <span class="label">The workbook</span>
+            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">2023–2030 forecast model · XLSX →</p>
+          </a>
+        </div>
+        <p class="muted" style="margin-top: 28px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center">
+          <span class="label" style="margin: 0">Grounded in</span>
+          <span>NIST AI RMF</span>
+          <span>EY · The Total Cost of Agents</span>
+          <span>Stanford HAI AI Index 2026</span>
+          <span>Citadel Securities</span>
+          <a href="https://github.com/tbuica-droid/costgrid#references" style="color: var(--signal)">12 papers →</a>
+        </p>
       </div>
     </section>
 
