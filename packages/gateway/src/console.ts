@@ -5,6 +5,7 @@ import {
   type CostGridRepository,
   type Role,
   SESSION_TTL_MS,
+  SignupClosedError,
   trailingWindow,
   type User,
 } from "@costgrid/db";
@@ -156,10 +157,10 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
     let created: { user: User; tenantId: string };
     try {
-      created = accounts.signUp({ email, name, password, organisation });
+      created = accounts.signUp({ email, name, password, organisation }, { onlyAccount: config.desktop });
     } catch (error) {
       return reply
-        .code(400)
+        .code(error instanceof SignupClosedError ? 403 : 400)
         .send({ error: error instanceof Error ? error.message : "could not create account" });
     }
 

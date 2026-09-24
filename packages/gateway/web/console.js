@@ -12,7 +12,7 @@
 import { auditSection, retentionSection, ssoSection } from "./console-security.js";
 import { button, count, escapeHtml, field, money, relativeTime } from "./ui.js";
 
-const state = { user: null, orgs: [], tenantId: null, view: "settings", flash: null };
+const state = { user: null, orgs: [], tenantId: null, view: "settings", flash: null, setup: null };
 
 async function call(method, path, body) {
   const response = await fetch(path, {
@@ -38,12 +38,22 @@ function flashBanner() {
 
 function renderAuth() {
   const signingUp = state.view === "signup";
+  // A desktop install has exactly one account, so there is only ever one
+  // right form: create it on the first visit, sign in on every visit after.
+  const desktop = state.setup?.singleAccount === true;
+  const heading = signingUp ? (desktop ? "Set up CostGrid on this computer" : "Create an account") : "Sign in";
+  const note = desktop
+    ? `This account lives only on this computer and is not sent anywhere. It locks the
+       console where your provider keys are kept, encrypted${
+         state.setup.keychain ? " with a key held in your keychain" : " before they touch disk"
+       }.`
+    : `CostGrid meters and governs your LLM spend. You bring your own provider keys; they
+       are encrypted before they touch disk and are never shown again.`;
 
   return `
     <div style="max-width:460px">
-      <h2>${signingUp ? "Create an account" : "Sign in"}</h2>
-      <p class="section-note">CostGrid meters and governs your LLM spend. You bring your own
-        provider keys; they are encrypted before they touch disk and are never shown again.</p>
+      <h2>${heading}</h2>
+      <p class="section-note">${note}</p>
       ${flashBanner()}
       <form id="auth-form" class="card">
         ${signingUp ? field("Your name", "name") : ""}
@@ -53,13 +63,15 @@ function renderAuth() {
         ${signingUp ? '<p class="kpi-sub" style="margin:-6px 0 14px">At least 12 characters.</p>' : ""}
         ${button(signingUp ? "Create account" : "Sign in", 'type="submit"')}
       </form>
-      <p class="section-note" style="margin-top:18px">
-        ${
-          signingUp
-            ? 'Already have an account? <a href="#" data-view="login">Sign in</a>.'
-            : 'No account? <a href="#" data-view="signup">Create one</a>.'
-        }
-      </p>
+      ${
+        desktop
+          ? ""
+          : `<p class="section-note" style="margin-top:18px">${
+              signingUp
+                ? 'Already have an account? <a href="#" data-view="login">Sign in</a>.'
+                : 'No account? <a href="#" data-view="signup">Create one</a>.'
+            }</p>`
+      }
     </div>`;
 }
 
@@ -311,6 +323,12 @@ async function loadSession() {
   }
 }
 
+/** On a desktop install, which of the two forms is the right one right now. */
+async function loadSetup() {
+  state.setup = await call("GET", "/console/setup").catch(() => null);
+  if (state.setup?.singleAccount) state.view = state.setup.needsAccount ? "signup" : "login";
+}
+
 function formValues(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
@@ -322,7 +340,13 @@ document.addEventListener("submit", async (event) => {
   try {
     if (form.id === "auth-form") {
       const values = formValues(form);
-      await call("POST", state.view === "signup" ? "/console/signup" : "/console/login", values);
+      try {
+        await call("POST", state.view === "signup" ? "/console/signup" : "/console/login", values);
+      } finally {
+        // A stale first-run page gets refused once the account exists. Refreshing
+        // here flips it to sign-in instead of leaving a form that cannot succeed.
+        await loadSetup();
+      }
       await loadSession();
     } else if (form.id === "key-form") {
       const { name } = formValues(form);
@@ -419,4 +443,5 @@ document.addEventListener("click", async (event) => {
 });
 
 await loadSession();
+await loadSetup();
 await render();

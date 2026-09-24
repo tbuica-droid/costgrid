@@ -19,6 +19,7 @@ import {
 import {
   type AccountsRepository,
   Analytics,
+  API_KEY_PREFIX,
   type CallRecord,
   CostGridRepository,
   type ImportsRepository,
@@ -29,6 +30,7 @@ import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerImport } from "./console-import.js";
 import { registerSecurity } from "./console-security.js";
+import { registerSetup } from "./console-setup.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
@@ -107,9 +109,16 @@ function identify(
   deps: ServerDeps,
   allowSession = false,
 ): Caller | undefined {
+  // The Anthropic SDK sends its `api_key` as x-api-key, so that is where a
+  // CostGrid key lands when someone writes Anthropic(api_key="cg_live_..."). It
+  // counts only with the CostGrid prefix: "unused" and real provider keys keep
+  // behaving as before. It is never forwarded, since upstream headers are
+  // built from the stored credential and an allowlist.
+  const sdkKey = headerValue(request, "x-api-key");
   const presented =
     headerValue(request, KEY_HEADER) ??
-    headerValue(request, "authorization")?.replace(/^Bearer\s+/i, "");
+    headerValue(request, "authorization")?.replace(/^Bearer\s+/i, "") ??
+    (sdkKey?.startsWith(API_KEY_PREFIX) === true ? sdkKey : undefined);
 
   if (presented !== undefined) {
     const resolved = deps.repository.resolveApiKey(presented);
@@ -333,6 +342,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     });
     registerImport(app, { accounts: accounts!, imports, fetchImpl: deps.fetchImpl });
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
+    registerSetup(app, { config, accounts: accounts! });
   }
   registerDashboard(app, { hosted: config.hosted });
 

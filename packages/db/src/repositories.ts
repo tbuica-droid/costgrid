@@ -97,7 +97,8 @@ export interface ResolvedApiKey {
   readonly name: string;
 }
 
-const KEY_PREFIX = "cg_live_";
+/** Every CostGrid API key starts with this, which is how one is told apart from a provider key. */
+export const API_KEY_PREFIX = "cg_live_";
 
 function hashKey(plaintext: string): string {
   return createHash("sha256").update(plaintext, "utf8").digest("hex");
@@ -147,9 +148,9 @@ export class CostGridRepository {
    */
   createApiKey(tenantId: string, name: string): CreatedApiKey {
     const secret = randomBytes(24).toString("base64url");
-    const plaintext = `${KEY_PREFIX}${secret}`;
+    const plaintext = `${API_KEY_PREFIX}${secret}`;
     const id = randomUUID();
-    const prefix = plaintext.slice(0, KEY_PREFIX.length + 6);
+    const prefix = plaintext.slice(0, API_KEY_PREFIX.length + 6);
 
     this.#db
       .prepare(
@@ -170,7 +171,7 @@ export class CostGridRepository {
    * final confirmation against a timing oracle on the hash itself.
    */
   resolveApiKey(plaintext: string): ResolvedApiKey | undefined {
-    if (!plaintext.startsWith(KEY_PREFIX)) return undefined;
+    if (!plaintext.startsWith(API_KEY_PREFIX)) return undefined;
 
     const digest = hashKey(plaintext);
     const row = this.#db

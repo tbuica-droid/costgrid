@@ -13,6 +13,8 @@ import {
   openDatabase,
   Retention,
 } from "@costgrid/db";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { AnchorSender } from "./anchor-sender.js";
 import { loadConfig } from "./config.js";
 import { assertToolPoliciesEnforceable, createServer } from "./server.js";
@@ -26,6 +28,14 @@ import { assertToolPoliciesEnforceable, createServer } from "./server.js";
  */
 async function main(): Promise<void> {
   const config = loadConfig();
+  if (config.desktop) {
+    // Owner-only, folder and files both: the database holds the encrypted
+    // provider keys. The folder alone would protect them today, but a file
+    // that is world-readable the moment it is copied elsewhere is not the
+    // default to ship.
+    process.umask(0o077);
+    mkdirSync(dirname(config.databasePath), { recursive: true, mode: 0o700 });
+  }
   const db = openDatabase({ path: config.databasePath });
   const repository = new CostGridRepository(db);
   const analytics = new Analytics(db);
@@ -94,7 +104,9 @@ async function main(): Promise<void> {
       { every: `${config.anchorIntervalMinutes}m` },
       "anchoring the audit log to an external receiver",
     );
-  } else if (config.hosted) {
+  } else if (config.hosted && !config.desktop) {
+    // Not on a desktop install: there is no separate system to anchor to, and
+    // one person on one laptop is not who an external audit trail serves.
     // Worth saying at boot rather than leaving somebody to discover during an
     // audit that the fingerprint was only ever on this machine.
     app.log.warn(
@@ -122,10 +134,17 @@ async function main(): Promise<void> {
       "price catalog is stale — run `npm run verify-pricing`; costs may be billed at outdated rates",
     );
   }
-  app.log.info(
-    { database: config.databasePath, anonymous: config.allowAnonymous },
-    `CostGrid gateway listening — point ANTHROPIC_BASE_URL at http://${config.host}:${config.port}`,
-  );
+  if (config.desktop) {
+    app.log.info(
+      { database: config.databasePath, masterKey: config.masterKeySource },
+      `CostGrid desktop gateway listening — open http://${config.host}:${config.port}/console to set up this computer`,
+    );
+  } else {
+    app.log.info(
+      { database: config.databasePath, anonymous: config.allowAnonymous },
+      `CostGrid gateway listening — point ANTHROPIC_BASE_URL at http://${config.host}:${config.port}`,
+    );
+  }
 }
 
 main().catch((error: unknown) => {

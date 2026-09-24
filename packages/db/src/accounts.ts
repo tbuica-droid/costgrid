@@ -59,6 +59,14 @@ function normalizeEmail(email: string): string {
  * runs on human-facing requests, not the metering path, and it is the only
  * place that touches decryptable secrets.
  */
+/** Signup refused because this install already has its one account. */
+export class SignupClosedError extends Error {
+  constructor() {
+    super("this CostGrid install already has its account; sign in instead");
+    this.name = "SignupClosedError";
+  }
+}
+
 export class AccountsRepository {
   readonly #db: Db;
   /** Derived once at startup from COSTGRID_MASTER_KEY; never persisted. */
@@ -97,13 +105,16 @@ export class AccountsRepository {
    * put anything and a tenant with no owner cannot be administered — a
    * half-completed signup is worse than a failed one.
    */
-  signUp(input: {
-    email: string;
-    name: string;
-    password: string;
-    organisation: string;
-    plan?: PlanId;
-  }): { user: User; tenantId: string } {
+  signUp(
+    input: {
+      email: string;
+      name: string;
+      password: string;
+      organisation: string;
+      plan?: PlanId;
+    },
+    options: { onlyAccount?: boolean } = {},
+  ): { user: User; tenantId: string } {
     const email = normalizeEmail(input.email);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new RangeError("not a valid email address");
@@ -119,6 +130,11 @@ export class AccountsRepository {
     const tenantId = randomUUID();
 
     this.#db.transaction(() => {
+      // Checked inside the transaction, not before it, so two first-run
+      // signups arriving together cannot both see an empty install.
+      if (options.onlyAccount === true && this.hasAnyUser()) {
+        throw new SignupClosedError();
+      }
       if (this.findUserByEmail(email)) {
         throw new Error("an account with that email already exists");
       }
@@ -144,6 +160,10 @@ export class AccountsRepository {
     })();
 
     return { user: { id: userId, email, name: input.name.trim(), createdAt: now }, tenantId };
+  }
+
+  hasAnyUser(): boolean {
+    return this.#db.prepare("SELECT 1 FROM users LIMIT 1").get() !== undefined;
   }
 
   findUserByEmail(email: string): (User & { passwordHash: string }) | undefined {

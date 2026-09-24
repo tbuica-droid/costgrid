@@ -1,4 +1,7 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { Provider } from "@costgrid/core";
+import { readMasterKey } from "./keychain.js";
 
 /**
  * Gateway configuration, resolved from the environment at startup.
@@ -50,8 +53,17 @@ export interface GatewayConfig {
    * exactly right for one organisation and exactly wrong for many.
    */
   readonly hosted: boolean;
+  /**
+   * Desktop mode: one person, one computer. Hosted mode's control plane, so
+   * provider keys are entered in the console and encrypted rather than read
+   * from `.env`, but with exactly one account, which signup creates on first
+   * run and then closes behind it. Binds to this machine only.
+   */
+  readonly desktop: boolean;
   /** Secret used to derive the key that encrypts tenants' provider credentials. */
   readonly masterKeySecret: string | undefined;
+  /** Where the master key came from, for the boot log. Never the key itself. */
+  readonly masterKeySource: "env" | "keychain";
   /** Set Secure on session cookies. Must be true behind TLS; false breaks local http. */
   readonly secureCookies: boolean;
   /**
@@ -137,7 +149,22 @@ function optional(name: string): string | undefined {
   return value === undefined || value === "" ? undefined : value;
 }
 
-export function loadConfig(): GatewayConfig {
+const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
+
+/** The per-user application data folder, the same one an Electron app is given. */
+export function appDataDir(platform = process.platform): string {
+  const home = homedir();
+  if (platform === "darwin") return join(home, "Library", "Application Support");
+  if (platform === "win32") return process.env["APPDATA"] ?? join(home, "AppData", "Roaming");
+  return process.env["XDG_CONFIG_HOME"] ?? join(home, ".config");
+}
+
+export interface ConfigDeps {
+  /** Overridable so tests never touch a real keychain. */
+  readonly readKeychain?: () => string | undefined;
+}
+
+export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
   const providerKeys: Partial<Record<Provider, string>> = {};
   const providerBaseUrls: Partial<Record<Provider, string>> = {};
 
@@ -178,8 +205,47 @@ export function loadConfig(): GatewayConfig {
     providerBaseUrls.vertex = `https://${location}-aiplatform.googleapis.com`;
   }
 
-  const hosted = boolean("COSTGRID_HOSTED", false);
-  const masterKeySecret = optional("COSTGRID_MASTER_KEY");
+  const desktop = boolean("COSTGRID_DESKTOP", false);
+  const hosted = boolean("COSTGRID_HOSTED", desktop);
+  if (desktop && !hosted) {
+    throw new Error(
+      "COSTGRID_DESKTOP=true runs the hosted control plane for one person; " +
+        "it cannot be combined with COSTGRID_HOSTED=false.",
+    );
+  }
+
+  const host = process.env["COSTGRID_HOST"]?.trim() || "127.0.0.1";
+  if (desktop && !LOOPBACK.has(host)) {
+    throw new Error(
+      `COSTGRID_DESKTOP serves the console where your provider keys are stored, so it only ` +
+        `listens on this machine. COSTGRID_HOST must be 127.0.0.1, ::1 or localhost, got ${JSON.stringify(host)}.`,
+    );
+  }
+
+  const source = (optional("COSTGRID_MASTER_KEY_SOURCE")?.toLowerCase() ??
+    (desktop ? "keychain" : "env")) as string;
+  if (source !== "env" && source !== "keychain") {
+    throw new Error(`COSTGRID_MASTER_KEY_SOURCE must be env or keychain, got ${JSON.stringify(source)}`);
+  }
+  // Two places the key could come from is how a deploy ends up encrypting with
+  // one and decrypting with the other, which loses every stored credential.
+  if (source === "keychain" && optional("COSTGRID_MASTER_KEY") !== undefined) {
+    throw new Error(
+      "COSTGRID_MASTER_KEY is set, but the master key source is the keychain. " +
+        "Use one or the other: unset COSTGRID_MASTER_KEY, or set COSTGRID_MASTER_KEY_SOURCE=env.",
+    );
+  }
+
+  const masterKeySecret =
+    source === "keychain"
+      ? (deps.readKeychain ?? (() => readMasterKey()))()
+      : optional("COSTGRID_MASTER_KEY");
+
+  if (source === "keychain" && masterKeySecret === undefined) {
+    throw new Error(
+      "There is no CostGrid master key in your keychain yet. Create one, once, with: npm run desktop:init",
+    );
+  }
 
   if (hosted && masterKeySecret === undefined) {
     throw new Error(
@@ -206,15 +272,23 @@ export function loadConfig(): GatewayConfig {
 
   return {
     hosted,
+    desktop,
     masterKeySecret,
-    secureCookies: boolean("COSTGRID_SECURE_COOKIES", hosted),
+    masterKeySource: source,
+    // Desktop mode is plain http on loopback, where a Secure cookie is either
+    // refused or pointless: nothing on the wire leaves the machine.
+    secureCookies: boolean("COSTGRID_SECURE_COOKIES", hosted && !desktop),
     publicUrl: publicUrl(),
     anchorUrl: anchorUrl(),
     anchorKey: optional("COSTGRID_ANCHOR_KEY"),
     anchorIntervalMinutes: integer("COSTGRID_ANCHOR_INTERVAL_MINUTES", 60),
     port: integer("COSTGRID_PORT", 8787),
-    host: process.env["COSTGRID_HOST"]?.trim() || "127.0.0.1",
-    databasePath: process.env["COSTGRID_DB"]?.trim() || "./costgrid.db",
+    host,
+    // The desktop database lives with the app's other data, not in whatever
+    // folder the gateway happened to be started from.
+    databasePath:
+      process.env["COSTGRID_DB"]?.trim() ||
+      (desktop ? join(appDataDir(), "CostGrid", "costgrid.db") : "./costgrid.db"),
     providerKeys,
     providerBaseUrls,
     upstreamTimeoutMs: integer("COSTGRID_UPSTREAM_TIMEOUT_MS", 15 * 60 * 1000),
