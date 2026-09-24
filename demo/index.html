@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="./styles.css" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230f1411'/><rect x='3' y='9' width='2' height='4' fill='%239d7b1f'/><rect x='7' y='5' width='2' height='8' fill='%23f5f2e9'/><rect x='11' y='7' width='2' height='6' fill='%23a8452a'/></svg>" />
 <link rel="canonical" href="https://costgrid.dev/demo/">
+<!-- Signed-in people only. Anyone else is sent to the sign-in card on the front page. -->
+<script src="../vendor/supabase-js-2.117.1.js"></script>
+<script src="../auth.js"></script>
+<script>CG_AUTH.requireSession("../#start");</script>
 </head>
 <body>
 
@@ -33,7 +37,7 @@
   click around before installing anything. Nothing here is a live deployment, and no
   number is invented: every figure is computed by the same code that would price your
   own traffic. <a href="../">What CostGrid is</a> ·
-  <a href="https://github.com/tbuica-droid/costgrid#readme">Run it on your own traffic</a>
+  <a href="../#setup">Run it on your own traffic</a>
 </div>
 
 <main id="main">

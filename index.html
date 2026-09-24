@@ -56,6 +56,7 @@
         --mono: "JetBrains Mono", ui-monospace, monospace;
       }
       * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
       html { scroll-behavior: smooth; }
       body {
         margin: 0;
@@ -279,8 +280,8 @@
           <a href="#demo">Demo</a>
         </nav>
         <div class="nav-cta">
-          <a class="btn btn-outline" href="#quickstart" style="border-color: transparent">Run locally</a>
-          <a class="btn btn-ink" href="#trial">Start free trial</a>
+          <a class="btn btn-ink" href="#start" data-auth="out">Sign in</a>
+          <a class="btn btn-ink" href="#setup" data-auth="in" hidden>Your setup</a>
         </div>
         <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">☰</button>
       </div>
@@ -289,7 +290,8 @@
         <a href="#guarantees">Guarantees</a>
         <a href="#pricing">Pricing</a>
         <a href="#demo">Demo</a>
-        <a href="#trial" style="color: var(--signal); font-weight: 500">Start free trial</a>
+        <a href="#start" style="color: var(--signal); font-weight: 500" data-auth="out">Sign in</a>
+        <a href="#setup" style="color: var(--signal); font-weight: 500" data-auth="in" hidden>Your setup</a>
       </div>
     </header>
 
@@ -310,8 +312,8 @@
             not after.
           </p>
           <div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px">
-            <a class="btn btn-lg btn-ink" href="#trial">Start free trial →</a>
-            <a class="btn btn-lg btn-outline" href="#demo">Launch sample dashboard</a>
+            <a class="btn btn-lg btn-ink" href="#start">Start free trial →</a>
+            <a class="btn btn-lg btn-outline" href="#demo">See the sample dashboard</a>
           </div>
           <dl class="stats">
             <div><dt class="label">p50 overhead</dt><dd>~1.2ms</dd></div>
@@ -320,29 +322,47 @@
           </dl>
         </div>
 
-        <div id="quickstart" style="scroll-margin-top: 96px">
+        <div id="start" style="scroll-margin-top: 96px">
           <div class="card" style="padding: 20px; box-shadow: var(--shadow-paper)">
-            <div style="display: flex; justify-content: space-between; align-items: baseline">
-              <h2 style="font-size: 20px">Run it locally in a few minutes</h2>
-              <span class="label">no signup</span>
-            </div>
-            <p class="muted" style="margin-top: 8px; font-size: 14px">
-              Clone it, add your own provider key, start the gateway. No account, no card — your key
-              never leaves this machine.
-            </p>
-            <div class="term" style="margin-top: 16px">
-              <div class="term-bar">
-                <span>quickstart</span>
-                <button class="copy-btn" data-copy="git clone https://github.com/tbuica-droid/costgrid.git&#10;cd costgrid &amp;&amp; npm install&#10;cp .env.example .env&#10;npm run gateway:dev">⧉ Copy</button>
+            <form id="signinForm" novalidate>
+              <div style="display: flex; justify-content: space-between; align-items: baseline">
+                <h2 style="font-size: 20px">Get CostGrid</h2>
+                <span class="label">no card</span>
               </div>
-              <pre><span class="p">$ </span>git clone https://github.com/tbuica-droid/costgrid.git
-<span class="p">$ </span>cd costgrid &amp;&amp; npm install
-<span class="p">$ </span>cp .env.example .env   <span style="color: rgba(250,248,244,0.45)"># add your Anthropic or OpenAI key</span>
-<span class="p">$ </span>npm run gateway:dev</pre>
+              <p class="muted" style="margin: 8px 0 16px; font-size: 14px">
+                Sign in with your work email and you get the install steps, the full demo and a
+                free trial. No password: we email you a one-time link.
+              </p>
+              <div class="field" id="f-signin">
+                <label for="signinEmail">Work email</label>
+                <input id="signinEmail" type="email" autocomplete="email" placeholder="you@company.com" />
+                <p class="err" id="signinErr">Enter a valid work email.</p>
+              </div>
+              <button type="submit" class="btn btn-lg btn-ink" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
+              <p class="muted" style="text-align: center; font-size: 12px; margin-top: 12px">
+                Your prompts and API keys never come to us. The account is for this website only.
+              </p>
+            </form>
+            <div id="signinSent" hidden style="padding: 12px 0">
+              <div style="font-size: 32px; color: var(--positive)">✓</div>
+              <h2 style="font-size: 24px; margin-top: 12px">Check your inbox.</h2>
+              <p class="muted" style="margin-top: 8px">
+                We sent a sign-in link to <span class="mono" style="color: var(--ink)" id="sentEmail"></span>.
+                Open it on this device and you land back here, signed in. Nothing in your inbox?
+                Give it a minute and check spam.
+              </p>
+              <button class="btn btn-outline" style="margin-top: 20px" id="signinAgain">Use a different email</button>
             </div>
-            <div class="envbox">
-              <div style="color: var(--ink-faint)"># then point your client at it</div>
-              <div>ANTHROPIC_BASE_URL=<span class="signal">http://localhost:8787</span></div>
+            <div id="signedIn" hidden style="padding: 12px 0">
+              <div style="font-size: 32px; color: var(--positive)">✓</div>
+              <h2 style="font-size: 24px; margin-top: 12px">You're signed in.</h2>
+              <p class="muted" style="margin-top: 8px">
+                As <span class="mono" style="color: var(--ink)" data-user-email></span>.
+              </p>
+              <div style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 12px">
+                <a class="btn btn-ink" href="#setup">Your setup</a>
+                <a class="btn btn-outline" href="./demo/">Open the full demo</a>
+              </div>
             </div>
           </div>
         </div>
@@ -506,7 +526,7 @@
               <h3 style="font-size: 20px">Free</h3>
             </div>
             <div style="margin-top: 16px; display: flex; gap: 8px; align-items: baseline">
-              <span class="price">$0</span><span class="muted" style="font-size: 12px">self-hosted, forever</span>
+              <span class="price">$0</span><span class="muted" style="font-size: 12px">on your own machine</span>
             </div>
             <p class="muted" style="margin-top: 12px; font-size: 14px">One team, evaluating. Full gateway, local dashboard.</p>
             <ul>
@@ -515,7 +535,7 @@
               <li><span class="tick">✓</span><span>2 seats</span></li>
               <li><span class="tick">✓</span><span>Community support</span></li>
             </ul>
-            <a class="btn btn-outline" style="margin-top: 24px" href="#quickstart">Run locally</a>
+            <a class="btn btn-outline" style="margin-top: 24px" href="#start">Get started</a>
           </div>
 
           <div class="plan featured">
@@ -533,7 +553,7 @@
               <li><span class="tick">✓</span><span>Model routing + cache savings rules</span></li>
               <li><span class="tick">✓</span><span>Unlimited seats</span></li>
             </ul>
-            <a class="btn btn-signal" style="margin-top: 24px" href="#trial">Start free trial</a>
+            <a class="btn btn-signal" style="margin-top: 24px" href="#start">Start free trial</a>
           </div>
 
           <div class="plan">
@@ -550,24 +570,29 @@
               <li><span class="tick">✓</span><span>Externally-anchored audit trail</span></li>
               <li><span class="tick">✓</span><span>GDPR retention &amp; erasure controls</span></li>
             </ul>
-            <a class="btn btn-outline" style="margin-top: 24px" href="#trial">Start free trial</a>
+            <a class="btn btn-outline" style="margin-top: 24px" href="#start">Start free trial</a>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TRIAL -->
-    <section class="section deep" id="trial">
+    <!-- SETUP (signed-in people only) -->
+    <section class="section deep" id="setup">
       <div class="wrap grid g2">
         <div>
-          <span class="label">Free trial</span>
-          <h2 class="head">Two ways to start.</h2>
-          <p class="lede">
-            Evaluate on your own machine in a few minutes, or tell me about your setup and I'll help
-            you wire the first team in myself.
+          <span class="label">Your setup</span>
+          <h2 class="head" data-auth="out">Sign in to get the install steps.</h2>
+          <h2 class="head" data-auth="in" hidden>Run it on your own machine.</h2>
+          <p class="lede" data-auth="out">
+            The install steps, the full demo and the free trial are behind a sign-in. It takes one
+            email and no card. <a href="#start" style="color: var(--signal)">Sign in above →</a>
           </p>
-          <div class="card" style="margin-top: 32px; padding: 20px">
-            <h3 style="font-size: 18px">Self-serve local run</h3>
+          <p class="lede" data-auth="in" hidden>
+            Clone it, add your own provider key, start the gateway. Your key never leaves this
+            machine. Tell me about your setup on the right and I'll help you wire the first team in.
+          </p>
+          <div class="card" style="margin-top: 32px; padding: 20px" data-auth="in" hidden>
+            <h3 style="font-size: 18px">Local run</h3>
             <ol class="muted" style="margin-top: 12px; display: grid; gap: 8px; font-size: 14px">
               <li>1. Clone it and add your own provider key.</li>
               <li>2. Start the gateway.</li>
@@ -579,23 +604,27 @@
                 <button class="copy-btn" data-copy="git clone https://github.com/tbuica-droid/costgrid.git&#10;cd costgrid &amp;&amp; npm install&#10;cp .env.example .env&#10;npm run gateway:dev">⧉ Copy</button>
               </div>
               <pre><span class="p">$ </span>git clone https://github.com/tbuica-droid/costgrid.git
-<span class="p">$ </span>cd costgrid &amp;&amp; npm install &amp;&amp; cp .env.example .env
+<span class="p">$ </span>cd costgrid &amp;&amp; npm install
+<span class="p">$ </span>cp .env.example .env   <span style="color: rgba(250,248,244,0.45)"># add your Anthropic or OpenAI key</span>
 <span class="p">$ </span>npm run gateway:dev</pre>
+            </div>
+            <div class="envbox">
+              <div style="color: var(--ink-faint)"># then point your client at it</div>
+              <div>ANTHROPIC_BASE_URL=<span class="signal">http://localhost:8787</span></div>
+            </div>
+            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+              <a class="btn btn-outline" href="./demo/">Open the full demo</a>
+              <button type="button" class="link-btn muted" style="font-size: 13px" id="signOut">Sign out</button>
             </div>
           </div>
         </div>
 
-        <div class="card" style="padding: 24px; box-shadow: var(--shadow-paper)">
-          <form id="trialForm" novalidate>
-            <h3 style="font-size: 20px">Request the trial</h3>
+        <div class="card" style="padding: 24px; box-shadow: var(--shadow-paper)" data-auth="in" hidden>
+          <form id="profileForm" novalidate>
+            <h3 style="font-size: 20px">About your setup</h3>
             <p class="muted" style="margin: 4px 0 20px; font-size: 14px">
-              Goes straight to my inbox. No CRM, no drip sequence. Usually answered same day.
+              Three questions, once. I read every one of these myself and usually reply the same day.
             </p>
-            <div class="field" id="f-email">
-              <label for="email">Work email</label>
-              <input id="email" type="email" placeholder="you@company.com" />
-              <p class="err">Enter a valid work email.</p>
-            </div>
             <div class="field" id="f-company">
               <label for="company">Company or team</label>
               <input id="company" type="text" placeholder="Acme Platform" />
@@ -617,31 +646,19 @@
               <label for="notes">What's driving the cost? (optional)</label>
               <textarea id="notes" rows="3" placeholder="Agent fanout, long contexts, eval runs…"></textarea>
             </div>
-            <button type="submit" class="btn btn-lg btn-ink" style="width: 100%">Request trial key</button>
+            <button type="submit" class="btn btn-lg btn-ink" style="width: 100%" id="profileBtn">Save</button>
+            <p class="err" id="profileErr" style="text-align: center; margin-top: 12px"></p>
             <p class="muted" style="text-align: center; font-size: 12px; margin-top: 12px">
-              Self-hosted trial — your prompts and keys stay on your infrastructure.
-              <button type="button" id="preferCopy" class="link-btn">Or copy the message and send it yourself.</button>
+              Saved to your account as <span class="mono" data-user-email></span>.
             </p>
           </form>
-
-          <div id="mailFallback" style="display: none; margin-top: 16px">
-            <div class="note">
-              <strong style="color: var(--ink)">Copy and send it yourself</strong><br /><br />
-              Send this to <a href="mailto:tomasbuica@outlook.com" style="color: var(--signal)">tomasbuica@outlook.com</a>. Useful if your mail app doesn't open, or you'd rather send from your own account.
-              <pre id="mailBody" style="white-space: pre-wrap; background: var(--paper-deep); border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 12px"></pre>
-              <button type="button" id="copyBtn" class="btn btn-outline" style="margin-top: 8px; font-size: 12px; padding: 6px 12px">Copy to clipboard</button>
-            </div>
-          </div>
-
-          <div id="trialDone" style="display: none; padding: 24px 0">
+          <div id="profileDone" hidden style="padding: 24px 0">
             <div style="font-size: 32px; color: var(--positive)">✓</div>
-            <h3 style="font-size: 24px; margin-top: 12px">Your mail app should be open.</h3>
+            <h3 style="font-size: 24px; margin-top: 12px">Thanks, saved.</h3>
             <p class="muted" style="margin-top: 8px">
-              Sent to <span class="mono" style="color: var(--ink)" id="doneEmail"></span> — send it and
-              I'll reply with a setup call or written onboarding, whichever you prefer. If nothing
-              opened, use the copy option above instead.
+              <span data-profile-summary></span> If anything changes, you can edit it any time.
             </p>
-            <button class="btn btn-outline" style="margin-top: 24px" id="resetTrial">Submit another request</button>
+            <button class="btn btn-outline" style="margin-top: 24px" id="profileEdit">Edit answers</button>
           </div>
         </div>
       </div>
@@ -699,8 +716,8 @@
             Cap the bill before it surprises you.
           </h2>
           <div style="display: flex; flex-wrap: wrap; gap: 12px">
-            <a class="btn btn-lg btn-signal" href="#trial">Start free trial</a>
-            <a class="btn btn-lg btn-ghost-dark" href="#quickstart">Run locally</a>
+            <a class="btn btn-lg btn-signal" href="#start">Start free trial</a>
+            <a class="btn btn-lg btn-ghost-dark" href="#demo">See the sample dashboard</a>
           </div>
         </div>
         <div class="foot-bot">
@@ -710,6 +727,8 @@
       </div>
     </footer>
 
+    <script src="vendor/supabase-js-2.117.1.js"></script>
+    <script src="auth.js"></script>
     <script>
       // mobile menu
       var menuBtn = document.getElementById("menuBtn");
@@ -806,97 +825,131 @@
         .join("");
 
       /*
-       * Trial form. The site is static, so this composes a pre-filled message to a real
-       * inbox rather than pretending to submit somewhere. A persistent "copy it yourself"
-       * link sits next to Submit at all times — not gated behind a mailto timeout — since
-       * mobile webmail (Gmail/Outlook in a browser tab) has no mailto: handler at all.
+       * Sign-in and the signed-in "Your setup" section. Accounts live in Supabase (see
+       * auth.js). The page is static, so everything below runs in the browser: it asks
+       * for a sign-in link, notices when the link brings the person back, and shows or
+       * hides the [data-auth] parts to match.
        */
-      var INBOX = "tomasbuica@outlook.com";
-      var form = document.getElementById("trialForm");
-      var fallback = document.getElementById("mailFallback");
-      var mailBody = document.getElementById("mailBody");
-      var trialDone = document.getElementById("trialDone");
-      var doneEmail = document.getElementById("doneEmail");
-      var copyBtn = document.getElementById("copyBtn");
-      var preferCopy = document.getElementById("preferCopy");
+      var currentUser = null;
 
       function fieldValue(id) { return document.getElementById(id).value.trim(); }
 
-      function compose() {
-        return [
-          "Company: " + (fieldValue("company") || "—"),
-          "Email:   " + fieldValue("email"),
-          "Spend:   " + (fieldValue("spend") || "not stated"),
-          "",
-          "What's driving the cost:",
-          fieldValue("notes") || "(not stated)",
-          "",
-          "Sent from costgrid.dev"
-        ].join("\n");
+      function show(el, on) { el.hidden = !on; }
+
+      function markInvalid(id, valid) { document.getElementById(id).classList.toggle("invalid", !valid); return valid; }
+
+      function renderAuth(user) {
+        currentUser = user;
+        document.querySelectorAll("[data-auth]").forEach(function (el) {
+          show(el, (el.getAttribute("data-auth") === "in") === !!user);
+        });
+        document.querySelectorAll("[data-user-email]").forEach(function (el) {
+          el.textContent = user ? user.email : "";
+        });
+        show(document.getElementById("signinForm"), !user);
+        show(document.getElementById("signinSent"), false);
+        show(document.getElementById("signedIn"), !!user);
+        if (user) loadProfile(user);
       }
 
-      function copyText(text, btn, label) {
-        var done = function () {
-          btn.textContent = "✓ Copied";
-          setTimeout(function () { btn.textContent = label; }, 1800);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(done, function () {});
-        } else {
-          var ta = document.createElement("textarea");
-          ta.value = text; document.body.appendChild(ta); ta.select();
-          try { document.execCommand("copy"); done(); } catch (e) {}
-          document.body.removeChild(ta);
-        }
-      }
+      var signinForm = document.getElementById("signinForm");
+      var signinBtn = document.getElementById("signinBtn");
+      var signinErr = document.getElementById("signinErr");
 
-      preferCopy.addEventListener("click", function () {
-        mailBody.textContent = compose();
-        fallback.style.display = "block";
-        fallback.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      });
-
-      copyBtn.addEventListener("click", function () { copyText(mailBody.textContent, copyBtn, "Copy to clipboard"); });
-
-      form.addEventListener("submit", function (e) {
+      signinForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var email = fieldValue("email");
-        var company = fieldValue("company");
-        var spend = fieldValue("spend");
-        var ok = true;
-        function mark(id, valid) {
-          document.getElementById(id).classList.toggle("invalid", !valid);
-          if (!valid) ok = false;
-        }
-        mark("f-email", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-        mark("f-company", company.length >= 2);
-        mark("f-spend", !!spend);
-        if (!ok) return;
-
-        var body = compose();
-        var subject = "CostGrid trial: " + company;
-        mailBody.textContent = body;
-        doneEmail.textContent = email;
-        form.style.display = "none";
-        trialDone.style.display = "block";
-        window.location.href = "mailto:" + INBOX + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
-
-        // Webmail users get no mailto: handler and nothing visibly happens, so surface the
-        // copy-paste route rather than leaving them stuck with only a "done" message.
-        setTimeout(function () { fallback.style.display = "block"; }, 1200);
+        var email = fieldValue("signinEmail");
+        signinErr.textContent = "Enter a valid work email.";
+        if (!markInvalid("f-signin", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return;
+        signinBtn.disabled = true;
+        signinBtn.textContent = "Sending…";
+        CG_AUTH.sendLink(email).then(
+          function () {
+            document.getElementById("sentEmail").textContent = email;
+            show(signinForm, false);
+            show(document.getElementById("signinSent"), true);
+          },
+          function (err) {
+            signinErr.textContent = "Couldn't send the link: " + (err && err.message ? err.message : "please try again.");
+            markInvalid("f-signin", false);
+          }
+        ).then(function () {
+          signinBtn.disabled = false;
+          signinBtn.textContent = "Email me a sign-in link";
+        });
       });
 
-      document.getElementById("resetTrial").addEventListener("click", function () {
-        form.reset();
-        document.querySelectorAll(".field").forEach(function (f) { f.classList.remove("invalid"); });
-        trialDone.style.display = "none";
-        fallback.style.display = "none";
-        form.style.display = "block";
+      document.getElementById("signinAgain").addEventListener("click", function () {
+        show(document.getElementById("signinSent"), false);
+        show(signinForm, true);
+        document.getElementById("signinEmail").focus();
+      });
+
+      document.getElementById("signOut").addEventListener("click", function () {
+        CG_AUTH.signOut().then(function () { renderAuth(null); });
+      });
+
+      // profile: the three questions, asked once and kept on the account
+      var profileForm = document.getElementById("profileForm");
+      var profileDone = document.getElementById("profileDone");
+      var profileErr = document.getElementById("profileErr");
+      var profileBtn = document.getElementById("profileBtn");
+
+      function showProfile(p) {
+        if (p) {
+          document.getElementById("company").value = p.company || "";
+          document.getElementById("spend").value = p.spend || "";
+          document.getElementById("notes").value = p.notes || "";
+          document.querySelector("[data-profile-summary]").textContent =
+            p.company + ", " + p.spend.toLowerCase() + ".";
+        }
+        show(profileForm, !p);
+        show(profileDone, !!p);
+      }
+
+      function loadProfile(user) {
+        CG_AUTH.getProfile(user.id).then(showProfile, function () { showProfile(null); });
+      }
+
+      profileForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!currentUser) return;
+        var fields = { company: fieldValue("company"), spend: fieldValue("spend"), notes: fieldValue("notes") };
+        var ok = markInvalid("f-company", fields.company.length >= 2);
+        ok = markInvalid("f-spend", !!fields.spend) && ok;
+        if (!ok) return;
+        profileErr.style.display = "none";
+        profileBtn.disabled = true;
+        profileBtn.textContent = "Saving…";
+        CG_AUTH.saveProfile(currentUser, fields).then(
+          function () { showProfile(fields); },
+          function (err) {
+            profileErr.textContent = "Couldn't save: " + (err && err.message ? err.message : "please try again.");
+            profileErr.style.display = "block";
+          }
+        ).then(function () {
+          profileBtn.disabled = false;
+          profileBtn.textContent = "Save";
+        });
+      });
+
+      document.getElementById("profileEdit").addEventListener("click", function () {
+        show(profileDone, false);
+        show(profileForm, true);
+      });
+
+      // Runs once now (a returning visitor, or a sign-in link that just landed) and again
+      // whenever the session changes. A fresh sign-in scrolls to the setup section.
+      CG_AUTH.client.auth.onAuthStateChange(function (event, s) {
+        var user = s ? s.user : null;
+        if (!!user === !!currentUser && event !== "INITIAL_SESSION") return;
+        renderAuth(user);
+        if (event === "SIGNED_IN" && user) document.getElementById("setup").scrollIntoView({ behavior: "smooth" });
       });
 
       // faq
       var faqs = [
-        ["Do my prompts or API keys ever reach your servers?", "No. CostGrid runs inside your own infrastructure. There is no CostGrid service in the middle — prompts, completions and provider keys stay on your machines."],
+        ["Do my prompts or API keys ever reach your servers?", "No. CostGrid runs inside your own infrastructure, and your calls go straight from it to the provider. Prompts, completions and provider keys stay on your machines. The only thing we hold is the email you sign in to this website with, and the answers you give us about your setup."],
         ["What happens when a team hits its cap?", "Default is fail-closed: the request is rejected with HTTP 403 before it reaches the provider, and the attempt is recorded either way. A limit can also switch to a cheaper model instead of a hard stop, so your customers still get an answer."],
         ["How much latency does the proxy add?", "About 1.2ms p50 and 2ms p99 at low concurrency, measured against a null proxy so the number is CostGrid's own work, not the cost of adding any process to the path. Run the benchmark yourself — the command is in the Guarantees section above."],
         ["How accurate is the cost number?", "Costs come from the provider's own reported token usage, priced against a table for 53 models that's checked against the providers' published rates by a script that fails the build if anything drifts."],
