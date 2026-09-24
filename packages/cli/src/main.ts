@@ -25,7 +25,13 @@ import {
   statementToCsv,
   trailingWindow,
 } from "@costgrid/db";
-import { ask, type AnalystConfig, formatPreflight, preflight } from "@costgrid/gateway";
+import {
+  ask,
+  type AnalystConfig,
+  defaultPreflightModel,
+  formatPreflight,
+  preflight,
+} from "@costgrid/gateway";
 import { formatProposals } from "./advise.js";
 import { renderStatementHtml } from "./statement-html.js";
 import { auditCommand, eraseCommand, recordCli, retentionCommand } from "./security.js";
@@ -746,17 +752,10 @@ async function main(): Promise<void> {
         fail(`${envVar} is not set, so there is no credential to test with.`);
       }
 
-      const defaultModel = {
-        anthropic: "claude-haiku-4-5",
-        openai: "gpt-5-nano",
-        bedrock: "anthropic.claude-haiku-4-5-v1:0",
-        vertex: "claude-haiku-4-5@20251001",
-      }[provider]!;
-
       const result = await preflight({
         provider,
         credential,
-        model: flag(argv, "model") ?? defaultModel,
+        model: flag(argv, "model") ?? defaultPreflightModel(provider)!,
         ...(flag(argv, "base-url") !== undefined ? { baseUrl: flag(argv, "base-url") } : {}),
       });
       console.log(formatPreflight(result));

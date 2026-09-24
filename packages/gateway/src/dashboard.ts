@@ -18,6 +18,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".woff2": "font/woff2",
 };
 
 export function registerDashboard(app: FastifyInstance, options: { hosted?: boolean } = {}): void {
@@ -31,6 +32,12 @@ export function registerDashboard(app: FastifyInstance, options: { hosted?: bool
   app.get("/app/:file", async (request, reply) => {
     const { file } = request.params as { file: string };
     return serve(reply, file);
+  });
+
+  // The webfonts, served from here so the page needs no font CDN.
+  app.get("/app/fonts/:file", async (request, reply) => {
+    const { file } = request.params as { file: string };
+    return serve(reply, join("fonts", file));
   });
 
   async function serve(reply: FastifyReply, file: string): Promise<FastifyReply> {

@@ -22,12 +22,15 @@ import {
   API_KEY_PREFIX,
   type CallRecord,
   CostGridRepository,
+  type Db,
   type ImportsRepository,
   trailingWindow,
 } from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
+import { registerAdvice } from "./console-advice.js";
+import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
 import { registerSecurity } from "./console-security.js";
 import { registerSetup } from "./console-setup.js";
@@ -58,6 +61,12 @@ function runIdOf(request: FastifyRequest, name: string): string | undefined {
 
 export interface ServerDeps {
   readonly config: GatewayConfig;
+  /**
+   * The open database, for the console screens that read it directly: what
+   * changed, advice, anchors, backup. Every other route goes through a
+   * repository built on the same handle.
+   */
+  readonly db: Db;
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
   /** Required in hosted mode; absent in self-hosted, where there are no accounts. */
@@ -343,6 +352,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerImport(app, { accounts: accounts!, imports, fetchImpl: deps.fetchImpl });
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
     registerSetup(app, { config, accounts: accounts! });
+    registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
+    registerData(app, {
+      config,
+      db: deps.db,
+      accounts: accounts!,
+      repository,
+      fetchImpl: deps.fetchImpl,
+    });
   }
   registerDashboard(app, { hosted: config.hosted });
 

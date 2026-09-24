@@ -166,6 +166,17 @@ export class AccountsRepository {
     return this.#db.prepare("SELECT 1 FROM users LIMIT 1").get() !== undefined;
   }
 
+  /**
+   * Remove a person entirely. Their sessions and memberships go with them.
+   *
+   * Exists for a desktop install erasing itself: with the one organisation
+   * gone, an account that can neither sign up again nor belong to anything is
+   * a locked door, so the account goes too and the next visit starts fresh.
+   */
+  deleteUser(userId: string): void {
+    this.#db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  }
+
   findUserByEmail(email: string): (User & { passwordHash: string }) | undefined {
     return this.#db
       .prepare(

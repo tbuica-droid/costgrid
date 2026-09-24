@@ -29,6 +29,21 @@ export interface PreflightResult {
   readonly steps: readonly PreflightStep[];
 }
 
+/**
+ * The cheapest model on each channel: preflight should cost a fraction of a
+ * cent, and the model is the one variable the person running it did not choose.
+ */
+const DEFAULT_MODELS: Record<string, string> = {
+  anthropic: "claude-haiku-4-5",
+  openai: "gpt-5-nano",
+  bedrock: "anthropic.claude-haiku-4-5-v1:0",
+  vertex: "claude-haiku-4-5@20251001",
+};
+
+export function defaultPreflightModel(provider: string): string | undefined {
+  return DEFAULT_MODELS[provider];
+}
+
 export interface PreflightOptions {
   readonly provider: string;
   readonly credential: string;

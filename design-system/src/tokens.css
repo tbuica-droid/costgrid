@@ -54,12 +54,13 @@
 
   /* --- Type --------------------------------------------------------------
    * Serif for display, sans for reading, mono only for things you would copy:
-   * code, ids, model names. The fallbacks matter as much as the webfonts.
-   * CostGrid's dashboard ships inside customer networks that cannot reach a
-   * font CDN, so every stack has to hold up unloaded.
+   * code, ids, model names. The same three faces as the marketing site. The
+   * dashboard ships them with itself rather than loading them from a font
+   * CDN, because it runs inside customer networks that may reach nothing,
+   * and every stack still has system fallbacks for the moment before they load.
    */
-  --cg-font-display: "Newsreader", Georgia, "Times New Roman", serif;
-  --cg-font-sans:    "Instrument Sans", -apple-system, BlinkMacSystemFont,
+  --cg-font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --cg-font-sans:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
                      "Segoe UI", Helvetica, Arial, sans-serif;
   --cg-font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                      Consolas, monospace;

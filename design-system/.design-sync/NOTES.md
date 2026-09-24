@@ -2,12 +2,12 @@
 
 ## Repo quirks
 
-- **No webfonts shipped by design.** `Instrument Sans`, `JetBrains Mono`, and `Newsreader`
-  are referenced in `src/tokens.css` but no `@font-face` exists anywhere in the repo.
-  The comment in `demo/styles.css` explains: "No CSS framework and no webfont CDN: the
-  gateway may run inside a customer network that cannot reach either. Every font stack has
-  system fallbacks for exactly this." Previews render in Georgia / system-ui / Menlo and
-  look correct. The `[FONT_MISSING]` warning is expected and accepted. Do not chase it.
+- **Webfonts are shipped with the dashboard, not by this package.** `IBM Plex Sans`,
+  `JetBrains Mono` and `Source Serif 4` are referenced in `src/tokens.css`; the
+  `@font-face` rules and the woff2 files live in `packages/gateway/web/` (and its copy in
+  `demo/`), served by the gateway itself because it may run inside a customer network
+  that cannot reach a font CDN. This package carries no font files, so previews render in
+  Georgia / system-ui / Menlo and the `[FONT_MISSING]` warning is expected. Do not chase it.
 
 - **`--node-modules ./node_modules`**: the repo does not self-install (`@costgrid/ui` is
   not in its own `node_modules`), so always use `--entry ./dist/index.js` and point

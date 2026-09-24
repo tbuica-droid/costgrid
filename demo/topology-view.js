@@ -166,7 +166,7 @@ export function drawTopology(mount, panel, topo, helpers) {
       x: n.x,
       y: n.y + n.r + 13,
       "text-anchor": "middle",
-      "font-family": "'Fragment Mono', ui-monospace, monospace",
+      "font-family": "var(--mono)",
       "font-size": 10,
       fill: n.kind === "agent" ? INK : "rgba(15,20,17,0.62)",
     });

@@ -47,7 +47,8 @@ Design all move together.
 
 ## Fonts
 
-Newsreader (display), Instrument Sans (UI), JetBrains Mono (code). Every stack
-has system fallbacks, because the gateway may run inside a network that cannot
-reach a font CDN. The marketing site loads the webfonts; the dashboard is
-designed to be fine without them.
+Source Serif 4 (display), IBM Plex Sans (UI), JetBrains Mono (code), the same
+three the marketing site uses. The site loads them from Google Fonts; the
+dashboard ships them with itself (`packages/gateway/web/fonts/`), because the
+gateway may run inside a network that cannot reach a font CDN. Every stack has
+system fallbacks for the moment before they load.

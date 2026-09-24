@@ -51,7 +51,7 @@ async function main(): Promise<void> {
 
   assertToolPoliciesEnforceable(config, repository);
 
-  const app = createServer({ config, repository, analytics, accounts, imports });
+  const app = createServer({ config, db, repository, analytics, accounts, imports });
 
   // Expired rows can never authenticate anything; sweeping them keeps the
   // table from growing without bound in a long-lived deployment.
