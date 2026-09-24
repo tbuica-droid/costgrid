@@ -290,7 +290,7 @@ h2 {
 }
 
 .section-note {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--muted);
   margin: 0 0 22px;
   max-width: 74ch;
@@ -320,7 +320,7 @@ h2 {
   line-height: 1.1;
 }
 
-.kpi-sub { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.kpi-sub { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
 
 /* Kept as a name so existing markup keeps working. Under this system a
  * figure is only coloured when its direction is the news, so this is ink. */
