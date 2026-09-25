@@ -1,0 +1,21 @@
+{
+  "name": "@costgrid/desktop",
+  "version": "1.0.0",
+  "description": "CostGrid for one computer: the gateway and its console in a window.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-builder install-app-deps",
+    "dist": "electron-builder --mac",
+    "dist:dir": "electron-builder --dir"
+  },
+  "dependencies": {
+    "@costgrid/gateway": "1.0.0"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "^26.0.0"
+  }
+}

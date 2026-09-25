@@ -109,13 +109,63 @@ function snippets(providers, key) {
   return out.join("");
 }
 
+/**
+ * The trial path: real spend today, before any software is changed.
+ *
+ * An admin key reads the provider's own usage report for the last 90 days.
+ * It is used for that one request and never stored. What comes back is the
+ * provider's daily totals, not calls we watched, so it is shown apart from
+ * metered spend and nothing can be enforced on it.
+ */
+function trialSection(importState, history, tenant) {
+  const forms = importState.providers
+    .map(
+      (p) => `<form class="wizard-import-form" data-provider="${escapeHtml(p.provider)}"
+                style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <span style="min-width:90px"><strong>${escapeHtml(p.provider)}</strong></span>
+        ${input("adminKey", "Admin key", "password")}
+        <select name="days" style="padding:8px">
+          <option value="30">30 days</option>
+          <option value="90" selected>90 days</option>
+          <option value="365">1 year</option>
+        </select>
+        ${button("Show my spend", 'type="submit"')}
+        <span class="kpi-sub" style="flex-basis:100%">${escapeHtml(p.keyHint)}</span>
+      </form>`,
+    )
+    .join("");
+
+  const seen = history.present
+    ? `<p style="margin:0 0 12px"><strong>Your last ${history.days} days: ${money(history.effectiveCostUsd)}</strong>${
+        history.requests ? ` across ${count(history.requests)} requests` : ""
+      }, as reported by the provider.
+       <a href="/?tenant=${encodeURIComponent(tenant)}">Open the dashboard</a> to see it by day and by model.</p>`
+    : "";
+
+  return `<div class="card sunk" style="margin-bottom:22px">
+    <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+      <span class="rail">Before you change anything</span>
+      <h3 style="margin:0;font-size:16px">See your real spend now</h3>
+      ${history.present ? '<span class="tag on">imported</span>' : ""}
+    </div>
+    <p class="kpi-sub" style="margin:10px 0 12px">Paste an <strong>admin</strong> key and CostGrid reads
+      your organisation's usage report straight from the provider: what you spent, by day and by
+      model, for the last 90 days. The key is used for this one request and never stored. Nothing in
+      your software changes.</p>
+    ${seen}
+    ${forms}
+  </div>`;
+}
+
 export async function render() {
   const t = state.tenantId;
   const overviewUrl = `/api/overview?days=1&tenant=${encodeURIComponent(t)}`;
-  const [credentials, keys, overview] = await Promise.all([
+  const [credentials, keys, overview, importState, history] = await Promise.all([
     call("GET", `/console/${t}/credentials`),
     call("GET", `/console/${t}/keys`),
     call("GET", overviewUrl),
+    call("GET", `/console/${t}/import`),
+    call("GET", `/api/history?days=90&tenant=${encodeURIComponent(t)}`),
   ]);
 
   const configured = credentials.providers.filter((p) => p.configured).map((p) => p.provider);
@@ -135,6 +185,7 @@ export async function render() {
     <p class="section-note">Five steps from nothing to a real number. Each one is checked against
       what is actually saved, so you can leave and come back.</p>
     ${flashBanner()}
+    ${trialSection(importState, history, t)}
 
     ${step(1, "Add your provider key", status(0), `
       <p class="kpi-sub" style="margin-bottom:12px">The key you already use with the provider. It is
@@ -223,6 +274,22 @@ export async function submit(form) {
     const created = await call("POST", `/console/${t}/keys`, { name });
     held.newKey = created.key;
     held.newKeyName = name;
+    return true;
+  }
+  if (form.classList.contains("wizard-import-form")) {
+    const { adminKey, days } = formValues(form);
+    if (!adminKey) return true;
+    const result = await call("POST", `/console/${t}/import/${form.dataset.provider}`, {
+      adminKey,
+      days: Number(days),
+    });
+    const unpriced = result.unpricedModels.length
+      ? ` ${result.unpricedModels.length} model(s) could not be priced: ${result.unpricedModels.join(", ")}.`
+      : "";
+    state.flash = {
+      kind: "ok",
+      text: `Imported ${result.rowsWritten} day/model rows from ${result.provider}. The admin key was not kept.${unpriced}`,
+    };
     return true;
   }
   return false;

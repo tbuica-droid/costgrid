@@ -1,0 +1,35 @@
+# How the desktop app is packaged. Run from this folder: npm run dist
+#
+# Signing and notarization (Phase 5) add three environment variables on the
+# Mac that builds it: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID,
+# plus `notarize: true` under mac below.
+appId: dev.costgrid.desktop
+productName: CostGrid
+copyright: Copyright © 2026 Tomas Buica
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - package.json
+# The SQLite binding is native code and has to sit outside the archive to load.
+asarUnpack:
+  - "**/*.node"
+npmRebuild: true
+mac:
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Utility
+publish: null

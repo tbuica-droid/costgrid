@@ -266,7 +266,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   }
 
   const app = Fastify({
-    logger: { level: config.logLevel },
+    logger: {
+      level: config.logLevel,
+      ...(config.logFile === undefined ? {} : { file: config.logFile }),
+    },
     // A large context window means a large request body; the default 1MB cap
     // would reject legitimate long-document calls.
     bodyLimit: 64 * 1024 * 1024,

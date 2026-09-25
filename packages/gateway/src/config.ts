@@ -88,6 +88,13 @@ export interface GatewayConfig {
   /** Minutes between anchors. A heartbeat, so silence is itself a signal. */
   readonly anchorIntervalMinutes: number;
   readonly logLevel: string;
+  /**
+   * Write the log to a file instead of standard output.
+   *
+   * The desktop app has no terminal to print to, so its log goes next to its
+   * database, where a person asking for help can find it.
+   */
+  readonly logFile: string | undefined;
 }
 
 function publicUrl(): string | undefined {
@@ -296,5 +303,6 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     extractTools: boolean("COSTGRID_EXTRACT_TOOLS", true),
     allowAnonymous: boolean("COSTGRID_ALLOW_ANONYMOUS", false),
     logLevel: process.env["COSTGRID_LOG_LEVEL"]?.trim() || "info",
+    logFile: optional("COSTGRID_LOG_FILE"),
   };
 }

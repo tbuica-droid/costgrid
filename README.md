@@ -95,6 +95,7 @@ packages/
   db/       SQLite schema, repositories, read-side analytics, statements.
   gateway/  The proxy: auth, enforcement, metering, dashboard, control plane.
   cli/      Operator surface: keys, policies, reports, statements, backups.
+  desktop/  The app: the gateway and its console in a window, for one computer.
 docs/       QUICKSTART (self-hosted), TRIAL (what a trial involves),
             HOSTING (as a service), ARCHITECTURE (decisions and their reasons).
 index.html  The product site. thesis.html and dashboard.html are the

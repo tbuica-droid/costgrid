@@ -8,6 +8,7 @@ AGENTS.md
 node_modules/
 dist/
 *.tsbuildinfo
+packages/desktop/release/
 
 # local secrets and data — never commit these.
 # The glob is deliberately greedy: a mistyped `cp .env.example .env<pasted-key>`
