@@ -7,8 +7,9 @@
   "main": "./dist/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --mac",
-    "dist:dir": "electron-builder --dir"
+    "dist": "electron-builder --mac --publish never",
+    "dist:dir": "electron-builder --dir",
+    "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
     "@costgrid/gateway": "1.0.0"

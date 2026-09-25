@@ -21,6 +21,7 @@
     "desktop:init": "node --import tsx packages/gateway/src/desktop-init.ts",
     "app": "npm run build --silent && npm --workspace packages/desktop start",
     "app:dist": "npm run build --silent && npm --workspace packages/desktop run dist",
+    "app:release": "npm run build --silent && npm --workspace packages/desktop run release",
     "verify-pricing": "npm run build --silent && node scripts/verify-pricing.mjs",
     "sync-design-tokens": "node scripts/sync-design-tokens.mjs",
     "check-design-tokens": "node scripts/sync-design-tokens.mjs --check",

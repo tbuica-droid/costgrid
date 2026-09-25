@@ -330,8 +330,8 @@
                 <span class="label">no card</span>
               </div>
               <p class="muted" style="margin: 8px 0 16px; font-size: 14px">
-                Sign in with your work email and you get the install steps, the full demo and a
-                free trial. No password: we email you a one-time link.
+                Sign in with your work email and you get the app, the full demo and a free
+                trial. No password: we email you a one-time link.
               </p>
               <div class="field" id="f-signin">
                 <label for="signinEmail">Work email</label>
@@ -581,37 +581,39 @@
       <div class="wrap grid g2">
         <div>
           <span class="label">Your setup</span>
-          <h2 class="head" data-auth="out">Sign in to get the install steps.</h2>
-          <h2 class="head" data-auth="in" hidden>Run it on your own machine.</h2>
+          <h2 class="head" data-auth="out">Sign in to download the app.</h2>
+          <h2 class="head" data-auth="in" hidden>Download the app.</h2>
           <p class="lede" data-auth="out">
-            The install steps, the full demo and the free trial are behind a sign-in. It takes one
-            email and no card. <a href="#start" style="color: var(--signal)">Sign in above →</a>
+            The app, the full demo and the free trial are behind a sign-in. It takes one email and
+            no card. <a href="#start" style="color: var(--signal)">Sign in above →</a>
           </p>
           <p class="lede" data-auth="in" hidden>
-            Clone it, add your own provider key, start the gateway. Your key never leaves this
-            machine. Tell me about your setup on the right and I'll help you wire the first team in.
+            CostGrid runs on your own Mac. Open it, paste your provider key, and it walks you
+            through the rest. Your key never leaves the machine. Tell me about your setup on the
+            right and I'll help you wire the first team in.
           </p>
           <div class="card" style="margin-top: 32px; padding: 20px" data-auth="in" hidden>
-            <h3 style="font-size: 18px">Local run</h3>
-            <ol class="muted" style="margin-top: 12px; display: grid; gap: 8px; font-size: 14px">
-              <li>1. Clone it and add your own provider key.</li>
-              <li>2. Start the gateway.</li>
-              <li>3. Point a client at 127.0.0.1:8787 and open the dashboard.</li>
-            </ol>
-            <div class="term" style="margin-top: 16px">
-              <div class="term-bar">
-                <span>local</span>
-                <button class="copy-btn" data-copy="git clone https://github.com/tbuica-droid/costgrid.git&#10;cd costgrid &amp;&amp; npm install&#10;cp .env.example .env&#10;npm run gateway:dev">⧉ Copy</button>
-              </div>
-              <pre><span class="p">$ </span>git clone https://github.com/tbuica-droid/costgrid.git
-<span class="p">$ </span>cd costgrid &amp;&amp; npm install
-<span class="p">$ </span>cp .env.example .env   <span style="color: rgba(250,248,244,0.45)"># add your Anthropic or OpenAI key</span>
-<span class="p">$ </span>npm run gateway:dev</pre>
+            <h3 style="font-size: 18px">CostGrid for Mac</h3>
+            <p class="muted" style="margin-top: 8px; font-size: 14px">
+              Most Macs made since 2020 have an Apple chip. Not sure? Click the Apple menu, then
+              About This Mac: it says Apple or Intel next to "Chip" or "Processor".
+            </p>
+            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px">
+              <a class="btn btn-ink" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg">Download for Apple chip</a>
+              <a class="btn btn-outline" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg">Download for Intel</a>
             </div>
-            <div class="envbox">
-              <div style="color: var(--ink-faint)"># then point your client at it</div>
-              <div>ANTHROPIC_BASE_URL=<span class="signal">http://localhost:8787</span></div>
+            <div class="note">
+              <strong style="color: var(--ink)">The first time you open it</strong><br /><br />
+              CostGrid isn't registered with Apple yet, so macOS will say it can't check the app
+              and stop it from opening. That's expected. To get past it once: open
+              <strong>System Settings → Privacy &amp; Security</strong>, scroll down to the message
+              about CostGrid, and click <strong>Open Anyway</strong>. After that it opens like any
+              other app.
             </div>
+            <p class="muted" style="margin-top: 14px; font-size: 13px">
+              Windows is next. Nothing else to install: the app holds everything, and your
+              provider key is encrypted with a key kept in your Mac's keychain.
+            </p>
             <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
               <a class="btn btn-outline" href="./demo/">Open the full demo</a>
               <button type="button" class="link-btn muted" style="font-size: 13px" id="signOut">Sign out</button>

@@ -1,11 +1,18 @@
-# How the desktop app is packaged. Run from this folder: npm run dist
+# How the desktop app is packaged. From the repository root:
 #
-# Signing and notarization (Phase 5) add three environment variables on the
-# Mac that builds it: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID,
-# plus `notarize: true` under mac below.
+#   npm run app:dist       build the Mac disk images into packages/desktop/release/
+#   npm run app:release    build them and publish a release to costgrid-releases (needs GH_TOKEN)
+#
+# Without an Apple Developer ID the app is ad-hoc signed (build/after-pack.cjs)
+# and macOS asks the person to confirm the first time they open it. Signing and
+# notarization with a Developer ID add three environment variables on the Mac
+# that builds it (APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID) plus
+# `notarize: true` under mac below.
 appId: dev.costgrid.desktop
 productName: CostGrid
 copyright: Copyright © 2026 Tomas Buica
+# A fixed file name, so the website can always link to the newest release.
+artifactName: "CostGrid-${arch}.${ext}"
 directories:
   output: release
   buildResources: build
@@ -18,6 +25,7 @@ files:
 asarUnpack:
   - "**/*.node"
 npmRebuild: false
+afterPack: build/after-pack.cjs
 mac:
   category: public.app-category.developer-tools
   hardenedRuntime: true
@@ -27,11 +35,13 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
-    - target: zip
-      arch: [arm64, x64]
 win:
   target: nsis
 linux:
   target: AppImage
   category: Utility
-publish: null
+publish:
+  provider: github
+  owner: tbuica-droid
+  repo: costgrid-releases
+  releaseType: release
