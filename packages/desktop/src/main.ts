@@ -152,6 +152,13 @@ function openOutside(url: string): void {
   if (url.startsWith("https://")) void shell.openExternal(url);
 }
 
+/** Show a page of this gateway in the front window, opening one if needed. */
+function go(path: string): void {
+  if (origin === "") return;
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? createWindow();
+  void win.loadURL(`${origin}${path}`);
+}
+
 function hardenSession(): void {
   // No page here needs the camera, location, notifications or anything else
   // a page can ask for.
@@ -172,6 +179,20 @@ function applicationMenu(): Menu {
     {
       label: "View",
       submenu: [
+        { label: "Console", accelerator: "CmdOrCtrl+1", click: () => go("/console") },
+        { label: "Dashboard", accelerator: "CmdOrCtrl+2", click: () => go("/") },
+        { type: "separator" },
+        {
+          label: "Back",
+          accelerator: "CmdOrCtrl+[",
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.navigationHistory.goBack(),
+        },
+        {
+          label: "Forward",
+          accelerator: "CmdOrCtrl+]",
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.navigationHistory.goForward(),
+        },
+        { type: "separator" },
         { role: "reload" },
         { type: "separator" },
         { role: "resetZoom" },

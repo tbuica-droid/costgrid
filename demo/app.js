@@ -972,3 +972,15 @@ document.getElementById("main").addEventListener("click", async (event) => {
 });
 
 render();
+
+// A way back to the console, where there is one. Self-hosted gateways have no
+// console, and the demo on the website has none either, so the link only
+// appears once the route answers.
+fetch("/console/setup").then((response) => {
+  if (!response.ok) return;
+  const link = document.createElement("a");
+  link.className = "console-link";
+  link.href = "/console";
+  link.textContent = "Console";
+  document.getElementById("range").insertAdjacentElement("afterend", link);
+}).catch(() => {});

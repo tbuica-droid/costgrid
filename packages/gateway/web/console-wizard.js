@@ -279,10 +279,24 @@ export async function submit(form) {
   if (form.classList.contains("wizard-import-form")) {
     const { adminKey, days } = formValues(form);
     if (!adminKey) return true;
-    const result = await call("POST", `/console/${t}/import/${form.dataset.provider}`, {
-      adminKey,
-      days: Number(days),
-    });
+    let result;
+    try {
+      result = await call("POST", `/console/${t}/import/${form.dataset.provider}`, {
+        adminKey,
+        days: Number(days),
+      });
+    } catch (error) {
+      // The provider accepted the key but it cannot read the usage report.
+      // Say what kind of key can, rather than repeating "missing permissions".
+      if (/\b403\b/.test(error.message)) {
+        throw new Error(
+          "The provider accepted that key, but it cannot read the usage report. It needs a key not " +
+            "tied to one workspace, and an individual account needs an organisation set up first. " +
+            "Or skip this and follow the steps below.",
+        );
+      }
+      throw error;
+    }
     const unpriced = result.unpricedModels.length
       ? ` ${result.unpricedModels.length} model(s) could not be priced: ${result.unpricedModels.join(", ")}.`
       : "";
