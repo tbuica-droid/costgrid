@@ -13,9 +13,11 @@ files:
   - dist/**
   - package.json
 # The SQLite binding is native code and has to sit outside the archive to load.
+# It is built on Node-API with a prebuilt binary for every platform, so nothing
+# is compiled at packaging time and no compiler is needed on the build machine.
 asarUnpack:
   - "**/*.node"
-npmRebuild: true
+npmRebuild: false
 mac:
   category: public.app-category.developer-tools
   hardenedRuntime: true

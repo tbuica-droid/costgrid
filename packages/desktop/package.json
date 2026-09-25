@@ -7,7 +7,6 @@
   "main": "./dist/main.js",
   "scripts": {
     "start": "electron .",
-    "rebuild": "electron-builder install-app-deps",
     "dist": "electron-builder --mac",
     "dist:dir": "electron-builder --dir"
   },

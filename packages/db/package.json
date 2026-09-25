@@ -8,6 +8,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "dependencies": {
     "@costgrid/core": "1.0.0",
-    "better-sqlite3": "^11.7.0"
+    "better-sqlite3": "^13.0.3"
   }
 }

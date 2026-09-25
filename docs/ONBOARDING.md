@@ -25,7 +25,7 @@ Everything else in the product is a refinement of those four.
 
 You need three things:
 
-1. A machine that can run Node 20 or newer, sitting near the service that calls
+1. A machine that can run Node 22 or newer, sitting near the service that calls
    the AI provider.
 2. Your provider API key. It goes into a file on that machine and never leaves
    it.

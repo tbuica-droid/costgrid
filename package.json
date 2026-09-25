@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc --build",
@@ -20,7 +20,6 @@
     "desktop": "COSTGRID_DESKTOP=true node --import tsx packages/gateway/src/main.ts",
     "desktop:init": "node --import tsx packages/gateway/src/desktop-init.ts",
     "app": "npm run build --silent && npm --workspace packages/desktop start",
-    "app:rebuild": "npm --workspace packages/desktop run rebuild",
     "app:dist": "npm run build --silent && npm --workspace packages/desktop run dist",
     "verify-pricing": "npm run build --silent && node scripts/verify-pricing.mjs",
     "sync-design-tokens": "node scripts/sync-design-tokens.mjs",
