@@ -21,6 +21,12 @@ const KEY_FILE = join(DATA_DIR, "master-key.enc");
 let gateway: RunningGateway | undefined;
 let origin = "";
 
+// Opened from the Finder or the Dock, the app has no terminal, and a write to
+// stdout or stderr can fail (Node sends its warnings there). Without a
+// listener that failure is an uncaught exception, which Electron shows as a
+// crash dialog. With one, the message is simply lost, which is fine.
+for (const stream of [process.stdout, process.stderr]) stream.on("error", () => {});
+
 // Everything the app writes lives with the gateway's database, so a person
 // looking for "where CostGrid keeps my data" finds one folder.
 app.setName("CostGrid");

@@ -1,7 +1,10 @@
 # How the desktop app is packaged. From the repository root:
 #
 #   npm run app:dist       build the Mac disk images into packages/desktop/release/
-#   npm run app:release    build them and publish a release to costgrid-releases (needs GH_TOKEN)
+#   npm run app:release    build them and upload them to a draft release in
+#                          costgrid-releases (needs GH_TOKEN). The draft is
+#                          published by hand on GitHub, which is when the
+#                          website's download links start serving it.
 #
 # Without an Apple Developer ID the app is ad-hoc signed (build/after-pack.cjs)
 # and macOS asks the person to confirm the first time they open it. Signing and
@@ -44,4 +47,6 @@ publish:
   provider: github
   owner: tbuica-droid
   repo: costgrid-releases
-  releaseType: release
+  # A draft needs no git tag, which GitHub refused to create for a published
+  # release from a token. Publishing the draft creates the tag.
+  releaseType: draft
