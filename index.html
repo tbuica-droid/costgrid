@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CostGrid — Self-hosted AI cost control proxy</title>
+    <title>CostGrid — Know and cap what your business spends on AI</title>
     <meta
       name="description"
-      content="CostGrid is a self-hosted proxy in front of every LLM call. It prices each request, splits spend by team, agent and tool, and enforces hard caps before the invoice arrives."
+      content="CostGrid is a Mac app that watches every AI call your software makes. It prices each one, shows which team, tool and model spent what, and stops the spending at the limit you set, before the invoice arrives."
     />
-    <meta property="og:title" content="CostGrid — Self-hosted AI cost control proxy" />
-    <meta property="og:description" content="CostGrid is a self-hosted proxy in front of every LLM call. It prices each request, splits spend by team, agent and tool, and enforces hard caps before the invoice arrives." />
+    <meta property="og:title" content="CostGrid — Know and cap what your business spends on AI" />
+    <meta property="og:description" content="CostGrid is a Mac app that watches every AI call your software makes. It prices each one, shows which team, tool and model spent what, and stops the spending at the limit you set, before the invoice arrives." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://costgrid.dev/" />
     <link rel="canonical" href="https://costgrid.dev/" />
@@ -25,10 +25,10 @@
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "CostGrid",
-      "description": "Self-hosted LLM cost-governance gateway that meters exact token usage and enforces budgets before a call is sent.",
+      "description": "A Mac app that prices every AI call your software makes, shows who spent what, and stops the spending at the limit you set.",
       "url": "https://costgrid.dev/",
       "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Self-hosted — any OS running Node.js 22+",
+      "operatingSystem": "macOS",
       "offers": [
         { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
         { "@type": "Offer", "name": "Team", "price": "99", "priceCurrency": "USD" },
@@ -161,23 +161,12 @@
       .stats > div { background: var(--card); padding: 16px; }
       .stats dd { font-family: var(--mono); font-size: 20px; margin-top: 4px; }
 
-      /* terminal */
-      .term { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--ink); color: var(--paper); }
-      .term-bar { display: flex; align-items: center; justify-content: space-between;
-        border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; }
-      .term-bar span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(250,248,244,0.6); }
-      .copy-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer;
-        font-family: var(--mono); font-size: 11px; color: rgba(250,248,244,0.8); border-radius: 4px; padding: 4px 8px; }
-      .copy-btn:hover { background: rgba(255,255,255,0.1); color: var(--paper); }
-      .term pre { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
-      .term pre .p { color: var(--signal); user-select: none; }
-      .envbox { margin-top: 16px; border: 1px dashed var(--rule); background: var(--paper-deep);
-        border-radius: 6px; padding: 12px 16px; font-family: var(--mono); font-size: 12px; line-height: 1.6; }
-
       /* how it works */
       .step { display: flex; flex-direction: column; padding: 20px; }
       .step h3 { font-size: 20px; margin-top: 8px; }
       .step p { flex: 1; margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
+      .step .who { margin-top: 16px; flex: 0; font-size: 12px; color: var(--ink-faint);
+        font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 
       /* dashboard */
       .dash { margin-top: 32px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--card);
@@ -275,7 +264,7 @@
         <a class="brand" href="#top"><span class="mark">&gt;_</span> costgrid.dev</a>
         <nav class="nav-links">
           <a href="#how-it-works">How it works</a>
-          <a href="#guarantees">Guarantees</a>
+          <a href="#guarantees">Proof</a>
           <a href="#pricing">Pricing</a>
           <a href="#demo">Demo</a>
         </nav>
@@ -287,7 +276,7 @@
       </div>
       <div id="mobileMenu">
         <a href="#how-it-works">How it works</a>
-        <a href="#guarantees">Guarantees</a>
+        <a href="#guarantees">Proof</a>
         <a href="#pricing">Pricing</a>
         <a href="#demo">Demo</a>
         <a href="#start" style="color: var(--signal); font-weight: 500" data-auth="out">Sign in</a>
@@ -300,25 +289,26 @@
       <div class="paperlines"></div>
       <div class="wrap hero-in">
         <div>
-          <span class="badge">◈ Self-hosted · your keys never leave</span>
+          <span class="badge">◈ Runs on your Mac · your keys never leave</span>
           <h1>
             AI is getting cheaper every month.
             <span class="signal">Your AI bill is going up anyway.</span>
           </h1>
           <p class="lede" style="font-size: 18px; margin-top: 24px">
-            CostGrid is a self-hosted proxy that sits in front of every LLM call. It prices each
-            request, splits spend by team, agent and model, and enforces hard caps
-            <strong style="color: var(--ink); font-weight: 600">before</strong> the invoice arrives —
-            not after.
+            CostGrid is a Mac app that sits between your software and the AI companies you pay.
+            It prices every request, shows which team, tool and model spent what, and stops the
+            spending at the limit you set,
+            <strong style="color: var(--ink); font-weight: 600">before</strong> the invoice arrives.
+            Not after.
           </p>
           <div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px">
             <a class="btn btn-lg btn-ink" href="#start">Start free trial →</a>
             <a class="btn btn-lg btn-outline" href="#demo">See the sample dashboard</a>
           </div>
           <dl class="stats">
-            <div><dt class="label">p50 overhead</dt><dd>~1.2ms</dd></div>
             <div><dt class="label">cut of your bill</dt><dd>0%</dd></div>
             <div><dt class="label">savings guarantee</dt><dd>60 days</dd></div>
+            <div><dt class="label">delay added per call</dt><dd>~1.2 ms</dd></div>
           </dl>
         </div>
 
@@ -340,7 +330,7 @@
               </div>
               <button type="submit" class="btn btn-lg btn-ink" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
               <p class="muted" style="text-align: center; font-size: 12px; margin-top: 12px">
-                Your prompts and API keys never come to us. The account is for this website only.
+                Your prompts and provider keys never come to us. The account is for this website only.
               </p>
             </form>
             <div id="signinSent" hidden style="padding: 12px 0">
@@ -372,46 +362,44 @@
     <!-- HOW IT WORKS -->
     <section class="section" id="how-it-works">
       <div class="wrap">
-        <span class="label">Integration</span>
-        <h2 class="head">Three small changes, none to your code.</h2>
+        <span class="label">How it works</span>
+        <h2 class="head">Three steps. You do two of them.</h2>
+        <p class="lede">
+          CostGrid doesn't replace anything. Your software keeps using the same AI providers, the
+          same accounts and the same keys. It just goes through CostGrid on the way, so every
+          call gets priced and checked against your limits first.
+        </p>
         <div class="grid g3" style="margin-top: 40px">
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">01</span>
-            <h3>Point the base URL</h3>
-            <p>Swap one environment variable, or pass it directly to the SDK client. Streaming and tool calls pass through untouched.</p>
-            <div class="term" style="margin-top: 16px">
-              <div class="term-bar">
-                <span>step 01</span>
-                <button class="copy-btn" data-copy="ANTHROPIC_BASE_URL=http://127.0.0.1:8787">⧉ Copy</button>
-              </div>
-              <pre><span class="p">$ </span>ANTHROPIC_BASE_URL=http://127.0.0.1:8787</pre>
-            </div>
+            <h3>Open the app and paste your key</h3>
+            <p>
+              Sign in here, download CostGrid, open it, and paste the key you already use with
+              your AI provider. The app checks the key works and shows what you've spent over the
+              last 90 days, straight from the provider's own records.
+            </p>
+            <span class="who">You</span>
           </div>
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">02</span>
-            <h3>Tag the traffic</h3>
-            <p>Two optional headers assign spend to an agent and a department. Calls with neither are still measured, just marked unassigned.</p>
-            <div class="term" style="margin-top: 16px">
-              <div class="term-bar">
-                <span>step 02</span>
-                <button class="copy-btn" data-copy="-H 'x-costgrid-agent: chat-bot'&#10;-H 'x-costgrid-department: Support'">⧉ Copy</button>
-              </div>
-              <pre><span class="p">$ </span>-H 'x-costgrid-agent: chat-bot'
-<span class="p">$ </span>-H 'x-costgrid-department: Support'</pre>
-            </div>
+            <h3>Point your software at CostGrid</h3>
+            <p>
+              One setting in whatever software makes your AI calls: the address it sends them to.
+              The app shows the exact line, ready to hand to the person who looks after that
+              software. From then on every call is priced and logged, and each one can carry a
+              team and a tool name so you see who spent it.
+            </p>
+            <span class="who">Whoever runs your software · one setting</span>
           </div>
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">03</span>
-            <h3>Set the rules</h3>
-            <p>Budgets, model fallbacks and deny lists — one CLI command each, and every change lands in the audit log.</p>
-            <div class="term" style="margin-top: 16px">
-              <div class="term-bar">
-                <span>step 03</span>
-                <button class="copy-btn" data-copy="costgrid policy budget dept:Engineering 500.00 --fallback claude-haiku-4-5">⧉ Copy</button>
-              </div>
-              <pre><span class="p">$ </span>costgrid policy budget dept:Engineering 500.00 \
-  --fallback claude-haiku-4-5</pre>
-            </div>
+            <h3>Set the limits</h3>
+            <p>
+              Give each team or tool a monthly cap, and choose what happens at the limit: stop, or
+              switch to a cheaper model so your customers still get an answer. Every change is
+              written to a log that can't be quietly edited.
+            </p>
+            <span class="who">You · once, then whenever you like</span>
           </div>
         </div>
       </div>
@@ -421,22 +409,23 @@
     <section class="section deep" id="demo">
       <div class="wrap">
         <span class="label">Sample dashboard</span>
-        <h2 class="head" style="max-width: 680px">Every call priced, attributed and capped.</h2>
+        <h2 class="head" style="max-width: 680px">Every call priced, put on someone's tab, and capped.</h2>
         <p class="lede">
-          Real seeded traffic from the actual dashboard bundle — 526 calls from six different AI
-          tools, computed by the same code that would price your own. <a href="./demo/" style="color: var(--signal)">Open the full version →</a>
+          Sample data: 526 calls from six AI tools, priced by the same code that will price yours.
+          This is what you see once your software is going through CostGrid.
+          <a href="./demo/" style="color: var(--signal)">Open the full version →</a>
         </p>
 
         <div class="dash">
           <div class="dash-bar">
-            <div><span class="dot"></span>gateway online · fail-closed at cap</div>
+            <div><span class="dot"></span>CostGrid on · stops at the cap</div>
             <span>last 30 days</span>
           </div>
           <dl class="metrics">
-            <div><dt class="label">Spend (30d)</dt><dd>$22.40</dd><p class="delta">526 calls</p></div>
-            <div><dt class="label">Cache hit ratio</dt><dd>27.8%</dd><p class="delta">tokens reused, billed at a fraction</p></div>
-            <div><dt class="label">Routing savings</dt><dd>$1.62</dd><p class="delta">18 calls sent to a cheaper model</p></div>
-            <div><dt class="label">Blocked calls</dt><dd>1</dd><p class="delta">refused before it was sent</p></div>
+            <div><dt class="label">Spend (30 days)</dt><dd>$22.40</dd><p class="delta">526 calls</p></div>
+            <div><dt class="label">Reused work</dt><dd>27.8%</dd><p class="delta">text the provider had already read, billed at a fraction</p></div>
+            <div><dt class="label">Saved by switching</dt><dd>$1.62</dd><p class="delta">18 calls sent to a cheaper model</p></div>
+            <div><dt class="label">Stopped calls</dt><dd>1</dd><p class="delta">refused before it was sent</p></div>
           </dl>
           <div class="tabs">
             <div class="tablist" role="tablist">
@@ -453,46 +442,48 @@
     <!-- GUARANTEES -->
     <section class="section deep" id="guarantees" style="background: var(--paper)">
       <div class="wrap">
-        <span class="label">Technical guarantees</span>
+        <span class="label">Proof</span>
         <h2 class="head">Measured, not marketed.</h2>
+        <p class="lede">
+          Every number on this page comes from a measurement we can repeat. Where we don't have
+          one, the space stays empty.
+        </p>
         <div class="grid g2" style="margin-top: 40px">
           <div class="card" style="padding: 20px">
-            <h3 style="font-size: 20px">Agent → tool reach, with deny policy</h3>
+            <h3 style="font-size: 20px">Each AI tool does only what you allowed</h3>
             <p class="muted" style="margin-top: 8px; font-size: 14px">
-              CostGrid records which agent called which tool, and refuses calls outside the allow
-              list at the proxy — before a token is spent.
+              CostGrid records which tool each AI assistant reached for, and refuses anything
+              outside the list you approved, before it costs you a token. Below, three assistants
+              and what each may and may not touch.
             </p>
             <div id="topology" style="margin-top: 20px; display: grid; gap: 16px"></div>
           </div>
           <div class="card" style="padding: 20px">
-            <h3 style="font-size: 20px">Latency overhead, checked against a null proxy</h3>
+            <h3 style="font-size: 20px">Nobody will notice it's there</h3>
             <p class="muted" style="margin-top: 8px; font-size: 14px">
-              A provider call takes 500ms to several seconds. Comparing direct against through-CostGrid
-              would measure our work and the cost of adding any process to the path at once, so the
-              benchmark also runs a proxy that forwards bytes and does nothing else — that's the floor,
-              and these numbers are what CostGrid costs on top of it.
+              An AI call takes half a second to several seconds. CostGrid adds about a thousandth
+              of a second on top. To make sure that number is CostGrid's own work, the test also
+              runs a do-nothing pass-through and subtracts it. These are the results.
             </p>
             <div style="margin-top: 20px; overflow-x: auto">
               <table>
-                <thead><tr><th>Measured on a local stub</th><th class="num">p50</th><th class="num">p99</th></tr></thead>
+                <thead><tr><th>Delay added by CostGrid</th><th class="num">Typical</th><th class="num">Worst 1 in 100</th></tr></thead>
                 <tbody>
-                  <tr><td>Round trip, 1 request in flight</td><td class="num">1.2 ms</td><td class="num">2 ms</td></tr>
-                  <tr><td>Time to first byte, streaming</td><td class="num">0.8 ms</td><td class="num">1.6 ms</td></tr>
-                  <tr><td>Round trip, 10 in flight</td><td class="num">1.3 ms</td><td class="num">4 ms</td></tr>
-                  <tr><td>50 in flight</td><td class="num" colspan="2" style="text-align: left">Not yet published — see below</td></tr>
+                  <tr><td>One call at a time</td><td class="num">1.2 ms</td><td class="num">2 ms</td></tr>
+                  <tr><td>Until the first word of a streamed answer</td><td class="num">0.8 ms</td><td class="num">1.6 ms</td></tr>
+                  <tr><td>Ten calls at once</td><td class="num">1.3 ms</td><td class="num">4 ms</td></tr>
+                  <tr><td>Fifty calls at once</td><td class="num" colspan="2" style="text-align: left">Not published yet, see below</td></tr>
                 </tbody>
               </table>
             </div>
             <p class="note">
-              <strong>High concurrency isn't published</strong> because on one machine the load
-              generator, the proxy and the provider compete for the same cores, and the noise is
-              larger than the thing being measured. We'd rather leave it empty than fill it with a
-              number your own load test would contradict. Run it yourself — one command, no account:
-              <span class="mono">git clone … && npm install && npm run bench</span>.
+              <strong>Why the last row is empty.</strong> On one computer, the test itself competes
+              with the thing being tested, and the noise is bigger than the result. We'd rather
+              leave it empty than print a number your own test would contradict.
             </p>
             <p class="note" style="margin-top: 8px">
-              Fail-closed by default: when a cap is hit, the request is rejected with HTTP 403 before
-              it reaches the provider, and the attempt is recorded either way.
+              When a cap is hit, the call is refused before it reaches the provider, and the attempt
+              is recorded either way. That's the default, not an option you have to find.
             </p>
           </div>
         </div>
@@ -526,14 +517,14 @@
               <h3 style="font-size: 20px">Free</h3>
             </div>
             <div style="margin-top: 16px; display: flex; gap: 8px; align-items: baseline">
-              <span class="price">$0</span><span class="muted" style="font-size: 12px">on your own machine</span>
+              <span class="price">$0</span><span class="muted" style="font-size: 12px">on your own Mac</span>
             </div>
-            <p class="muted" style="margin-top: 12px; font-size: 14px">One team, evaluating. Full gateway, local dashboard.</p>
+            <p class="muted" style="margin-top: 12px; font-size: 14px">One team, trying it out. The full app and dashboard.</p>
             <ul>
-              <li><span class="tick">✓</span><span>Unlimited requests through the proxy</span></li>
-              <li><span class="tick">✓</span><span>Per-call cost tracking</span></li>
+              <li><span class="tick">✓</span><span>Unlimited calls</span></li>
+              <li><span class="tick">✓</span><span>Every call priced</span></li>
               <li><span class="tick">✓</span><span>2 seats</span></li>
-              <li><span class="tick">✓</span><span>Community support</span></li>
+              <li><span class="tick">✓</span><span>Support by email</span></li>
             </ul>
             <a class="btn btn-outline" style="margin-top: 24px" href="#start">Get started</a>
           </div>
@@ -549,8 +540,8 @@
             <p class="muted" style="margin-top: 12px; font-size: 14px">Split spend across teams and enforce real caps.</p>
             <ul>
               <li><span class="tick">✓</span><span>Unlimited teams, agents and calls</span></li>
-              <li><span class="tick">✓</span><span>Hard caps with fail-closed enforcement</span></li>
-              <li><span class="tick">✓</span><span>Model routing + cache savings rules</span></li>
+              <li><span class="tick">✓</span><span>Caps that actually stop the spending</span></li>
+              <li><span class="tick">✓</span><span>Cheaper-model switching and reuse savings</span></li>
               <li><span class="tick">✓</span><span>Unlimited seats</span></li>
             </ul>
             <a class="btn btn-signal" style="margin-top: 24px" href="#start">Start free trial</a>
@@ -566,9 +557,9 @@
             <p class="muted" style="margin-top: 12px; font-size: 14px">Multiple teams, split billing, across an org.</p>
             <ul>
               <li><span class="tick">✓</span><span>Everything in Team</span></li>
-              <li><span class="tick">✓</span><span>SSO (OIDC) + tamper-evident audit log</span></li>
-              <li><span class="tick">✓</span><span>Externally-anchored audit trail</span></li>
-              <li><span class="tick">✓</span><span>GDPR retention &amp; erasure controls</span></li>
+              <li><span class="tick">✓</span><span>Single sign-on and a log that can't be quietly edited</span></li>
+              <li><span class="tick">✓</span><span>Log entries anchored outside your systems, as proof</span></li>
+              <li><span class="tick">✓</span><span>Keep-for and erase controls (GDPR)</span></li>
             </ul>
             <a class="btn btn-outline" style="margin-top: 24px" href="#start">Start free trial</a>
           </div>
@@ -590,7 +581,7 @@
           <p class="lede" data-auth="in" hidden>
             CostGrid runs on your own Mac. Open it, paste your provider key, and it walks you
             through the rest. Your key never leaves the machine. Tell me about your setup on the
-            right and I'll help you wire the first team in.
+            right and I'll help you get your first team going.
           </p>
           <div class="card" style="margin-top: 32px; padding: 20px" data-auth="in" hidden>
             <h3 style="font-size: 18px">CostGrid for Mac</h3>
@@ -670,7 +661,7 @@
     <section class="section">
       <div class="wrap" style="max-width: 760px">
         <span class="label">FAQ</span>
-        <h2 class="head">The questions engineers actually ask.</h2>
+        <h2 class="head">Questions people ask before they buy.</h2>
         <div id="faq" style="margin-top: 32px"></div>
       </div>
     </section>
@@ -695,7 +686,7 @@
             <span class="label">Research dashboard</span>
             <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">The original model, illustrative figures →</p>
           </a>
-          <a class="card source-card" href="https://github.com/tbuica-droid/costgrid/raw/main/CostGrid_Token_Cost_Model.xlsx" style="padding: 20px; text-decoration: none; display: block">
+          <a class="card source-card" href="./CostGrid_Token_Cost_Model.xlsx" style="padding: 20px; text-decoration: none; display: block">
             <span class="label">The workbook</span>
             <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">2023–2030 forecast model · XLSX →</p>
           </a>
@@ -706,7 +697,6 @@
           <span>EY · The Total Cost of Agents</span>
           <span>Stanford HAI AI Index 2026</span>
           <span>Citadel Securities</span>
-          <a href="https://github.com/tbuica-droid/costgrid#references" style="color: var(--signal)">12 papers →</a>
         </p>
       </div>
     </section>
@@ -723,7 +713,7 @@
           </div>
         </div>
         <div class="foot-bot">
-          <span>costgrid.dev — built by Tomas Buica · MIT licensed</span>
+          <span>costgrid.dev — built by Tomas Buica</span>
           <span>Flat rate · 0% of spend · 60-day guarantee</span>
         </div>
       </div>
@@ -741,25 +731,6 @@
       });
       menu.addEventListener("click", function (e) {
         if (e.target.tagName === "A") { menu.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }
-      });
-
-      // copy buttons (quickstart snippets)
-      document.querySelectorAll(".copy-btn[data-copy]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var text = btn.getAttribute("data-copy").replace(/&#10;/g, "\n");
-          var done = function () {
-            btn.textContent = "✓ Copied";
-            setTimeout(function () { btn.textContent = "⧉ Copy"; }, 1800);
-          };
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(done, function () {});
-          } else {
-            var ta = document.createElement("textarea");
-            ta.value = text; document.body.appendChild(ta); ta.select();
-            try { document.execCommand("copy"); done(); } catch (e) {}
-            document.body.removeChild(ta);
-          }
-        });
       });
 
       // dashboard views — real numbers from the demo snapshot (packages: spend-by-department,
@@ -951,12 +922,14 @@
 
       // faq
       var faqs = [
-        ["Do my prompts or API keys ever reach your servers?", "No. CostGrid runs inside your own infrastructure, and your calls go straight from it to the provider. Prompts, completions and provider keys stay on your machines. The only thing we hold is the email you sign in to this website with, and the answers you give us about your setup."],
-        ["What happens when a team hits its cap?", "Default is fail-closed: the request is rejected with HTTP 403 before it reaches the provider, and the attempt is recorded either way. A limit can also switch to a cheaper model instead of a hard stop, so your customers still get an answer."],
-        ["How much latency does the proxy add?", "About 1.2ms p50 and 2ms p99 at low concurrency, measured against a null proxy so the number is CostGrid's own work, not the cost of adding any process to the path. Run the benchmark yourself — the command is in the Guarantees section above."],
-        ["How accurate is the cost number?", "Costs come from the provider's own reported token usage, priced against a table for 53 models that's checked against the providers' published rates by a script that fails the build if anything drifts."],
-        ["What doesn't CostGrid do?", "It watches what your software spends on AI, not what your staff spend on chat subscriptions — if your bill is people typing into a browser, there's nothing here to measure. It runs on a single server today: right for one team, not yet right if losing that server would be a crisis."],
-        ["Which providers and SDKs work?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex through their official SDKs — streaming, tool calls and structured outputs all pass through unchanged. Bedrock and Vertex work but haven't yet been run against a live production account, so there's a one-minute check that confirms yours is fine."]
+        ["Do I need to be technical to use this?", "No. Sign in, download the app, open it and paste the key you already use with your AI provider. The app checks the key and shows your spend so far. One setting in your software then has to point at CostGrid; the app shows the exact line, and whoever looks after that software can make the change."],
+        ["Do my prompts or keys ever reach your servers?", "No. CostGrid runs on your own Mac, and your calls go straight from there to the AI provider. Prompts, answers and provider keys stay with you. The only thing we hold is the email you sign in to this website with, and the answers you give us about your setup."],
+        ["What happens when a team hits its cap?", "The call is refused before it reaches the provider, and the attempt is recorded either way. That's the default. A limit can instead switch to a cheaper model, so your customers still get an answer while the spending stops growing."],
+        ["Will it slow anything down?", "By about a thousandth of a second per call. An AI call takes half a second or more, so nobody notices. The measurements are in the Proof section above, including the one we don't publish yet and why."],
+        ["How accurate is the cost number?", "Costs come from the provider's own record of what each call used, priced with a table of 53 models. That table is checked against the providers' published prices automatically, and a mismatch stops a release until it's fixed."],
+        ["What doesn't CostGrid do?", "It watches what your software spends on AI, not what your staff spend on chat subscriptions. If your bill is people typing into a browser, there's nothing here to measure. It also runs on one computer today: right for one team, not yet right if that computer going down would be a crisis."],
+        ["Which AI providers does it work with?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex, with nothing changed in how your software talks to them. Bedrock and Vertex haven't yet been run against a live production account, so the app includes a one-minute check that confirms yours works before you rely on it."],
+        ["Is there a Windows version?", "Mac today. Windows is next."]
       ];
       document.getElementById("faq").innerHTML = faqs
         .map(function (f, i) {
