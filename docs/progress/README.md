@@ -1,4 +1,4 @@
-# CostGrid: where we are, and what changed after Luke's feedback
+# CostGrid: where we are, and what changed after the first outside feedback
 
 Updated 2 October 2026.
 
@@ -12,16 +12,16 @@ Updated 2 October 2026.
 | 17 to 21 September | Agent governance. Limits per agent run: spend, steps, and how many times agents can hand work to other agents. A map of which agent uses which tool. Tool rules an agent can't get around by delegating. CostGrid suggesting its own rules, and an autopilot with hard limits on what it may change. AWS Bedrock and Google Vertex. Negotiated rates. A report of when agents start behaving differently, including calls to tools they were never given. Latency measured at about 1.2 ms. An audit log anchored outside the machine it runs on. |
 | 24 to 26 September | Accounts and the app. Website sign-in by email link, with the demo and downloads behind it. App screens for everything that used to need the command line: setup wizard, suggestions, behaviour changes, backup, audit anchors and account erase. The Mac app itself, with the master key in the Mac's keychain. The 90-day spend import on the setup screen. A fix so the app needs no compiler. A release pipeline to the public `costgrid-releases` repository, with the code repository made private. Version 1.0.1 published, downloaded from the website and confirmed working on your Mac. |
 | 27 September | Plain-language website. Self-hosting, terminal commands and jargon removed. |
-| 2 October | Luke's feedback, below. |
+| 2 October | First outside feedback on the website, from a professional contact, below. |
 
-## What Luke said
+## What the feedback said
 
-1. Without last summer's context, the page doesn't make clear what CostGrid does or what makes it different. He pointed at the "Point your software at CostGrid" and "Set the limits" steps.
+1. Without last summer's context, the page doesn't make clear what CostGrid does or what makes it different. It pointed at the "Point your software at CostGrid" and "Set the limits" steps.
 2. The page needs a visual of what the tool does and why it's safe for a business.
 3. API keys leak, and a non-technical buyer will hesitate when asked to paste one in.
 4. How does CostGrid stop spending? Would it break other tools, like HubSpot, that also use AI?
 
-He also suggested a copywriter or a copywriting tool, and an animated graphic.
+It also suggested a copywriter or a copywriting tool, and an animated graphic.
 
 ## What changed, point by point
 
