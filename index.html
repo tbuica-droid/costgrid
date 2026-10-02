@@ -168,6 +168,84 @@
       .step .who { margin-top: 16px; flex: 0; font-size: 12px; color: var(--ink-faint);
         font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 
+      /* what it is: one call through CostGrid (animated by flow.js) */
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+      .flow { position: relative; margin-top: 36px; background: var(--card); border: 1px solid var(--rule);
+        border-radius: var(--radius); box-shadow: var(--shadow-paper); padding: 40px 20px 20px; }
+      .flow-tag { position: absolute; top: 14px; left: 20px; }
+      .flow-row { display: grid; grid-template-columns: 1fr; }
+      @media (min-width: 900px) {
+        .flow { padding: 44px 28px 24px; }
+        .flow-row { grid-template-columns: 1fr 88px 1.3fr 88px 1fr; align-items: center; }
+      }
+      .node { border: 1px solid var(--rule); border-radius: 8px; padding: 16px; background: var(--paper);
+        transition: box-shadow 0.3s, opacity 0.3s; }
+      .node strong { display: block; font-family: var(--serif); font-size: 19px; font-weight: 600; margin-top: 6px; }
+      .node .sub { display: block; font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+      .node.lit { box-shadow: 0 0 0 3px rgba(166, 58, 34, 0.28); }
+      .node.dim { opacity: 0.4; }
+      .node-cg { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+      .node-cg .label { color: rgba(250, 248, 244, 0.6); }
+      .checks { margin-top: 12px; display: grid; gap: 6px; font-family: var(--mono); font-size: 12.5px; }
+      .checks li { display: flex; justify-content: space-between; gap: 12px; opacity: 0.3; transition: opacity 0.3s; }
+      .checks li.on { opacity: 1; }
+      .checks li b { font-weight: 500; }
+      .checks li.ok b { color: #9dd3ab; }
+      .checks li.bad b { color: #f0a58f; }
+      .verdict { display: block; margin-top: 10px; min-height: 21px; font-size: 14px; font-weight: 500; }
+      .verdict.ok { color: #9dd3ab; }
+      .verdict.bad { color: #f0a58f; }
+      .keychip { margin-top: 12px; display: inline-flex; gap: 6px; align-items: center; font-size: 12px;
+        border: 1px solid rgba(250, 248, 244, 0.25); border-radius: 999px; padding: 4px 10px;
+        color: rgba(250, 248, 244, 0.85); transition: border-color 0.3s, color 0.3s; }
+      .keychip.lit { border-color: #9dd3ab; color: #9dd3ab; }
+      .keychip svg { width: 14px; height: 14px; }
+      .wire { position: relative; height: 48px; }
+      .wire::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px dashed var(--rule); }
+      .pkt { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--ink);
+        left: calc(50% - 6px); top: calc(var(--t, 0) * (100% - 14px)); opacity: 0;
+        transition: top 0.9s ease-in-out, left 0.9s ease-in-out, opacity 0.2s; }
+      @media (min-width: 900px) {
+        .wire { height: 2px; }
+        .wire::before { left: 0; right: 0; top: 0; bottom: auto; border-left: none; border-top: 2px dashed var(--rule); }
+        .pkt { top: -6px; left: calc(var(--t, 0) * (100% - 14px)); }
+      }
+      .pkt.show { opacity: 1; }
+      .pkt.jump { transition: none; }
+      .pkt.ans { background: var(--positive); }
+      .pkt.stop { background: var(--signal); }
+      .flow-aside { display: grid; gap: 12px; margin-top: 16px; }
+      @media (min-width: 900px) { .flow-aside { grid-template-columns: 1fr 1fr; } }
+      .aside-item { display: flex; gap: 12px; align-items: flex-start; border: 1px dashed var(--rule);
+        border-radius: 6px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+      .aside-item .mk { flex-shrink: 0; font-family: var(--mono); font-weight: 500; }
+      .flow-foot { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between;
+        margin-top: 20px; padding: 14px 16px; border-radius: 6px; background: var(--paper-deep); }
+      .flow-caption { flex: 1 1 100%; font-size: 15px; color: var(--ink); min-height: 92px; }
+      @media (min-width: 700px) { .flow-caption { flex-basis: 0; min-height: 48px; } }
+      .flow-ctl { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+      .flow-ctl .btn { padding: 7px 14px; }
+      @media (prefers-reduced-motion: reduce) {
+        .pkt, .node, .checks li, .keychip { transition: none; }
+      }
+
+      /* why it's different, and who it's for */
+      .diff { padding: 20px; }
+      .diff h3 { font-size: 20px; margin-top: 8px; }
+      .diff p { margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
+      .fit { padding: 20px; }
+      .fit h3 { font-size: 18px; }
+      .fit ul { margin-top: 12px; display: grid; gap: 10px; font-size: 14px; color: var(--ink-soft); }
+      .fit li { display: flex; gap: 10px; }
+      .fit .no { color: var(--signal); flex-shrink: 0; }
+
+      /* is my key safe */
+      .safe { padding: 20px; }
+      .safe h3 { font-size: 18px; display: flex; gap: 10px; align-items: center; }
+      .safe h3 svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--signal); }
+      .safe p { margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
+
       /* dashboard */
       .dash { margin-top: 32px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--card);
         overflow: hidden; box-shadow: var(--shadow-paper); }
@@ -263,8 +341,9 @@
       <div class="wrap nav-in">
         <a class="brand" href="#top"><span class="mark">&gt;_</span> costgrid.dev</a>
         <nav class="nav-links">
+          <a href="#what">What it is</a>
           <a href="#how-it-works">How it works</a>
-          <a href="#guarantees">Proof</a>
+          <a href="#security">Is my key safe?</a>
           <a href="#pricing">Pricing</a>
           <a href="#demo">Demo</a>
         </nav>
@@ -275,8 +354,9 @@
         <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">☰</button>
       </div>
       <div id="mobileMenu">
+        <a href="#what">What it is</a>
         <a href="#how-it-works">How it works</a>
-        <a href="#guarantees">Proof</a>
+        <a href="#security">Is my key safe?</a>
         <a href="#pricing">Pricing</a>
         <a href="#demo">Demo</a>
         <a href="#start" style="color: var(--signal); font-weight: 500" data-auth="out">Sign in</a>
@@ -289,21 +369,24 @@
       <div class="paperlines"></div>
       <div class="wrap hero-in">
         <div>
-          <span class="badge">◈ Runs on your Mac · your keys never leave</span>
+          <span class="badge">◈ For businesses building with AI</span>
           <h1>
             AI is getting cheaper every month.
             <span class="signal">Your AI bill is going up anyway.</span>
           </h1>
           <p class="lede" style="font-size: 18px; margin-top: 24px">
-            CostGrid is a Mac app that sits between your software and the AI companies you pay.
-            It prices every request, shows which team, tool and model spent what, and stops the
-            spending at the limit you set,
-            <strong style="color: var(--ink); font-weight: 600">before</strong> the invoice arrives.
-            Not after.
+            CostGrid shows what every AI request your software makes costs, and which team or
+            tool made it. Then it stops the spending at the limit you set,
+            <strong style="color: var(--ink); font-weight: 600">before</strong> the request is
+            sent. Not after the invoice.
+          </p>
+          <p class="lede" style="font-size: 16px">
+            It's a Mac app that runs on your own machine, so your provider keys and data never
+            reach us. One flat price, never a share of your AI bill.
           </p>
           <div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px">
             <a class="btn btn-lg btn-ink" href="#start">Start free trial →</a>
-            <a class="btn btn-lg btn-outline" href="#demo">See the sample dashboard</a>
+            <a class="btn btn-lg btn-outline" href="#what">See how it works</a>
           </div>
           <dl class="stats">
             <div><dt class="label">cut of your bill</dt><dd>0%</dd></div>
@@ -359,48 +442,237 @@
       </div>
     </section>
 
+    <!-- WHAT IT IS -->
+    <section class="section" id="what">
+      <div class="wrap">
+        <span class="label">What it is</span>
+        <h2 class="head">A meter and a shut-off valve for your AI spend.</h2>
+        <p class="lede">
+          Every time your software asks an AI provider like Anthropic or OpenAI for something, you
+          pay for that one request. CostGrid sits in between, on your own machine. It prices each
+          request, records which team and tool made it, and stops the ones that would break your
+          limits before they are sent.
+        </p>
+
+        <div class="flow" id="flow">
+          <span class="label flow-tag">Example · two requests, start to finish</span>
+          <div aria-hidden="true">
+            <div class="flow-row">
+              <div class="node" id="nodeApp">
+                <span class="label">Your software</span>
+                <strong>Support chatbot</strong>
+                <span class="sub">Built on Claude, tagged as the Support team.</span>
+              </div>
+              <div class="wire"><span class="pkt" id="pkt1"></span></div>
+              <div class="node node-cg" id="nodeCg">
+                <span class="label">CostGrid · on your machine</span>
+                <strong>Price it. Tag it. Check it.</strong>
+                <ul class="checks">
+                  <li id="chkPrice"><span>Cost of this request</span><b>$0.012</b></li>
+                  <li id="chkTeam"><span>Charged to</span><b>Support</b></li>
+                  <li id="chkCap"><span>Support, this month</span><b id="capVal">$312 of $500</b></li>
+                </ul>
+                <span class="verdict" id="flowVerdict"></span>
+                <span class="keychip" id="keyChip">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="8" r="3"/><path d="M8 8h6M12 8v2.5M14 8v2"/></svg>
+                  Your Anthropic key, encrypted here
+                </span>
+              </div>
+              <div class="wire"><span class="pkt" id="pkt2"></span></div>
+              <div class="node" id="nodeAi">
+                <span class="label">AI provider</span>
+                <strong>Anthropic</strong>
+                <span class="sub">Your account, billed as usual.</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-foot">
+            <p class="flow-caption" id="flowCaption" aria-hidden="true"></p>
+            <div class="flow-ctl">
+              <span class="label" id="flowStep" aria-hidden="true"></span>
+              <button type="button" class="btn btn-outline" id="flowToggle">Play</button>
+            </div>
+          </div>
+          <div class="flow-aside">
+            <div class="aside-item">
+              <span class="mk signal" aria-hidden="true">✕</span>
+              <span><strong style="color: var(--ink)">Nothing goes to us.</strong> Not your key,
+                not the question, not the answer. There is no CostGrid server in the path.</span>
+            </div>
+            <div class="aside-item">
+              <span class="mk" aria-hidden="true">○</span>
+              <span><strong style="color: var(--ink)">Your other tools are untouched.</strong>
+                AI built into tools like HubSpot runs on that company's own account. CostGrid
+                never sees it and never gets in its way.</span>
+            </div>
+          </div>
+          <ol class="sr-only" id="flowSteps">
+            <li>Your support chatbot sends a question to Claude. It goes to CostGrid first.</li>
+            <li>CostGrid prices the request, notes which team it's for, and checks that team's monthly limit.</li>
+            <li>It's under the limit, so CostGrid sends it on to Anthropic with your key, straight from your machine.</li>
+            <li>The answer comes back the same way. CostGrid's checks add about a thousandth of a second, and the request is now on Support's tab in your dashboard.</li>
+            <li>Later that month, Support has used its whole $500 budget, and the chatbot asks again.</li>
+            <li>CostGrid catches it before it's sent. Nothing reaches Anthropic, so nothing is billed.</li>
+            <li>The chatbot gets a clear "over budget" reply, and every other team carries on as normal. You can also have CostGrid switch to a cheaper model instead, so customers still get an answer.</li>
+          </ol>
+        </div>
+
+        <div class="grid g3" style="margin-top: 32px">
+          <div class="card diff">
+            <span class="mono signal" style="font-size: 12px">Before, not after</span>
+            <h3>It stops spend before it happens</h3>
+            <p>
+              A bill or a usage report tells you what you spent last month. CostGrid sits in the
+              path of each request, so it can stop one, or switch it to a cheaper model, before
+              the money is spent.
+            </p>
+          </div>
+          <div class="card diff">
+            <span class="mono signal" style="font-size: 12px">Your machine, not ours</span>
+            <h3>Your keys never leave your machine</h3>
+            <p>
+              CostGrid runs on your own computer. Requests, answers and provider keys go straight
+              from there to the AI provider. We never see them, so there is no copy on our side to
+              leak.
+            </p>
+          </div>
+          <div class="card diff">
+            <span class="mono signal" style="font-size: 12px">Flat price</span>
+            <h3>Never a cut of your bill</h3>
+            <p>
+              A cost tool that charges a share of your AI spend earns more when you spend more.
+              CostGrid costs the same whether you spend $2,000 or $200,000 a month.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid g2" style="margin-top: 24px">
+          <div class="card fit">
+            <h3>Built for</h3>
+            <ul>
+              <li><span class="tick">✓</span><span>Businesses whose own software uses AI: a support
+                chatbot, an internal assistant, AI agents, or a product feature built on Claude or
+                GPT.</span></li>
+              <li><span class="tick">✓</span><span>Paid through your own account with Anthropic,
+                OpenAI, AWS Bedrock or Google Vertex.</span></li>
+              <li><span class="tick">✓</span><span>On day one, anyone with an Anthropic or OpenAI
+                account sees their last 90 days of spend in the app, whatever their setup.</span></li>
+            </ul>
+          </div>
+          <div class="card fit">
+            <h3>Good to know before you start</h3>
+            <ul>
+              <li><span class="no">✕</span><span>AI inside tools you subscribe to, like HubSpot's
+                assistant or ChatGPT seats for your staff, is billed to those companies' accounts.
+                CostGrid can't measure it, and doesn't affect it.</span></li>
+              <li><span class="no">!</span><span>The Mac app covers AI requests made on the Mac it's
+                installed on. If your AI features run on a server, CostGrid runs on that server
+                instead: sign in, tell me about your setup, and I'll set it up with you.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- HOW IT WORKS -->
-    <section class="section" id="how-it-works">
+    <section class="section deep" id="how-it-works">
       <div class="wrap">
         <span class="label">How it works</span>
-        <h2 class="head">Three steps. You do two of them.</h2>
+        <h2 class="head">Three steps, from download to limits.</h2>
         <p class="lede">
-          CostGrid doesn't replace anything. Your software keeps using the same AI providers, the
-          same accounts and the same keys. It just goes through CostGrid on the way, so every
-          call gets priced and checked against your limits first.
+          CostGrid doesn't replace anything. Your software keeps the same AI provider and the same
+          account. Its requests just go through CostGrid on the way.
         </p>
         <div class="grid g3" style="margin-top: 40px">
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">01</span>
-            <h3>Open the app and paste your key</h3>
+            <h3>See what you've already spent</h3>
             <p>
-              Sign in here, download CostGrid, open it, and paste the key you already use with
-              your AI provider. The app checks the key works and shows what you've spent over the
-              last 90 days, straight from the provider's own records.
+              Sign in here, download the app and open it. Paste an admin key from Anthropic or
+              OpenAI, and CostGrid shows your last 90 days of spend, by day and by model, from the
+              provider's own records. That key is used for this one request and never saved.
             </p>
-            <span class="who">You</span>
+            <span class="who">You · no technical setup</span>
           </div>
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">02</span>
-            <h3>Point your software at CostGrid</h3>
+            <h3>Send your AI requests through it</h3>
             <p>
-              One setting in whatever software makes your AI calls: the address it sends them to.
-              The app shows the exact line, ready to hand to the person who looks after that
-              software. From then on every call is priced and logged, and each one can carry a
-              team and a tool name so you see who spent it.
+              Save your provider key in CostGrid, and it gives you a CostGrid key and an address.
+              Your software uses those two in place of the provider's: a small change in one place,
+              which the app shows ready to copy for whoever looks after your software. From then on,
+              every request is priced and put on the right team's tab.
             </p>
-            <span class="who">Whoever runs your software · one setting</span>
+            <span class="who">Whoever runs your software · one change</span>
           </div>
           <div class="card step">
             <span class="mono signal" style="font-size: 12px">03</span>
-            <h3>Set the limits</h3>
+            <h3>Choose your limits</h3>
             <p>
-              Give each team or tool a monthly cap, and choose what happens at the limit: stop, or
-              switch to a cheaper model so your customers still get an answer. Every change is
-              written to a log that can't be quietly edited.
+              CostGrid looks at your real traffic and suggests limits that would save money. Each
+              one starts out only measuring, so you see what it would have stopped or saved before
+              anything changes. You decide which to switch on, and during your trial I'll switch
+              them on with you.
             </p>
-            <span class="who">You · once, then whenever you like</span>
+            <span class="who">You, with me · during the trial</span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- IS MY KEY SAFE -->
+    <section class="section" id="security">
+      <div class="wrap">
+        <span class="label">Is my key safe?</span>
+        <h2 class="head">Your key stays with you. Here's exactly where it goes.</h2>
+        <p class="lede">
+          Leaked API keys are a real risk, so you should know what happens to yours before you
+          paste it anywhere. This is all of it.
+        </p>
+        <div class="grid g2" style="margin-top: 40px">
+          <div class="card safe">
+            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg>Stored encrypted, on your Mac</h3>
+            <p>
+              CostGrid locks your key with a second key kept in your Mac's keychain, the same place
+              macOS keeps your saved passwords. Someone who copies CostGrid's files to another
+              computer still can't read it.
+            </p>
+          </div>
+          <div class="card safe">
+            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h12M11 6l4 4-4 4"/></svg>Sent only to the provider it belongs to</h3>
+            <p>
+              With each request, it goes straight from your Mac to Anthropic or OpenAI over an
+              encrypted connection, the same way your software sends it today. It never goes to
+              CostGrid or to this website. We don't run a server that could receive it.
+            </p>
+          </div>
+          <div class="card safe">
+            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 10s2.8-5 7.5-5 7.5 5 7.5 5-2.8 5-7.5 5-7.5-5-7.5-5z"/><circle cx="10" cy="10" r="2.2"/><path d="M3.5 16.5l13-13"/></svg>Never shown again</h3>
+            <p>
+              Once saved, the app only ever shows the last four characters of your key. Not on
+              screen, not in the activity log. The admin key you use to see past spend isn't saved
+              at all.
+            </p>
+          </div>
+          <div class="card safe">
+            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.7-6 8-3.3-1.3-6-4-6-8V5z"/><path d="M7.5 10l1.8 1.8L13 8"/></svg>Kept out of your code</h3>
+            <p>
+              Your software uses a CostGrid key instead, which only works on your Mac and which you
+              can revoke in the app at any time. Your real provider key lives in one place, instead
+              of being copied into code and settings files where it could leak.
+            </p>
+          </div>
+        </div>
+        <div class="grid g2" style="margin-top: 8px">
+          <p class="note">
+            <strong style="color: var(--ink)">What we do hold:</strong> the email you sign in to
+            this website with, and the three answers you give us about your setup. Nothing else.
+          </p>
+          <p class="note">
+            <strong style="color: var(--ink)">A good habit:</strong> make a key just for CostGrid at
+            your provider. If you ever want to cut it off, delete that one key and nothing else is
+            affected.
+          </p>
         </div>
       </div>
     </section>
@@ -721,6 +993,7 @@
 
     <script src="vendor/supabase-js-2.117.1.js"></script>
     <script src="auth.js"></script>
+    <script src="flow.js"></script>
     <script>
       // mobile menu
       var menuBtn = document.getElementById("menuBtn");
@@ -922,13 +1195,14 @@
 
       // faq
       var faqs = [
-        ["Do I need to be technical to use this?", "No. Sign in, download the app, open it and paste the key you already use with your AI provider. The app checks the key and shows your spend so far. One setting in your software then has to point at CostGrid; the app shows the exact line, and whoever looks after that software can make the change."],
-        ["Do my prompts or keys ever reach your servers?", "No. CostGrid runs on your own Mac, and your calls go straight from there to the AI provider. Prompts, answers and provider keys stay with you. The only thing we hold is the email you sign in to this website with, and the answers you give us about your setup."],
-        ["What happens when a team hits its cap?", "The call is refused before it reaches the provider, and the attempt is recorded either way. That's the default. A limit can instead switch to a cheaper model, so your customers still get an answer while the spending stops growing."],
-        ["Will it slow anything down?", "By about a thousandth of a second per call. An AI call takes half a second or more, so nobody notices. The measurements are in the Proof section above, including the one we don't publish yet and why."],
-        ["How accurate is the cost number?", "Costs come from the provider's own record of what each call used, priced with a table of 53 models. That table is checked against the providers' published prices automatically, and a mismatch stops a release until it's fixed."],
-        ["What doesn't CostGrid do?", "It watches what your software spends on AI, not what your staff spend on chat subscriptions. If your bill is people typing into a browser, there's nothing here to measure. It also runs on one computer today: right for one team, not yet right if that computer going down would be a crisis."],
-        ["Which AI providers does it work with?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex, with nothing changed in how your software talks to them. Bedrock and Vertex haven't yet been run against a live production account, so the app includes a one-minute check that confirms yours works before you rely on it."],
+        ["Do I need to be technical to use this?", "Not to see your spend: download the app, open it and paste a key. Sending your software's AI requests through CostGrid is a small change in one place, made by whoever looks after that software. The app shows them exactly what to change."],
+        ["How does CostGrid actually stop the spending?", "Your software sends each AI request to CostGrid, and CostGrid passes it on to the provider. When a request would go over a limit, CostGrid doesn't pass it on. It answers your software with a clear \u201cover budget\u201d message instead, so nothing reaches the provider and nothing is billed. If you'd rather keep things running, a limit can switch the request to a cheaper model instead of stopping it. Either way, the attempt is recorded."],
+        ["Will this break my other tools, like HubSpot?", "No. CostGrid only sees the requests your own software sends to it. It never switches off a key, never touches your provider account, and doesn't sit in front of any other tool. HubSpot's AI runs on HubSpot's own account, so it carries on exactly as before. When a team hits its limit, only that team's requests through CostGrid are affected."],
+        ["Do my prompts or keys ever reach your servers?", "No. CostGrid runs on your own machine, and your requests go straight from there to the AI provider. Prompts, answers and provider keys stay with you. The only things we hold are the email you sign in to this website with, and the answers you give us about your setup. The full detail is in the \u201cIs my key safe?\u201d section above."],
+        ["Will it slow anything down?", "By about a thousandth of a second per request. An AI request takes half a second or more, so nobody notices. The measurements are in the Proof section above, including the one we don't publish yet and why."],
+        ["How accurate is the cost number?", "Costs come from the provider's own record of what each request used, priced with a table of 53 models. That table is checked against the providers' published prices automatically, and a mismatch stops a release until it's fixed."],
+        ["Which AI providers does it work with?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex, with nothing changed in how your software talks to them. Bedrock and Vertex haven't yet been run against a live production account, so the app includes a one-minute check that confirms yours works before you rely on it. Seeing your past 90 days of spend works with Anthropic and OpenAI."],
+        ["My AI runs on a server, not a Mac. Can I still use it?", "Yes. The Mac app covers AI requests made on the Mac it's installed on. For software on a server, CostGrid runs on that server instead, with the same app screens and the same rules. Sign in, tell me about your setup, and I'll set it up with you."],
         ["Is there a Windows version?", "Mac today. Windows is next."]
       ];
       document.getElementById("faq").innerHTML = faqs
