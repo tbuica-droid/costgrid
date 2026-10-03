@@ -5,6 +5,7 @@ import {
   type PriceModifiers,
   type TokenUsage,
   ZERO_USAGE,
+  anthropicReasoningOf,
 } from "@costgrid/core";
 import { EventStreamDecoder } from "./eventstream.js";
 import { signRequest } from "./sigv4.js";
@@ -123,6 +124,9 @@ export const bedrockAdapter: ProviderAdapter = {
    * spelling and Bedrock rejects it.
    */
   isStreaming: (body) => record(body)?.["stream"] === true,
+
+  // The body is Anthropic-shaped, so the same reasoning controls apply.
+  reasoningOf: anthropicReasoningOf,
 
   prepareBody(body) {
     const source = record(body);

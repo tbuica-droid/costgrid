@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Provider } from "@costgrid/core";
+import { validateWebhookUrl } from "@costgrid/db";
 import { readMasterKey } from "./keychain.js";
 
 /**
@@ -95,6 +96,13 @@ export interface GatewayConfig {
    * database, where a person asking for help can find it.
    */
   readonly logFile: string | undefined;
+  /**
+   * Where alerts go when there are no accounts to store an address in: a
+   * self-hosted gateway. Hosted and desktop installs set it in the console,
+   * where it is encrypted at rest. Optional so a config written before alerts
+   * existed still type-checks.
+   */
+  readonly alertWebhookUrl?: string | undefined;
 }
 
 function publicUrl(): string | undefined {
@@ -130,6 +138,16 @@ function anchorUrl(): string | undefined {
     throw new Error("COSTGRID_ANCHOR_URL must be https outside local development");
   }
   return parsed.toString();
+}
+
+function alertWebhookUrl(): string | undefined {
+  const raw = process.env["COSTGRID_ALERT_WEBHOOK"];
+  if (raw === undefined || raw.trim() === "") return undefined;
+  try {
+    return validateWebhookUrl(raw);
+  } catch (error) {
+    throw new Error(`COSTGRID_ALERT_WEBHOOK: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function integer(name: string, fallback: number): number {
@@ -304,5 +322,6 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     allowAnonymous: boolean("COSTGRID_ALLOW_ANONYMOUS", false),
     logLevel: process.env["COSTGRID_LOG_LEVEL"]?.trim() || "info",
     logFile: optional("COSTGRID_LOG_FILE"),
+    alertWebhookUrl: alertWebhookUrl(),
   };
 }

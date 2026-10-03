@@ -15,3 +15,8 @@ export * from "./retention.js";
 export * from "./sso.js";
 export * from "./portability.js";
 export * from "./anchor.js";
+export * from "./alerts.js";
+export * from "./register.js";
+export * from "./insights.js";
+export * from "./measured.js";
+export * from "./fixed-costs.js";

@@ -1,6 +1,6 @@
 {
   "name": "@costgrid/desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CostGrid for one computer: the gateway and its console in a window.",
   "private": true,
   "type": "module",

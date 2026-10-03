@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   applyRate,
   applyRateTo,
+  describeReasoning,
   estimateSaving,
   evaluatePolicies,
   planFor,
@@ -18,6 +19,7 @@ import {
 } from "@costgrid/core";
 import {
   type AccountsRepository,
+  AlertsRepository,
   Analytics,
   API_KEY_PREFIX,
   type CallRecord,
@@ -27,11 +29,14 @@ import {
   trailingWindow,
 } from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alerts.js";
 import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
+import { registerLimits } from "./console-limits.js";
+import { registerResults } from "./console-results.js";
 import { registerSecurity } from "./console-security.js";
 import { registerSetup } from "./console-setup.js";
 import type { GatewayConfig } from "./config.js";
@@ -74,6 +79,10 @@ export interface ServerDeps {
   readonly imports: ImportsRepository;
   /** Overridable for tests, which must never reach a real provider. */
   readonly fetchImpl?: typeof fetch;
+  /** Where alerts are recorded. Absent, nothing alerts, which is how most tests run. */
+  readonly alerts?: AlertsRepository | undefined;
+  /** The desktop app's hook for showing a notification on this computer. */
+  readonly onAlert?: ((notice: AlertNotice) => void) | undefined;
 }
 
 interface Caller {
@@ -275,6 +284,18 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     bodyLimit: 64 * 1024 * 1024,
   });
 
+  const alerter =
+    deps.alerts === undefined
+      ? undefined
+      : new Alerter({
+          alerts: deps.alerts,
+          log: app.log,
+          fetchImpl: deps.fetchImpl,
+          envWebhookUrl: config.alertWebhookUrl,
+          onAlert: deps.onAlert,
+        });
+  const runaway = new RunawayWatch(deps.db);
+
   /*
    * Metering that can fail without taking the request with it.
    *
@@ -363,6 +384,18 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       repository,
       fetchImpl: deps.fetchImpl,
     });
+    // Without a store passed in (tests), alerts are still recorded and
+    // listed; only an address cannot be saved, for want of a key.
+    const alertStore = deps.alerts ?? new AlertsRepository(deps.db);
+    registerLimits(app, { db: deps.db, accounts: accounts!, repository, alerts: alertStore, alerter });
+    registerResults(app, {
+      db: deps.db,
+      accounts: accounts!,
+      repository,
+      analytics,
+      imports,
+      alerts: alertStore,
+    });
   }
   registerDashboard(app, { hosted: config.hosted });
 
@@ -429,6 +462,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       const streaming = adapter.isStreaming(request.body);
 
       const declaredTools = config.extractTools ? adapter.declaredTools(request.body) : undefined;
+      const reasoning = adapter.reasoningOf?.(request.body);
       const declaredRun = runIdOf(request, RUN_HEADER);
       const parentRun = runIdOf(request, PARENT_RUN_HEADER);
 
@@ -448,6 +482,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         maxOutputTokens: adapter.maxOutputTokensOf(request.body),
         ...(declaredTools === undefined ? {} : { declaredTools }),
         delegatedFrom,
+        ...(reasoning === undefined ? {} : { reasoning }),
       };
 
       repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
@@ -503,6 +538,33 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        */
       const toolGuard = config.extractTools ? toolGuardFor(policies, context) : undefined;
 
+      /*
+       * Tell someone, when a limit fired or a run is going wrong.
+       *
+       * After the decision and unable to change it. Guarded as a whole: the
+       * decision above is the part that must fail closed, and a notification
+       * that cannot be raised must not turn into a refused call.
+       */
+      if (alerter !== undefined) {
+        try {
+          for (const alert of decisionAlerts(decision, policies, caller, runId, startedAt)) {
+            alerter.raise(caller.tenantId, alert, startedAt);
+          }
+          if (runStats !== undefined && declaredRun !== undefined && decision.allowed) {
+            const runawayAlert = runaway.check(
+              caller.tenantId,
+              caller.agentId,
+              declaredRun,
+              runStats.spend,
+              startedAt,
+            );
+            if (runawayAlert !== undefined) alerter.raise(caller.tenantId, runawayAlert, startedAt);
+          }
+        } catch (error) {
+          app.log.warn({ err: error }, "alert check failed; the call was not affected");
+        }
+      }
+
       const baseRecord = {
         tenantId: caller.tenantId,
         agentId: caller.agentId,
@@ -514,6 +576,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         runDeclared: declaredRun !== undefined,
         ...(parentRun !== undefined ? { parentRunId: parentRun } : {}),
         runDepth: runStats?.depth ?? 0,
+        reasoningRequested: describeReasoning(reasoning),
       };
 
       if (!decision.allowed) {
@@ -851,6 +914,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         // Bill the model that actually ran, which a server-side fallback can change.
         ...(parsed.model !== undefined ? { model: parsed.model } : {}),
         usage: parsed.usage ?? ZERO_USAGE,
+        reasoningTokens: parsed.reasoningTokens,
         modifiers: parsed.modifiers,
         ...(parsed.stopReason !== undefined ? { stopReason: parsed.stopReason } : {}),
         ...(parsed.usage === undefined
@@ -1077,6 +1141,7 @@ async function streamThrough(
     invokedTools: collector.invokedTools,
     ...(collector.model !== undefined ? { model: collector.model } : {}),
     usage: collector.usage,
+    reasoningTokens: collector.reasoningTokens,
     modifiers: collector.modifiers,
     ...(collector.stopReason !== undefined ? { stopReason: collector.stopReason } : {}),
     ...(gated.length > 0 ? { extraViolations: gated } : {}),

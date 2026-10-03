@@ -1,5 +1,6 @@
 import { discountPercent, type Nanodollars, type PolicyScope, toUsdString } from "@costgrid/core";
-import type { Analytics, GroupedSpend, RoutingSavings, TimeRange } from "./analytics.js";
+import type { Analytics, GroupedSpend, OutcomeSummary, RoutingSavings, TimeRange } from "./analytics.js";
+import { FIXED_COST_CATEGORIES, type FixedCostCategory, type FixedCosts } from "./fixed-costs.js";
 import type { ImportsRepository } from "./imports.js";
 import type { CostGridRepository } from "./repositories.js";
 
@@ -124,6 +125,32 @@ export interface Statement {
   readonly imported:
     | { readonly catalogCost: Nanodollars; readonly reportedCost: Nanodollars | undefined; readonly requests: number }
     | undefined;
+
+  /**
+   * Whether the month's runs worked, as reported by the customer's software.
+   * Cost per success is the figure the spend total cannot give.
+   */
+  readonly outcomes: OutcomeSummary;
+
+  /**
+   * Costs entered by hand: subscriptions, platform, oversight and the rest of
+   * EY's categories that never reach a model provider's invoice. Charged in
+   * full for any month they are in force, including a partial one.
+   */
+  readonly fixedCosts: {
+    readonly total: Nanodollars;
+    readonly lines: readonly {
+      readonly label: string;
+      readonly category: FixedCostCategory;
+      readonly categoryName: string;
+      readonly scope: string;
+      readonly amount: Nanodollars;
+    }[];
+  };
+  /** Metered spend plus entered costs. Always shown with its two parts. */
+  readonly fullCost: Nanodollars;
+  /** Full cost divided by reported successful runs; undefined without any. */
+  readonly fullCostPerSuccess: Nanodollars | undefined;
 }
 
 function describeScope(scope: PolicyScope): string {
@@ -164,6 +191,8 @@ export interface StatementInput {
   /** `YYYY-MM`. Defaults to the current month. */
   readonly month?: string;
   readonly now?: number;
+  /** Entered non-token costs. Optional so older callers keep working. */
+  readonly fixedCosts?: FixedCosts;
 }
 
 /**
@@ -221,6 +250,16 @@ export function buildStatement(input: StatementInput): Statement {
   }
 
   const importedSummary = input.imports?.summary(tenantId, range);
+  const outcomes = analytics.outcomes(tenantId, range);
+  const fixedLines = (input.fixedCosts?.forMonth(tenantId, month) ?? []).map((c) => ({
+    label: c.label,
+    category: c.category,
+    categoryName: FIXED_COST_CATEGORIES[c.category],
+    scope: describeScope(c.scope),
+    amount: c.monthlyAmount,
+  }));
+  const fixedTotal = fixedLines.reduce((sum, line) => sum + line.amount, 0n);
+  const fullCost = summary.totalCost + fixedTotal;
 
   return {
     month,
@@ -275,6 +314,10 @@ export function buildStatement(input: StatementInput): Statement {
             requests: importedSummary.requests,
           }
         : undefined,
+    outcomes,
+    fixedCosts: { total: fixedTotal, lines: fixedLines },
+    fullCost,
+    fullCostPerSuccess: outcomes.succeeded > 0 ? fullCost / BigInt(outcomes.succeeded) : undefined,
   };
 }
 
@@ -370,6 +413,32 @@ export function statementToCsv(statement: Statement): string {
         "",
         "",
         "",
+      ]),
+    );
+  }
+
+  for (const fixed of statement.fixedCosts.lines) {
+    lines.push(
+      csvRow(["entered", `${fixed.categoryName}: ${fixed.label} (${fixed.scope})`, "", money(fixed.amount), "", "", ""]),
+    );
+  }
+  if (statement.fixedCosts.lines.length > 0) {
+    lines.push(csvRow(["full cost", "metered spend plus entered costs", "", money(statement.fullCost), "", "", ""]));
+  }
+
+  const o = statement.outcomes;
+  if (o.reportedRuns > 0) {
+    lines.push(
+      "",
+      csvRow(["outcomes", "reported_runs", "succeeded", "cost_of_success_usd", "cost_of_failure_usd", "cost_per_success_usd", "full_cost_per_success_usd"]),
+      csvRow([
+        "reported by your software",
+        o.reportedRuns,
+        o.succeeded,
+        money(o.costOfSuccess),
+        money(o.costOfFailure),
+        o.costPerSuccess === undefined ? "" : money(o.costPerSuccess),
+        statement.fullCostPerSuccess === undefined ? "" : money(statement.fullCostPerSuccess),
       ]),
     );
   }

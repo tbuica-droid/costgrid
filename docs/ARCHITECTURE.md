@@ -510,9 +510,56 @@ same millisecond — the newest calls flickered in and out of the dashboard
 depending on how the millisecond boundary fell. `trailingWindow()` is now the
 single way to build one, and a regression test pins the boundary case.
 
+### A stop is a rule, not a flag
+
+Stopping an agent, a team or everything writes a `stop` rule that blocks, and
+resuming switches it off. That way a stop travels through everything a rule
+already has: the enforcement feed, the rule register, the audit log, alerts and
+the evidence pack. Resuming keeps the record, and stopping the same scope twice
+is refused rather than stacked, so one resume is always enough.
+
+### Alerts are once per event, and off the request path
+
+A team over its monthly budget is over it on every call for the rest of the
+month. Each alert therefore carries a dedupe key (the rule and its window, the
+run, or the rule and the hour) and the database refuses a second alert with the
+same key. Raising one is an insert; delivering it is a network call on its own
+time, and nothing about an alert can change or delay the enforcement decision
+it reports. The webhook address is a credential, so it is encrypted under the
+master key and only ever shown back as a masked hint.
+
+### Savings are measured before and after, not only estimated
+
+The estimate prices the tokens a call used at the model the caller asked for,
+which assumes a different model would have used the same number of tokens. The
+price-reversal research (arXiv:2603.23971) shows that assumption fails often
+enough to matter. So for every rule that has moved traffic, CostGrid also
+compares the same scope's calls on the original model in the fortnight before
+the rule went live with the calls it moved afterwards, per call and per whole
+run, and says "not enough data" below thirty calls a side. It is labelled as a
+before-and-after comparison, not a controlled experiment. `live_since` on the
+policy row is the line it is drawn at, and it moves when a rule is switched back
+on.
+
+### Reasoning is recorded where reported, never estimated
+
+OpenAI reports reasoning tokens per call; they are stored in
+`reasoning_tokens` and costed at the output rate, which is exact. Anthropic does
+not split thinking out of `output_tokens`, so for Claude traffic the column is
+NULL and only what the request asked for (`reasoning_requested`) is kept. A
+reasoning cap judges only requests that name an effort or a budget: refusing a
+request that names neither would guess at the provider's default.
+
+### Entered costs never mix with metered ones
+
+Licences, platform and people's time are typed in by month and category, and
+every surface that shows them shows metered spend and entered cost as two
+figures beside their sum. A typed-in number must never be mistaken for a
+measured one.
+
 ## Testing
 
-409 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
+717 unit and integration tests, plus `scripts/e2e-smoke.mjs`, which boots a stub
 provider, runs the real gateway process against it, drives real HTTP traffic
 (buffered and streaming), and reads the database back through the real CLI. No
 test reaches a real provider or needs an API key.
@@ -529,12 +576,11 @@ billing history is unrecoverable without a backup.
 
 ## Not built yet
 
-- Bedrock and Google Cloud are not proxied. Both are partner-operated with
-  separate pricing and their own auth (SigV4, GCP ADC), so each needs an
-  adapter and its own catalog.
+- Bedrock and Vertex are proxied but priced at the direct-API list rate and
+  have not been run against a live account (see above).
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
-- The GitHub Pages site is static. `index.html` is the product page,
+- The website (Vercel, costgrid.dev) is static. `index.html` is the product page,
   `thesis.html` and `dashboard.html` the original research write-up and its
   seeded dashboard, and `demo/` runs the
   *real* dashboard bundle against captured API snapshots — a transport swap in
@@ -546,8 +592,11 @@ billing history is unrecoverable without a backup.
   Postgres-portable and the repository layer is the only code writing SQL, but
   the swap has not been made.
 - Rate limiting is in-process, so the effective limit is `plan x instances`.
-- No email: no verification, password reset, or invitations.
-- `verify-pricing` is not yet wired to a scheduled CI job; it has to be run
-  by hand today.
+- The gateway sends no email: no verification, password reset or invitations.
+  Alerts go to a webhook or a desktop notification. (Website sign-in uses an
+  emailed link through Supabase, which is separate from the gateway.)
+- `verify-pricing` runs before every app release (`npm run app:release` stops
+  on a mismatch) but not on a schedule, so a price change between releases is
+  caught at the next release or by running it by hand.
 - Batch API calls are priced correctly but not yet *detected* — the gateway
   proxies `/v1/messages`, and batches go through a different endpoint.

@@ -55,6 +55,13 @@ export interface CallRecord {
   readonly runDeclared?: boolean | undefined;
   readonly parentRunId?: string | undefined;
   readonly runDepth?: number | undefined;
+  /**
+   * Reasoning tokens the provider billed, where it reports them separately.
+   * Undefined for every Anthropic call, which does not split thinking out.
+   */
+  readonly reasoningTokens?: number | undefined;
+  /** What the request asked for: `effort:high`, `budget:8000`, `thinking`. */
+  readonly reasoningRequested?: string | undefined;
   readonly outcome: CallOutcome;
   readonly statusCode?: number | undefined;
   readonly stopReason?: string | undefined;
@@ -245,7 +252,8 @@ export class CostGridRepository {
            outcome, status_code, stop_reason, error_message,
            speed, inference_geo, batch,
            requested_model, routed, route_dry_run, saving_estimate,
-           run_id, parent_run_id, run_depth, run_declared, cost_list
+           run_id, parent_run_id, run_depth, run_declared, cost_list,
+           reasoning_tokens, reasoning_requested
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -254,7 +262,8 @@ export class CostGridRepository {
            @outcome, @statusCode, @stopReason, @errorMessage,
            @speed, @inferenceGeo, @batch,
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
-           @runId, @parentRunId, @runDepth, @runDeclared, @costList
+           @runId, @parentRunId, @runDepth, @runDeclared, @costList,
+           @reasoningTokens, @reasoningRequested
          )`,
       )
       .run({
@@ -296,6 +305,8 @@ export class CostGridRepository {
         runDepth: call.runDepth ?? 0,
         runDeclared: call.runDeclared === true ? 1 : 0,
         costList: call.costList?.total ?? call.cost.total,
+        reasoningTokens: call.reasoningTokens ?? null,
+        reasoningRequested: call.reasoningRequested ?? null,
       });
   }
 
@@ -536,7 +547,18 @@ export class CostGridRepository {
 
   // --------------------------------------------------------------- policies
 
-  createPolicy(tenantId: string, policy: Omit<Policy, "id"> & { id?: string }): string {
+  /**
+   * Store a rule.
+   *
+   * `owner` and `reason` are optional here so every existing caller keeps
+   * working, and recorded whenever they are given: a rule nobody can name an
+   * owner or a reason for is the start of rule debt.
+   */
+  createPolicy(
+    tenantId: string,
+    policy: Omit<Policy, "id"> & { id?: string; owner?: string; reason?: string },
+    at = Date.now(),
+  ): string {
     const id = policy.id ?? randomUUID();
     const scopeValue =
       policy.scope.kind === "agent"
@@ -547,8 +569,10 @@ export class CostGridRepository {
 
     this.#db
       .prepare(
-        `INSERT INTO policies (id, tenant_id, name, scope_kind, scope_value, rule_json, action, enabled, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO policies (
+           id, tenant_id, name, scope_kind, scope_value, rule_json, action, enabled, created_at,
+           owner, reason, live_since
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -559,7 +583,10 @@ export class CostGridRepository {
         serializeRule(policy.rule),
         policy.action,
         policy.enabled ? 1 : 0,
-        Date.now(),
+        at,
+        policy.owner ?? null,
+        policy.reason ?? null,
+        policy.enabled && policy.action !== "monitor" ? at : null,
       );
     return id;
   }
@@ -647,8 +674,26 @@ export class CostGridRepository {
     }));
   }
 
-  setPolicyEnabled(id: string, enabled: boolean): void {
-    this.#db.prepare("UPDATE policies SET enabled = ? WHERE id = ?").run(enabled ? 1 : 0, id);
+  /**
+   * Switch a rule on or off.
+   *
+   * Switching an enforcing rule on moves `live_since`, because a
+   * before-and-after measurement of what the rule did has to be drawn at the
+   * moment it most recently started acting, not when it was first written.
+   */
+  setPolicyEnabled(id: string, enabled: boolean, at = Date.now()): void {
+    if (enabled) {
+      this.#db
+        .prepare(
+          `UPDATE policies
+           SET enabled = 1,
+               live_since = CASE WHEN action != 'monitor' AND enabled = 0 THEN ? ELSE live_since END
+           WHERE id = ?`,
+        )
+        .run(at, id);
+      return;
+    }
+    this.#db.prepare("UPDATE policies SET enabled = 0 WHERE id = ?").run(id);
   }
 
   // ------------------------------------------------------------- violations

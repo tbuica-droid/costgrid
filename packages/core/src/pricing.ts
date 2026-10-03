@@ -37,12 +37,12 @@ export const CATALOG_PROVENANCE: readonly CatalogProvenance[] = [
   {
     provider: "anthropic",
     source: "https://platform.claude.com/docs/en/about-claude/pricing",
-    verifiedAt: "2026-09-11",
+    verifiedAt: "2026-10-03",
   },
   {
     provider: "openai",
     source: "https://developers.openai.com/api/docs/pricing",
-    verifiedAt: "2026-09-11",
+    verifiedAt: "2026-10-03",
   },
 ];
 
@@ -226,6 +226,16 @@ const ANTHROPIC_CATALOG: Record<string, CatalogEntry> = {
   },
 
   // --- Opus ---
+  // Its own row, not a prefix of claude-opus-5: without one, id resolution
+  // priced Opus 5.5 at Opus 5's $5/$25 and overstated every call by 25%.
+  "claude-opus-5-5": {
+    displayName: "Claude Opus 5.5",
+    tier: "frontier",
+    input: "4.00",
+    output: "20.00",
+    cacheRead: "0.20", // 0.05x, not the standard 0.1x
+    fast: { input: "8.00", output: "40.00" },
+  },
   "claude-opus-5": {
     displayName: "Claude Opus 5",
     tier: "frontier",
@@ -274,6 +284,12 @@ const ANTHROPIC_CATALOG: Record<string, CatalogEntry> = {
   },
 
   // --- Sonnet ---
+  "claude-sonnet-5-5": {
+    displayName: "Claude Sonnet 5.5",
+    tier: "mid",
+    input: "2.00",
+    output: "10.00",
+  },
   "claude-sonnet-5": {
     displayName: "Claude Sonnet 5",
     tier: "mid",
@@ -339,6 +355,21 @@ const OPENAI_CATALOG: Record<string, CatalogEntry> = {
     displayName: "GPT-6 Astra", tier: "frontier",
     input: "10.00", output: "50.00", cacheRead: "1.00", cacheWrite: "12.50",
     long: { input: "20.00", output: "75.00", cacheRead: "2.00", cacheWrite: "25.00" },
+  },
+  "gpt-6.1-sol": {
+    displayName: "GPT-6.1 Sol", tier: "mid",
+    input: "2.00", output: "10.00", cacheRead: "0.10", cacheWrite: "2.50",
+    long: { input: "4.00", output: "15.00", cacheRead: "0.20", cacheWrite: "5.00" },
+  },
+  "gpt-6-sol": {
+    displayName: "GPT-6 Sol", tier: "mid",
+    input: "2.00", output: "10.00", cacheRead: "0.20", cacheWrite: "2.50",
+    long: { input: "4.00", output: "15.00", cacheRead: "0.40", cacheWrite: "5.00" },
+  },
+  "gpt-6-luna": {
+    displayName: "GPT-6 Luna", tier: "small",
+    input: "0.10", output: "0.50", cacheRead: "0.01", cacheWrite: "0.125",
+    long: { input: "0.20", output: "0.75", cacheRead: "0.02", cacheWrite: "0.25" },
   },
   "gpt-5.6-sol": {
     displayName: "GPT-5.6 Sol", tier: "frontier",

@@ -33,6 +33,7 @@ import {
   preflight,
 } from "@costgrid/gateway";
 import { formatProposals } from "./advise.js";
+import { agentCommand, formatResearchSections, reasoningRule } from "./control.js";
 import { renderStatementHtml } from "./statement-html.js";
 import { auditCommand, eraseCommand, recordCli, retentionCommand } from "./security.js";
 import { formatReport } from "./report.js";
@@ -81,6 +82,10 @@ Usage:
   costgrid erase <organisation-id> --confirm
                                           Delete everything belonging to one
                                           organisation. Cannot be undone.
+  costgrid agent stop <agent> [--reason "..."]
+                                          Refuse every call from one agent, starting
+                                          with the next. Also dept:<team> or tenant.
+  costgrid agent resume <agent>           Undo a stop. The record is kept.
   costgrid policy list                    Show configured policies
   costgrid policy budget <scope> <usd> [--window day|month] [--action monitor|warn|block]
                               [--fallback <model>]
@@ -99,6 +104,8 @@ Usage:
                                           Ceiling on a single run, not a window.
   costgrid policy run-steps <scope> <n>   Stop a run after n calls (loop guard)
   costgrid policy run-depth <scope> <n>   Limit delegation hops from the root run
+  costgrid policy reasoning <scope> [--effort LEVEL] [--budget TOKENS] [--action ...]
+                                          Cap how much reasoning a request may ask for.
   costgrid policy route <scope> <to-model> [--from a,b] [--action monitor|warn|block]
                                           Send matching traffic to a cheaper model.
                                           Start with --action monitor: it is a dry
@@ -153,6 +160,18 @@ function describeRule(rule: Policy["rule"], action: string): string {
       return `max ${rule.limit} delegation hop(s)`;
     case "max-output-tokens":
       return `max_tokens <= ${rule.limit}`;
+    case "stop":
+      return "STOPPED: every call refused until resumed";
+    case "max-reasoning":
+      return (
+        "reasoning <= " +
+        [
+          rule.effort !== undefined ? `effort ${rule.effort}` : undefined,
+          rule.budgetTokens !== undefined ? `${rule.budgetTokens} thinking tokens` : undefined,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      );
     case "route":
       return (
         `route ${rule.from?.length ? rule.from.join(",") : "*"} -> ${rule.toModel}` +
@@ -337,6 +356,19 @@ async function main(): Promise<void> {
         fail(`--days must be an integer 1..3650, got ${days}`);
       }
       console.log(formatReport(analytics, tenantId, trailingWindow(days), days));
+      console.log(formatResearchSections(db, repository, tenantId, trailingWindow(days)));
+      break;
+    }
+
+    case "agent": {
+      requireTenant();
+      try {
+        for (const line of agentCommand(db, repository, tenantId, argv, flag(argv, "reason"))) {
+          console.log(line);
+        }
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
       break;
     }
 
@@ -1018,6 +1050,27 @@ async function main(): Promise<void> {
           "Run rules apply only to calls carrying the x-costgrid-run header.\n" +
             "Traffic without it is metered as a run of one and is unaffected.",
         );
+        break;
+      }
+
+      if (sub === "reasoning") {
+        const scope = parseScope(argv[2] ?? fail("policy reasoning needs a scope"));
+        let rule;
+        try {
+          rule = reasoningRule(flag(argv, "effort"), flag(argv, "budget"));
+        } catch (error) {
+          fail(error instanceof Error ? error.message : String(error));
+        }
+        const id = createPolicy({
+          name: "reasoning cap",
+          scope,
+          rule,
+          action: parseAction(flag(argv, "action")),
+          enabled: true,
+        });
+        console.log(`Created policy ${id}.`);
+        console.log("Requests that name no effort level or budget are not judged: CostGrid does not");
+        console.log("know a provider's default, and will not guess it.");
         break;
       }
 

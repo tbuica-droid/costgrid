@@ -344,6 +344,7 @@
           <a href="#what">What it is</a>
           <a href="#how-it-works">How it works</a>
           <a href="#security">Is my key safe?</a>
+          <a href="./research.html">Research</a>
           <a href="#pricing">Pricing</a>
           <a href="#demo">Demo</a>
         </nav>
@@ -357,6 +358,7 @@
         <a href="#what">What it is</a>
         <a href="#how-it-works">How it works</a>
         <a href="#security">Is my key safe?</a>
+        <a href="./research.html">Research</a>
         <a href="#pricing">Pricing</a>
         <a href="#demo">Demo</a>
         <a href="#start" style="color: var(--signal); font-weight: 500" data-auth="out">Sign in</a>
@@ -609,12 +611,12 @@
             <span class="mono signal" style="font-size: 12px">03</span>
             <h3>Choose your limits</h3>
             <p>
-              CostGrid looks at your real traffic and suggests limits that would save money. Each
-              one starts out only measuring, so you see what it would have stopped or saved before
-              anything changes. You decide which to switch on, and during your trial I'll switch
-              them on with you.
+              Set a limit for a team, an agent or everything on the app's Limits screen, or take one
+              CostGrid suggests from your real traffic. Each starts out only measuring, so you see what
+              it would have stopped before anything changes. Every limit records who owns it and why,
+              and you're told the moment one fires.
             </p>
-            <span class="who">You, with me · during the trial</span>
+            <span class="who">You · in the app</span>
           </div>
         </div>
       </div>
@@ -963,13 +965,14 @@
             <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">2023–2030 forecast model · XLSX →</p>
           </a>
         </div>
-        <p class="muted" style="margin-top: 28px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center">
-          <span class="label" style="margin: 0">Grounded in</span>
-          <span>NIST AI RMF</span>
-          <span>EY · The Total Cost of Agents</span>
-          <span>Stanford HAI AI Index 2026</span>
-          <span>Citadel Securities</span>
-        </p>
+        <a class="card source-card" href="./research.html" style="padding: 22px; text-decoration: none; display: block; margin-top: 16px">
+          <span class="label">The research, source by source</span>
+          <p style="margin-top: 8px; font-size: 15px; color: var(--ink); max-width: 760px">
+            Twelve sources from EY, NIST, Stanford HAI, Citadel Securities, Apple, and researchers at
+            Stanford, MIT and Berkeley: what each found, which feature it became, and a NIST AI RMF
+            crosswalk. Sources that only inform the context are labelled as such →
+          </p>
+        </a>
       </div>
     </section>
 
@@ -1196,11 +1199,11 @@
       // faq
       var faqs = [
         ["Do I need to be technical to use this?", "Not to see your spend: download the app, open it and paste a key. Sending your software's AI requests through CostGrid is a small change in one place, made by whoever looks after that software. The app shows them exactly what to change."],
-        ["How does CostGrid actually stop the spending?", "Your software sends each AI request to CostGrid, and CostGrid passes it on to the provider. When a request would go over a limit, CostGrid doesn't pass it on. It answers your software with a clear \u201cover budget\u201d message instead, so nothing reaches the provider and nothing is billed. If you'd rather keep things running, a limit can switch the request to a cheaper model instead of stopping it. Either way, the attempt is recorded."],
+        ["How does CostGrid actually stop the spending?", "Your software sends each AI request to CostGrid, and CostGrid passes it on to the provider. When a request would go over a limit, CostGrid doesn't pass it on. It answers your software with a clear \u201cover budget\u201d message instead, so nothing reaches the provider and nothing is billed. If you'd rather keep things running, a limit can switch the request to a cheaper model instead of stopping it. You can also stop any one agent or team with a single click, and you're told the moment a limit fires, on your Mac or in a Slack channel. Either way, the attempt is recorded."],
         ["Will this break my other tools, like HubSpot?", "No. CostGrid only sees the requests your own software sends to it. It never switches off a key, never touches your provider account, and doesn't sit in front of any other tool. HubSpot's AI runs on HubSpot's own account, so it carries on exactly as before. When a team hits its limit, only that team's requests through CostGrid are affected."],
         ["Do my prompts or keys ever reach your servers?", "No. CostGrid runs on your own machine, and your requests go straight from there to the AI provider. Prompts, answers and provider keys stay with you. The only things we hold are the email you sign in to this website with, and the answers you give us about your setup. The full detail is in the \u201cIs my key safe?\u201d section above."],
         ["Will it slow anything down?", "By about a thousandth of a second per request. An AI request takes half a second or more, so nobody notices. The measurements are in the Proof section above, including the one we don't publish yet and why."],
-        ["How accurate is the cost number?", "Costs come from the provider's own record of what each request used, priced with a table of 53 models. That table is checked against the providers' published prices automatically, and a mismatch stops a release until it's fixed."],
+        ["How accurate is the cost number?", "Costs come from the provider's own record of what each request used, priced with a table of 58 models. Before every release that table is checked against the providers' live published prices, and a mismatch stops the release until it's fixed. Last checked 3 October 2026."],
         ["Which AI providers does it work with?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex, with nothing changed in how your software talks to them. Bedrock and Vertex haven't yet been run against a live production account, so the app includes a one-minute check that confirms yours works before you rely on it. Seeing your past 90 days of spend works with Anthropic and OpenAI."],
         ["My AI runs on a server, not a Mac. Can I still use it?", "Yes. The Mac app covers AI requests made on the Mac it's installed on. For software on a server, CostGrid runs on that server instead, with the same app screens and the same rules. Sign in, tell me about your setup, and I'll set it up with you."],
         ["Is there a Windows version?", "Mac today. Windows is next."]

@@ -1,5 +1,5 @@
 import { createSign } from "node:crypto";
-import { NO_MODIFIERS, parseAnthropicModifiers, parseAnthropicUsage } from "@costgrid/core";
+import { NO_MODIFIERS, parseAnthropicModifiers, parseAnthropicUsage, anthropicReasoningOf } from "@costgrid/core";
 import { AnthropicStreamCollector } from "./anthropic-stream.js";
 import { cappedTools, toolName } from "./tools.js";
 import type { AuthContext, ParsedResponse, ProviderAdapter } from "./types.js";
@@ -159,6 +159,9 @@ export const vertexAdapter: ProviderAdapter = {
   },
 
   isStreaming: (body) => record(body)?.["stream"] === true,
+
+  // The body is Anthropic-shaped, so the same reasoning controls apply.
+  reasoningOf: anthropicReasoningOf,
 
   prepareBody(body) {
     const source = record(body);

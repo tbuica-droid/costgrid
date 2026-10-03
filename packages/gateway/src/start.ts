@@ -6,6 +6,7 @@ import {
 } from "@costgrid/core";
 import {
   AccountsRepository,
+  AlertsRepository,
   Analytics,
   Anchors,
   CostGridRepository,
@@ -16,6 +17,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import type { AlertNotice } from "./alerts.js";
 import { AnchorSender } from "./anchor-sender.js";
 import type { GatewayConfig } from "./config.js";
 import { assertToolPoliciesEnforceable, createServer } from "./server.js";
@@ -40,7 +42,15 @@ export interface RunningGateway {
   close(): Promise<void>;
 }
 
-export async function startGateway(config: GatewayConfig): Promise<RunningGateway> {
+export interface StartOptions {
+  /** Called for each new alert, so the desktop app can show a notification. */
+  readonly onAlert?: (notice: AlertNotice) => void;
+}
+
+export async function startGateway(
+  config: GatewayConfig,
+  options: StartOptions = {},
+): Promise<RunningGateway> {
   if (config.desktop) {
     // Owner-only, folder and files both: the database holds the encrypted
     // provider keys. The folder alone would protect them today, but a file
@@ -53,10 +63,10 @@ export async function startGateway(config: GatewayConfig): Promise<RunningGatewa
   const repository = new CostGridRepository(db);
   const analytics = new Analytics(db);
   const imports = new ImportsRepository(db);
-  const accounts =
-    config.masterKeySecret === undefined
-      ? undefined
-      : new AccountsRepository(db, deriveMasterKey(config.masterKeySecret));
+  const masterKey =
+    config.masterKeySecret === undefined ? undefined : deriveMasterKey(config.masterKeySecret);
+  const accounts = masterKey === undefined ? undefined : new AccountsRepository(db, masterKey);
+  const alerts = new AlertsRepository(db, masterKey);
 
   if (config.allowAnonymous && !repository.getTenant("local")) {
     repository.createTenant("Local", "local");
@@ -64,7 +74,16 @@ export async function startGateway(config: GatewayConfig): Promise<RunningGatewa
 
   assertToolPoliciesEnforceable(config, repository);
 
-  const app = createServer({ config, db, repository, analytics, accounts, imports });
+  const app = createServer({
+    config,
+    db,
+    repository,
+    analytics,
+    accounts,
+    imports,
+    alerts,
+    onAlert: options.onAlert,
+  });
   const timers: NodeJS.Timeout[] = [];
 
   // Expired rows can never authenticate anything; sweeping them keeps the

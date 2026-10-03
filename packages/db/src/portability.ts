@@ -154,6 +154,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   cost_catalog: "BIGINT",
   cost_reported: "BIGINT",
   saving_estimate: "BIGINT",
+  monthly_amount: "BIGINT",
   evidence_catalog: "BIGINT",
   evidence_reported: "BIGINT",
 
@@ -176,11 +177,13 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   undone_at: "BIGINT",
   evidence_from: "BIGINT",
   evidence_to: "BIGINT",
+  live_since: "BIGINT",
 
   // Token counts. A single call never approaches int4, but these are summed
   // across windows constantly and a rate override multiplies them, so the
   // headroom is worth four bytes.
   input_tokens: "BIGINT",
+  reasoning_tokens: "BIGINT",
   output_tokens: "BIGINT",
   cache_read_tokens: "BIGINT",
   cache_write_5m_tokens: "BIGINT",
@@ -206,6 +209,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   enforced: "SMALLINT",
   auto_provision: "SMALLINT",
   succeeded: "SMALLINT",
+  desktop: "SMALLINT",
 
   // Small bounded quantities. int4 is already far more than any of them needs.
   duration_ms: "INTEGER",

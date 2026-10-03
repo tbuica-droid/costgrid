@@ -1,5 +1,6 @@
 import { type Nanodollars, toUsdString } from "./money.js";
 import { findModelPrice } from "./pricing.js";
+import { effortRank, type ReasoningEffort, type ReasoningRequest } from "./reasoning.js";
 
 /**
  * What CostGrid does when a rule fires.
@@ -125,6 +126,44 @@ export type PolicyRule =
   | { readonly kind: "max-output-tokens"; readonly limit: number }
   | {
       /**
+       * Refuse every call from this scope, starting with the next one.
+       *
+       * The kill switch. EY's "agentic circuit breakers" and the NIST AI RMF's
+       * MANAGE 2.4 ask for the same thing: a way for a named person to
+       * disengage one agent, one team or everything, immediately, without
+       * touching anybody's code. A budget does that only once money has been
+       * spent; this does it on someone's say-so.
+       *
+       * It is a rule rather than a flag on the agent so that it travels
+       * through everything a rule already has: the enforcement feed, the
+       * audit log, the rule register and the statement. Resuming is disabling
+       * the rule, which keeps the record of the stop.
+       */
+      readonly kind: "stop";
+    }
+  | {
+      /**
+       * A ceiling on how much reasoning a request may ask for.
+       *
+       * Reasoning tokens are where list price and real cost part company
+       * (arXiv:2603.23971), and more of them does not reliably buy a better
+       * answer (arXiv:2506.06941). This caps what a request *asks* for, which
+       * is the only thing visible before the call is made.
+       *
+       * A request that names no effort and no budget is not judged: it gets
+       * the provider's default for that model, which CostGrid does not know.
+       * Refusing it would break callers who never asked for anything, and
+       * passing it as "within the cap" would claim something unverified, so
+       * it passes and the rule's coverage says how much traffic it could see.
+       */
+      readonly kind: "max-reasoning";
+      /** Highest effort level allowed. */
+      readonly effort?: ReasoningEffort;
+      /** Largest thinking budget allowed, on models that take one. */
+      readonly budgetTokens?: number;
+    }
+  | {
+      /**
        * Send this traffic to a cheaper model than the caller asked for.
        *
        * The only rule that *changes* a request rather than permitting or
@@ -182,6 +221,8 @@ export interface RequestContext {
    * case where a transitive rule cannot fire.
    */
   readonly delegatedFrom?: readonly string[];
+  /** What the request asked the model to think, when it said anything. */
+  readonly reasoning?: ReasoningRequest;
 }
 
 /**
@@ -386,6 +427,29 @@ function evaluateRule(
     case "max-output-tokens":
       if (context.maxOutputTokens <= rule.limit) return undefined;
       return `max_tokens ${context.maxOutputTokens} exceeds the cap of ${rule.limit}`;
+
+    case "stop":
+      return "stopped by an operator; nothing from this scope is forwarded until it is resumed";
+
+    case "max-reasoning": {
+      const asked = context.reasoning;
+      if (asked === undefined) return undefined;
+      if (
+        rule.effort !== undefined &&
+        asked.effort !== undefined &&
+        effortRank(asked.effort) > effortRank(rule.effort)
+      ) {
+        return `reasoning effort ${asked.effort} is above the cap of ${rule.effort}`;
+      }
+      if (
+        rule.budgetTokens !== undefined &&
+        asked.budgetTokens !== undefined &&
+        asked.budgetTokens > rule.budgetTokens
+      ) {
+        return `thinking budget ${asked.budgetTokens} exceeds the cap of ${rule.budgetTokens}`;
+      }
+      return undefined;
+    }
 
     case "run-budget": {
       if (run === undefined || !run.declared) return undefined;

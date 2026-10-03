@@ -1,5 +1,15 @@
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, Menu, type MenuItemConstructorOptions, safeStorage, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  type MenuItemConstructorOptions,
+  Notification,
+  safeStorage,
+  session,
+  shell,
+} from "electron";
 import { appDataDir, loadConfig, readMasterKey, type RunningGateway, startGateway } from "@costgrid/gateway";
 import { loadMasterKey } from "./master-key.js";
 
@@ -92,7 +102,17 @@ async function boot(): Promise<void> {
     };
     for (const [name, value] of Object.entries(defaults)) process.env[name] ??= value;
 
-    gateway = await startGateway(loadConfig({ readKeychain: () => master.key }));
+    gateway = await startGateway(loadConfig({ readKeychain: () => master.key }), {
+      // A limit firing is worth interrupting someone for, so it is shown by
+      // the operating system rather than waiting in a window they may have
+      // closed. Clicking it opens the Limits screen.
+      onAlert: (notice) => {
+        if (!Notification.isSupported()) return;
+        const note = new Notification({ title: notice.title, body: notice.body });
+        note.on("click", () => go("/console#limits"));
+        note.show();
+      },
+    });
     origin = gateway.url;
     createWindow();
   } catch (error) {

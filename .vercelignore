@@ -14,3 +14,8 @@ vitest.config.ts
 package.json
 package-lock.json
 *.db
+# Repository files that are not part of the site. Nothing here is secret, but
+# with the code repository private they should not be reachable by address.
+README.md
+design-system
+supabase

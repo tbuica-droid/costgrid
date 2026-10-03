@@ -864,7 +864,7 @@ npm run verify-pricing
 ```
 
 Fetches each provider's published pricing table and diffs every rate in the
-catalog. 53 models across Anthropic and OpenAI. Exit 0 means accurate and
+catalog. 58 models across Anthropic and OpenAI. Exit 0 means accurate and
 fresh; 1 means a discrepancy or a stale verification date; 2 means a page could
 not be fetched or parsed. Which is *inconclusive*, not a pass.
 

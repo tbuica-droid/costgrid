@@ -22,18 +22,22 @@ import {
 import * as advice from "./console-advice.js";
 import * as data from "./console-data.js";
 import * as drift from "./console-drift.js";
+import * as limits from "./console-limits.js";
+import * as results from "./console-results.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field } from "./ui.js";
 
 const PAGES = [
   ["setup", "Setup", wizard.render],
+  ["limits", "Limits", limits.render],
+  ["results", "Results", results.render],
   ["settings", "Settings", renderSettings],
   ["advice", "Advice", advice.render],
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
-const SCREENS = [wizard, advice, drift, data];
+const SCREENS = [wizard, limits, results, advice, drift, data];
 
 // ------------------------------------------------------------- signed out
 
@@ -118,7 +122,7 @@ async function render() {
   try {
     if (!state.user) main.innerHTML = renderAuth();
     else if (!state.tenantId) main.innerHTML = renderNoOrganisation();
-    else main.innerHTML = await (PAGES.find(([id]) => id === state.page) ?? PAGES[1])[2]();
+    else main.innerHTML = await (PAGES.find(([id]) => id === state.page) ?? PAGES.find(([id]) => id === "settings"))[2]();
     document.getElementById("footer-note").textContent = state.user
       ? `${state.orgs.length} organisation${state.orgs.length === 1 ? "" : "s"}`
       : "";

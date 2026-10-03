@@ -33,7 +33,7 @@ data stays inside your network (all of it).
 an estimate or a tokenizer guess. Five buckets are priced independently: input,
 output, 5-minute cache write, 1-hour cache write, and cache read. Money is
 integer nanodollars end to end. Never a float, because a float rounds and a
-bill has to reconcile. Rates for 53 models across Anthropic and OpenAI are
+bill has to reconcile. Rates for 58 models across Anthropic and OpenAI are
 checked against the providers' published tables by `npm run verify-pricing`,
 which fails the build on a discrepancy or a stale verification date.
 
@@ -186,7 +186,8 @@ labels the modelled figures as modelled.
 
 Research underpinning the model. The gap this project addresses is between
 visible token spend and the broader operational cost of deploying AI, and these
-sources support quantifying it.
+sources support quantifying it. Which feature each one became, and a NIST AI
+RMF crosswalk, are on the website at `research.html`.
 
 **Pricing and cost structure**
 

@@ -693,6 +693,81 @@ export const MIGRATIONS: readonly Migration[] = [
         ON anchors(tenant_id, delivered_at, created_at);
     `,
   },
+  {
+    version: 13,
+    name: "research-gaps",
+    // Four things the research this product is built on asks for, and that
+    // metering alone did not record.
+    sql: `
+      -- Reasoning. Reasoning tokens are where list price and real cost part
+      -- company (arXiv:2603.23971). NULL means the provider did not report a
+      -- figure, which is every Anthropic call: Claude does not split thinking
+      -- out of output_tokens, and CostGrid does not estimate the split.
+      ALTER TABLE calls ADD COLUMN reasoning_tokens INTEGER;
+      -- What the request asked for: 'effort:high', 'budget:8000', 'thinking'.
+      ALTER TABLE calls ADD COLUMN reasoning_requested TEXT;
+
+      -- The rule register. Business rules that end up executing inside
+      -- automated systems need an owner, a reason and a history, or they
+      -- become what Hydari and Muzaffar call rule debt (arXiv:2605.23179).
+      -- 'live_since' is when the rule last started enforcing, which is the
+      -- line a before-and-after measurement is drawn at.
+      ALTER TABLE policies ADD COLUMN owner TEXT;
+      ALTER TABLE policies ADD COLUMN reason TEXT;
+      ALTER TABLE policies ADD COLUMN live_since INTEGER;
+      UPDATE policies SET live_since = created_at WHERE enabled = 1 AND action != 'monitor';
+
+      -- Where alerts go. The webhook address is a credential (a Slack
+      -- incoming webhook is one), so it is encrypted under the master key like
+      -- a provider key and shown back only as a masked hint.
+      CREATE TABLE alert_settings (
+        tenant_id          TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+        encrypted_webhook  TEXT,
+        webhook_hint       TEXT,
+        -- A notification on this computer, for the desktop app.
+        desktop            INTEGER NOT NULL DEFAULT 1 CHECK (desktop IN (0, 1)),
+        updated_at         INTEGER NOT NULL
+      ) STRICT;
+
+      -- Every alert raised, delivered or not. 'dedupe_key' is what stops a
+      -- budget that is over its limit from alerting on every call after it:
+      -- one alert per rule per window, per run, or per hour, by kind.
+      CREATE TABLE alerts (
+        id            TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        kind          TEXT NOT NULL,
+        dedupe_key    TEXT NOT NULL,
+        subject       TEXT NOT NULL,
+        message       TEXT NOT NULL,
+        occurred_at   INTEGER NOT NULL,
+        delivered_at  INTEGER,
+        attempts      INTEGER NOT NULL DEFAULT 0,
+        last_error    TEXT,
+        UNIQUE (tenant_id, dedupe_key)
+      ) STRICT;
+      CREATE INDEX idx_alerts_tenant_time ON alerts(tenant_id, occurred_at);
+
+      -- Costs that never appear on a model provider's invoice. Tokens are one
+      -- of seven categories in EY's total cost of agents; the others land on
+      -- other budgets. Entered by hand, monthly, and always shown apart from
+      -- metered spend so a typed-in figure is never mistaken for a measured one.
+      CREATE TABLE fixed_costs (
+        id              TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        label           TEXT NOT NULL,
+        category        TEXT NOT NULL CHECK (category IN
+                          ('subscriptions', 'platform', 'governance', 'change', 'failure', 'other')),
+        scope_kind      TEXT NOT NULL CHECK (scope_kind IN ('tenant', 'department', 'agent')),
+        scope_value     TEXT,
+        monthly_amount  INTEGER NOT NULL CHECK (monthly_amount >= 0),
+        -- First and last calendar month it applies to, as YYYY-MM.
+        starts_month    TEXT NOT NULL,
+        ends_month      TEXT,
+        created_at      INTEGER NOT NULL
+      ) STRICT;
+      CREATE INDEX idx_fixed_costs_tenant ON fixed_costs(tenant_id);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

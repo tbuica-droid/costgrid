@@ -1,7 +1,10 @@
 import {
+  anthropicReasoningOf,
   NO_MODIFIERS,
+  openAiReasoningOf,
   parseAnthropicModifiers,
   parseAnthropicUsage,
+  parseOpenAiReasoningTokens,
   parseOpenAiUsage,
   type Provider,
 } from "@costgrid/core";
@@ -69,6 +72,10 @@ export const anthropicAdapter: ProviderAdapter = {
 
   // Anthropic reports usage on every response, streamed or not.
   prepareBody: (body) => ({ body, injectedUsageRequest: false }),
+
+  // Claude does not report thinking tokens apart from output, so only the
+  // request side is read.
+  reasoningOf: anthropicReasoningOf,
 
   declaredTools(body): readonly string[] {
     const request = record(body);
@@ -169,6 +176,8 @@ export const openaiAdapter: ProviderAdapter = {
     };
   },
 
+  reasoningOf: openAiReasoningOf,
+
   declaredTools(body): readonly string[] {
     const request = record(body);
     const tools = request?.["tools"];
@@ -214,6 +223,7 @@ export const openaiAdapter: ProviderAdapter = {
     return {
       model: typeof message["model"] === "string" ? message["model"] : undefined,
       usage: message["usage"] != null ? parseOpenAiUsage(message["usage"]) : undefined,
+      reasoningTokens: parseOpenAiReasoningTokens(message["usage"]),
       modifiers: NO_MODIFIERS,
       invokedTools,
       stopReason:

@@ -365,6 +365,10 @@ tbody tr:hover { background: var(--panel); }
 .num { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
 th.num { text-align: right; padding-right: 0; }
 td.num { padding-right: 0; }
+/* Numbers are flush right with no padding, so whatever sits after one needs
+   its own gap or the two run together. */
+td.num, th.num { padding-left: 16px; }
+.num + td, .num + th { padding-left: 16px; }
 
 .scroll-x { overflow-x: auto; }
 

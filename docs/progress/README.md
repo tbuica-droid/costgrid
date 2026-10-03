@@ -1,6 +1,6 @@
 # CostGrid: where we are, and what changed after the first outside feedback
 
-Updated 2 October 2026.
+Updated 3 October 2026.
 
 ## The road so far
 
@@ -13,6 +13,7 @@ Updated 2 October 2026.
 | 24 to 26 September | Accounts and the app. Website sign-in by email link, with the demo and downloads behind it. App screens for everything that used to need the command line: setup wizard, suggestions, behaviour changes, backup, audit anchors and account erase. The Mac app itself, with the master key in the Mac's keychain. The 90-day spend import on the setup screen. A fix so the app needs no compiler. A release pipeline to the public `costgrid-releases` repository, with the code repository made private. Version 1.0.1 published, downloaded from the website and confirmed working on your Mac. |
 | 27 September | Plain-language website. Self-hosting, terminal commands and jargon removed. |
 | 2 October | First outside feedback on the website, from a professional contact, below. |
+| 3 October | Closing the gap between the twelve research sources and the product, at the end of this file. |
 
 ## What the feedback said
 
@@ -105,3 +106,62 @@ These are now stated honestly on the page, but each is worth a decision.
   - Every sign-in, download and profile check passes.
   - The one failure is the fonts check, and only because the test machine can't reach Google Fonts.
 - **Facts checked against the code:** where the key is stored, what the app shows of it, what a stopped request receives, monthly budgets, the revoke button, and which providers the import supports.
+
+## 3 October: closing the gap between the research and the product
+
+An audit of the twelve sources the project was meant to be built on found the product code cited none of them. The workbook used two (Du's price half-lives and EY's $0.04 to $1.20). The homepage said "Grounded in" four, two of which (Stanford HAI, Citadel) traced to nothing. This work closes that gap, in the priority order agreed.
+
+### What was built
+
+1. **Alerts and a stop button.**
+   - Alerts go out when a budget is reached, a call is refused, traffic is switched to a cheaper model, or a run costs far more than usual. They arrive as a Mac notification, a Slack or Discord webhook, or both, once per event rather than once per call. The webhook address is stored encrypted.
+   - Any agent, team or everything can be stopped with one click from a new Limits screen, from the next call. Resuming keeps the record. The command line equivalent is `costgrid agent stop/resume`.
+2. **Reasoning.**
+   - Reasoning tokens are now recorded wherever the provider reports them (OpenAI). Claude does not report them separately, so for Claude only what the request asked for is kept.
+   - A new rule caps the reasoning effort or thinking budget a request may ask for.
+   - The Results screen shows reasoning spend, and flags "short answers after long reasoning".
+3. **Measured savings.** When a rule moves traffic to a cheaper model, CostGrid compares cost per call and per run before and after, on the customer's own traffic. It says plainly if the switch made things more expensive, which the price-reversal paper shows happens.
+4. **What a run costs.** Each agent's typical (median), bad (95th percentile) and worst run. A warning fires mid-run when a run passes three times what that agent's runs usually cost.
+5. **Outcomes, now visible.** Cost per success and money spent on failed runs were already measured but were command-line only. They are now on the Results screen and the monthly statement.
+6. **Full cost.**
+   - Licences, platform, oversight and the rest of EY's categories can be entered by month.
+   - The statement shows metered spend, entered costs and the full cost. It also shows full cost per success, which is Curcio's levelized cost idea.
+7. **Rule register and evidence pack.**
+   - Every rule shows its owner, reason, when it went live, how often it fired and every change to it, and unowned rules are flagged.
+   - A monthly evidence pack (JSON) bundles the statement, the register, measured switches, alerts and the audit log's verification.
+
+### Website
+
+- **New `research.html`:**
+  - all twelve sources, each with its finding and the feature it became;
+  - each source labelled "Built in", "Shapes" or "Context";
+  - a NIST AI RMF crosswalk mapping 12 outcomes to controls and the evidence they produce;
+  - a "what we don't claim" section.
+- **Homepage:**
+  - "Grounded in" is replaced by a link to that page;
+  - step 3 now describes the Limits screen;
+  - the stop-spending FAQ mentions the stop button and alerts.
+- **Fixed:**
+  - the research dashboard's price-reversal figures were from the paper's first version;
+  - the thesis page linked to the now-private GitHub repository in three places;
+  - `.vercelignore` now excludes `README.md`, `design-system/` and `supabase/`.
+
+### Things this work turned up
+
+- **The price table was wrong.** Claude Opus 5.5 was being priced as Opus 5, which overstated every call by 25%. Three new OpenAI models (`gpt-6.1-sol`, `gpt-6-sol`, `gpt-6-luna`) were recorded as unpriced. All 58 models now match the live price pages, checked 3 October 2026.
+- **"A mismatch stops a release" was not true.** The FAQ said it, but nothing enforced it. `npm run app:release` now runs the live price check first and stops on any mismatch.
+- **None of this reaches testers until a new app version is published.** The website now describes the Limits and Results screens, so release the app (1.0.2) before or together with the website changes.
+
+### How it was checked
+
+- 717 tests pass, up from 684. The new tests cover:
+  - stop and resume, with a refused call never reaching the provider;
+  - one alert across many refused calls, with webhook delivery;
+  - the reasoning cap;
+  - reasoning tokens recorded from OpenAI;
+  - a measured price reversal;
+  - full cost on the statement;
+  - the register and the evidence pack;
+  - runaway-run warnings.
+- The Limits and Results screens were tried in a browser against a gateway seeded with realistic traffic. The research page was checked at desktop and phone widths, with no sideways scrolling.
+

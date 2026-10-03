@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CostGrid Research</title>
+    <meta
+      name="description"
+      content="The twelve academic and institutional sources CostGrid is built on, what each one found, which feature it became, and a NIST AI RMF crosswalk."
+    />
+    <link rel="canonical" href="https://costgrid.dev/research.html" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2316130f'/><rect x='3' y='9' width='2' height='4' fill='%23faf8f4'/><rect x='7' y='5' width='2' height='8' fill='%23faf8f4'/><rect x='11' y='4' width='2' height='9' fill='%23a63a22'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #faf8f4;
+        --paper-deep: #f2efe8;
+        --card: #ffffff;
+        --ink: #16130f;
+        --ink-soft: #4a443c;
+        --ink-faint: #8a8175;
+        --signal: #a63a22;
+        --rule-soft: #e8e3d9;
+        --rule: #d5cec1;
+        --positive: #3f7a52;
+        --radius: 0.5rem;
+        --sans: "IBM Plex Sans", system-ui, sans-serif;
+        --serif: "Source Serif 4", Georgia, serif;
+        --mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+        font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+      p { margin: 0; }
+      a { color: inherit; }
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+      .section { border-bottom: 1px solid var(--rule-soft); padding: 56px 0; scroll-margin-top: 72px; }
+      .section.deep { background: var(--paper-deep); }
+      .label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); }
+      .muted { color: var(--ink-soft); }
+      .lede { font-size: 17px; color: var(--ink-soft); max-width: 720px; margin-top: 16px; }
+      h1 { font-size: 38px; line-height: 1.1; margin-top: 12px; max-width: 16ch; }
+      h2.head { font-size: 30px; line-height: 1.15; margin-top: 10px; }
+      @media (min-width: 900px) { h1 { font-size: 52px; } h2.head { font-size: 36px; } .wrap { padding: 0 20px; } }
+
+      header.nav { position: sticky; top: 0; z-index: 10; background: rgba(250, 248, 244, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule-soft); }
+      .nav-in { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 12px; }
+      .brand { font-family: var(--mono); font-size: 14px; text-decoration: none; font-weight: 500; }
+      .brand .mark { color: var(--signal); }
+      .nav-links { display: flex; gap: 18px; font-size: 14px; }
+      .nav-links a { text-decoration: none; color: var(--ink-soft); }
+      .nav-links a:hover { color: var(--signal); }
+      @media (max-width: 560px) { .nav-links .wide { display: none; } }
+
+      .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 28px; font-size: 14px; color: var(--ink-soft); }
+      .tag { display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border: 1px solid; border-radius: 3px; white-space: nowrap; }
+      .tag.built { color: var(--positive); border-color: var(--positive); }
+      .tag.shapes { color: #8a5a00; border-color: #c9a35b; }
+      .tag.context { color: var(--ink-faint); border-color: var(--rule); }
+
+      .source { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 22px; margin-top: 16px; display: grid; gap: 18px; }
+      @media (min-width: 900px) { .source { grid-template-columns: 0.9fr 1.1fr 1.1fr; padding: 26px; } }
+      .source h3 { font-size: 19px; line-height: 1.25; margin-top: 10px; }
+      .cite { font-size: 13px; color: var(--ink-faint); margin-top: 6px; }
+      .cite a { color: var(--ink-soft); }
+      .col-title { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+      .source p + p { margin-top: 8px; }
+      .where { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin-top: 10px; }
+
+      .table-wrap { overflow-x: auto; margin-top: 24px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px; }
+      th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); padding: 12px 14px; border-bottom: 1px solid var(--rule); background: var(--paper-deep); }
+      td { padding: 13px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+      tr:last-child td { border-bottom: 0; }
+      td.id { font-family: var(--mono); font-size: 12.5px; min-width: 190px; }
+      td .nist { color: var(--ink-faint); font-family: var(--sans); font-size: 13px; display: block; margin-top: 4px; }
+      td.evidence { color: var(--ink-soft); font-size: 13.5px; }
+      /* On a phone each outcome becomes a small card rather than a wide table. */
+      @media (max-width: 700px) {
+        table { min-width: 0; }
+        thead { display: none; }
+        tr { display: block; border-bottom: 1px solid var(--rule); }
+        tr:last-child { border-bottom: 0; }
+        td { display: block; border: 0; padding: 4px 16px; }
+        td.id { padding-top: 16px; min-width: 0; }
+        td.evidence { padding-bottom: 16px; }
+        td.evidence::before { content: "Evidence: "; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+      }
+
+      .claims { display: grid; gap: 14px; margin-top: 24px; }
+      @media (min-width: 900px) { .claims { grid-template-columns: 1fr 1fr; } }
+      .claim { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px 20px; }
+      .claim strong { display: block; margin-bottom: 4px; }
+
+      footer { background: var(--ink); color: rgba(250, 248, 244, 0.7); padding: 36px 0; font-size: 13px; }
+      footer a { color: var(--paper); }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-in">
+        <a class="brand" href="./"><span class="mark">&gt;_</span> costgrid.dev</a>
+        <nav class="nav-links">
+          <a href="#sources">Sources</a>
+          <a href="#nist">NIST AI RMF</a>
+          <a class="wide" href="#limits">What we don't claim</a>
+          <a href="./">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="section" id="top">
+      <div class="wrap">
+        <span class="label">The research behind CostGrid</span>
+        <h1>Twelve sources, and what each one became.</h1>
+        <p class="lede">
+          CostGrid was designed from academic and institutional research on what AI really costs to run
+          and how it should be governed. This page lists every source, what it found, the feature it led
+          to, and where to see that feature in the app. Where a source only informs the context and no
+          feature comes from it, it says so.
+        </p>
+        <p class="lede" style="font-size: 15px">
+          Checked against the product's code on 3 October 2026. Findings are summarised in our own words;
+          follow each link for the original.
+        </p>
+        <div class="legend">
+          <span><span class="tag built">Built in</span> a feature exists because of this source</span>
+          <span><span class="tag shapes">Shapes</span> it changed how a feature works or reports</span>
+          <span><span class="tag context">Context</span> market background, no feature claimed</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section deep" id="sources">
+      <div class="wrap">
+        <span class="label">Cost: why the bill rises while prices fall</span>
+        <h2 class="head">What AI work actually costs.</h2>
+
+        <article class="source" id="ey">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>The Total Cost of Agents</h3>
+            <p class="cite">EY (Smith, Wanner, Butler, Diasio), "Unlocking agentic value", June 2026.
+              <a href="https://www.ey.com/en_us/insights/ai/agentic-ai-token-costs">ey.com</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Tokens are one of seven cost categories in running an agent; most business cases count only
+              the first three. A support chat that cost $0.04 in 2023 can cost $1.20 as an orchestrated agent.
+              It calls for "circuit breakers": spend ceilings and automatic shut-offs per agent, workflow and
+              business unit, with a named owner for each cost before it is spent.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Spending limits per agent, team or everything, per day, month or run, checked before each call
+              is sent. A stop button for any agent or team. An owner and reason on every rule. Non-token costs
+              entered under EY's categories, so the monthly statement shows a full cost.</p>
+            <p class="where">App: Limits · Results › Full cost</p>
+          </div>
+        </article>
+
+        <article class="source" id="agent-tokens">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>How Do AI Agents Spend Your Money?</h3>
+            <p class="cite">Bai, Huang, Wang, Sun, Mihalcea, Brynjolfsson, Pentland, Pei. University of Michigan,
+              Stanford, MIT and others. April 2026. <a href="https://arxiv.org/abs/2604.22750">arXiv:2604.22750</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Agentic tasks use roughly a thousand times the tokens of a single question, mostly as input.
+              Runs of the same task differed by up to 30 times. Spending more did not reliably buy accuracy, and
+              models could not predict their own cost beforehand (correlation of 0.39 at best).</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>It does not try to predict cost. It enforces a ceiling on each run before the next call is sent,
+              shows each agent's typical and bad run (median and 95th percentile) instead of an average, and
+              warns while a run is still going when it passes three times what that agent's runs usually cost.</p>
+            <p class="where">App: Limits › per-run limits · Results › What a run costs · Alerts</p>
+          </div>
+        </article>
+
+        <article class="source" id="price-reversal">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>The Price Reversal Phenomenon</h3>
+            <p class="cite">Chen, Zhang, He, Stoica, Zaharia, Zou. Stanford, UC Berkeley, CMU, Microsoft Research.
+              May 2026. <a href="https://arxiv.org/abs/2603.23971">arXiv:2603.23971</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>In 32% of model pairs tested, the model with the lower list price cost more in total, by up to 28
+              times, because it used more reasoning tokens or more turns. Repeats of the same query varied up to
+              9.7 times in reasoning tokens. It recommends tracking actual cost per request.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Every call is priced from the provider's own token counts, not a list price. When a rule moves
+              traffic to a cheaper model, CostGrid measures cost per call and per whole run before and after on
+              your own traffic, and says plainly if the switch made things more expensive.</p>
+            <p class="where">App: Limits › Did switching save money? · Results › Reasoning</p>
+          </div>
+        </article>
+
+        <article class="source" id="illusion">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>The Illusion of Thinking</h3>
+            <p class="cite">Shojaee, Mirzadeh, Alizadeh, Horton, Bengio, Farajtabar. Apple. 2025.
+              <a href="https://arxiv.org/abs/2506.06941">arXiv:2506.06941</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>On simple problems, models without extended reasoning were often more accurate and used fewer
+              tokens than reasoning models. On hard ones both failed, and reasoning effort fell off near the
+              point of failure. More thinking is not more value by default.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>A reasoning cap: a limit on the effort level or thinking budget a request may ask for. Spend broken
+              down by how much reasoning each call asked for, and a flag on agents that write short answers after
+              long reasoning, the first place to try a lower effort level.</p>
+            <p class="where">App: Limits › How much the model may reason · Results › Reasoning</p>
+          </div>
+        </article>
+
+        <article class="source" id="lcoai">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>Levelized Cost of AI (LCOAI)</h3>
+            <p class="cite">Curcio. 2025. <a href="https://arxiv.org/abs/2509.02596">arXiv:2509.02596</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>API bills and simple totals miss the lifecycle cost of AI. Like the levelized cost of electricity,
+              the fair comparison is total capital and running cost divided by the number of valid outputs.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Your software can report whether each run worked; CostGrid then shows cost per successful result
+              and the money spent on runs that failed, and full cost per success once other costs are entered.
+              Partly: it uses monthly entered costs and does not amortise capital spend.</p>
+            <p class="where">App: Results › What the money bought · Full cost</p>
+          </div>
+        </article>
+
+        <article class="source" id="super-moore">
+          <div>
+            <span class="tag shapes">Shapes</span>
+            <h3>Tiered Super-Moore's Law</h3>
+            <p class="cite">Du. Wuhan University. March 2026. <a href="https://arxiv.org/abs/2603.28576">arXiv:2603.28576</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Token prices fell about 600-fold from 2020 to 2026. Cheap models halve in price every 1.1 years
+              and mid-tier every 1.55, but flagship prices barely fall, because reasoning models charge on average
+              31.5 times more per token.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Its price half-lives drive the 2023–2030 forecast in the research workbook. In the product, spend is
+              broken down by model tier, and reasoning spend is tracked separately, because the tier a call runs
+              on matters more than the falling headline price.</p>
+            <p class="where">Workbook · App: dashboard › tiers · Results › Reasoning</p>
+          </div>
+        </article>
+
+        <article class="source" id="citadel">
+          <div>
+            <span class="tag shapes">Shapes</span>
+            <h3>Tokenomics</h3>
+            <p class="cite">Citadel Securities, Global Macro Strategy (Flight). June 2026.
+              <a href="https://www.citadelsecurities.com/news-and-insights/global-macro-strategy/tokenomics/">citadelsecurities.com</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Buyers are becoming sensitive to the all-in cost of AI, token price times token volume, and are
+              moving work to cheaper models wherever frontier capability is not needed. It expects "frontier" and
+              "everyday" AI use to keep splitting apart.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>It reports what you pay as price times volume for each call rather than per-token list price, splits
+              spend between frontier and everyday model tiers, and lets you move everyday work to cheaper models
+              by rule or when a budget runs out, then measures whether that actually saved money.</p>
+            <p class="where">App: dashboard › tiers · Limits › switch model when over</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <span class="label">Governance: who controls the agents</span>
+        <h2 class="head">Controls a business can show.</h2>
+
+        <article class="source" id="nist-source">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>AI Risk Management Framework 1.0</h3>
+            <p class="cite">NIST AI 100-1. January 2023.
+              <a href="https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf">nist.gov</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>A voluntary framework organising AI risk management into four functions, Govern, Map, Measure and
+              Manage, each broken into specific outcomes an organisation should be able to show.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Supports specific outcomes for the cost and runtime-behaviour part of AI risk, mapped one by one in
+              the crosswalk below, with the evidence each produces.</p>
+            <p class="where"><a href="#nist">See the crosswalk ↓</a></p>
+          </div>
+        </article>
+
+        <article class="source" id="aagate">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>AAGATE: governance as infrastructure</h3>
+            <p class="cite">Huang, Lambros and others (OWASP, Cloud Security Alliance contributors). November 2025.
+              <a href="https://arxiv.org/abs/2510.25863">arXiv:2510.25863</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Autonomous agents act at machine speed, so governance has to run alongside them: a gateway that
+              controls which tools agents may use, behaviour monitoring, a kill switch, and a tamper-evident
+              record of what happened.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>The same pattern on a small scale, in the request path: tool allow and deny lists enforced before a
+              call is sent, a report of agents doing new things (including calling tools they were never given),
+              a stop button, and an audit log whose fingerprint can be sent off the machine.</p>
+            <p class="where">App: Limits · What changed · Data › audit anchors</p>
+          </div>
+        </article>
+
+        <article class="source" id="accountability">
+          <div>
+            <span class="tag built">Built in</span>
+            <h3>Accountability boundaries and "rule debt"</h3>
+            <p class="cite">Hydari (University of Pittsburgh), Muzaffar. May 2026.
+              <a href="https://arxiv.org/abs/2605.23179">arXiv:2605.23179</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>As agents take over work, business rules move out of governed systems and pile up as "rule debt"
+              that someone must eventually inventory, own, version and reconcile. What keeps value is evidence:
+              outputs that can be reviewed, signed off and traced to a responsible party.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>A rule register: every limit with its owner, reason, when it went live, how often it fired and every
+              change to it, with unowned rules flagged. A monthly evidence pack bundles the statement, the
+              register, alerts sent and the audit log's verification in one file.</p>
+            <p class="where">App: Limits › Rule register · Results › evidence pack</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section deep">
+      <div class="wrap">
+        <span class="label">The market</span>
+        <h2 class="head">Who is ready for this, and how they buy.</h2>
+
+        <article class="source" id="agent-index">
+          <div>
+            <span class="tag shapes">Shapes</span>
+            <h3>The 2025 AI Agent Index</h3>
+            <p class="cite">Staufer, Feng, Wei, Bailey and others; Cambridge, MIT, Harvard and others. FAccT 2026.
+              <a href="https://arxiv.org/abs/2602.17753">arXiv:2602.17753</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>Of 30 widely used agents, 12 offered no usage monitoring or only usage notices, and 4 documented no
+              way to stop them once running. Control is split between the model maker, the agent builder and the
+              business using it.</p>
+          </div>
+          <div>
+            <p class="col-title">What CostGrid does</p>
+            <p>Puts monitoring and a stop control on the business's side, independent of whoever built the agent,
+              for every request your software sends. It cannot reach AI inside tools you subscribe to, and the
+              site says so.</p>
+            <p class="where">App: Limits › Stop</p>
+          </div>
+        </article>
+
+        <article class="source" id="ai-index">
+          <div>
+            <span class="tag context">Context</span>
+            <h3>AI Index Report 2026</h3>
+            <p class="cite">Stanford Institute for Human-Centered AI. 2026.
+              <a href="https://hai.stanford.edu/assets/files/ai_index_report_2026.pdf">hai.stanford.edu</a></p>
+          </div>
+          <div>
+            <p class="col-title">What it found</p>
+            <p>88% of organisations use AI, but agents are deployed in under 10% of nearly every business function.
+              33% of organisations cite the NIST AI RMF as shaping their practices and 36% ISO/IEC 42001. Among
+              organisations reporting AI incidents, the share with three to five rose from 30% to 50%.</p>
+          </div>
+          <div>
+            <p class="col-title">How it is used</p>
+            <p>No feature comes from it. It explains two choices: CostGrid works for an ordinary chatbot, not
+              only for agents, because that is where most businesses are; and the crosswalk below exists because
+              a third of buyers already work to NIST.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="nist">
+      <div class="wrap">
+        <span class="label">NIST AI RMF 1.0 crosswalk</span>
+        <h2 class="head">What CostGrid supports, outcome by outcome.</h2>
+        <p class="lede">
+          The framework is voluntary and covers far more than cost. This maps only the outcomes CostGrid
+          supports, for software that sends its AI requests through CostGrid, and names the evidence each one
+          leaves. It is a mapping, not a certification.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Outcome</th><th>What CostGrid does</th><th>Evidence it produces</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="id">GOVERN 1.5<span class="nist">Ongoing monitoring and periodic review, with frequency defined</span></td>
+                <td>Every rule records how often it fired; a monthly statement compares each team, agent and model with the month before.</td>
+                <td class="evidence">Rule register; monthly statement (CSV)</td>
+              </tr>
+              <tr>
+                <td class="id">GOVERN 1.6<span class="nist">Mechanisms to inventory AI systems</span></td>
+                <td>Agents, the models and tools they use, and who hands work to whom are discovered from live traffic, not typed in.</td>
+                <td class="evidence">Agent list and map; rule register</td>
+              </tr>
+              <tr>
+                <td class="id">GOVERN 2.1<span class="nist">Roles and responsibilities documented</span></td>
+                <td>Each limit carries an owner and a reason; rules without an owner are flagged. Every change records who made it.</td>
+                <td class="evidence">Rule register; audit log</td>
+              </tr>
+              <tr>
+                <td class="id">MAP 1.4<span class="nist">Business value defined or re-evaluated</span></td>
+                <td>Your software reports whether each run worked; CostGrid reports cost per successful result.</td>
+                <td class="evidence">Results › What the money bought; statement</td>
+              </tr>
+              <tr>
+                <td class="id">MAP 3.2<span class="nist">Costs of AI errors examined and documented</span></td>
+                <td>Money spent on runs that failed, truncated answers and errored calls are reported; failure and recovery costs can be entered.</td>
+                <td class="evidence">Results; statement; evidence pack</td>
+              </tr>
+              <tr>
+                <td class="id">MEASURE 2.4<span class="nist">Functionality and behaviour monitored in production</span></td>
+                <td>Every call is metered. Runs that cost far more than usual raise an alert while still running.</td>
+                <td class="evidence">Per-call records; alerts</td>
+              </tr>
+              <tr>
+                <td class="id">MEASURE 2.8<span class="nist">Transparency and accountability risks examined and documented</span></td>
+                <td>A hash-chained audit log that shows any later edit, with its fingerprint sent to a system you control.</td>
+                <td class="evidence">Audit log verification; anchors</td>
+              </tr>
+              <tr>
+                <td class="id">MEASURE 3.1<span class="nist">Existing, unanticipated and emergent risks tracked</span></td>
+                <td>A report of what agents started doing that they never did before, including tools the model invented.</td>
+                <td class="evidence">What changed report</td>
+              </tr>
+              <tr>
+                <td class="id">MANAGE 1.3<span class="nist">Responses to high-priority risks developed and documented</span></td>
+                <td>Limits that measure, warn, refuse, or move work to a cheaper model, each with its reason. Limits CostGrid proposes are replayed against past traffic before being switched on.</td>
+                <td class="evidence">Rule register; advice replays</td>
+              </tr>
+              <tr>
+                <td class="id">MANAGE 2.4<span class="nist">Mechanisms to supersede, disengage or deactivate</span></td>
+                <td>Stop any agent, team or everything from the next call; tool and model deny lists; refusal before the provider is reached.</td>
+                <td class="evidence">Stop records in the register and audit log</td>
+              </tr>
+              <tr>
+                <td class="id">MANAGE 4.1<span class="nist">Post-deployment monitoring, including override</span></td>
+                <td>Alerts on every limit event; resume and switch-off record who overrode what and when.</td>
+                <td class="evidence">Alerts list; audit log</td>
+              </tr>
+              <tr>
+                <td class="id">MANAGE 4.3<span class="nist">Incidents and errors communicated; tracking documented</span></td>
+                <td>Alerts posted to a Slack or Discord channel, or any service that accepts a webhook, and a notification on the Mac, once per event, with delivery recorded.</td>
+                <td class="evidence">Alerts with delivery status; evidence pack</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size: 14px; margin-top: 16px; max-width: 760px">
+          Not covered: model evaluation, bias and fairness, privacy impact, content safety, and AI inside tools
+          you subscribe to. Those need other controls.
+        </p>
+      </div>
+    </section>
+
+    <section class="section deep" id="limits">
+      <div class="wrap">
+        <span class="label">Stated plainly</span>
+        <h2 class="head">What we don't claim.</h2>
+        <div class="claims">
+          <div class="claim"><strong>We don't predict what a task will cost.</strong>
+            <span class="muted">The research says models can't, and neither can we. CostGrid caps and measures
+              instead.</span></div>
+          <div class="claim"><strong>Claude's thinking tokens aren't separated.</strong>
+            <span class="muted">Anthropic doesn't report them apart from output, so CostGrid shows what Claude
+              calls asked for, not an estimate of what they used.</span></div>
+          <div class="claim"><strong>Measured savings aren't a controlled experiment.</strong>
+            <span class="muted">They compare your traffic before and after a switch. If the work changed at the
+              same time, part of the difference is that, and the app says so.</span></div>
+          <div class="claim"><strong>Full cost is only as good as what's entered.</strong>
+            <span class="muted">CostGrid measures AI spend exactly; licences and people's time are typed in and
+              always shown apart.</span></div>
+          <div class="claim"><strong>The crosswalk is not a certification.</strong>
+            <span class="muted">NIST's framework is voluntary. The table shows which outcomes CostGrid's records
+              support, not that an organisation complies.</span></div>
+          <div class="claim"><strong>It only sees what goes through it.</strong>
+            <span class="muted">AI inside HubSpot, ChatGPT seats and other subscribed tools runs on their
+              accounts and is out of reach.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between">
+        <span>costgrid.dev — built by Tomas Buica</span>
+        <span><a href="./">Home</a> · <a href="./thesis.html">The thesis</a> · <a href="./dashboard.html">Research dashboard</a></span>
+      </div>
+    </footer>
+  </body>
+</html>

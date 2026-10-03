@@ -1,4 +1,4 @@
-import type { PriceModifiers, Provider, TokenUsage } from "@costgrid/core";
+import type { PriceModifiers, Provider, ReasoningRequest, TokenUsage } from "@costgrid/core";
 
 /**
  * What the gateway needs to know to proxy and meter one provider.
@@ -82,6 +82,12 @@ export interface ProviderAdapter {
    * policy needs.
    */
   declaredTools(body: unknown): readonly string[];
+
+  /**
+   * How much reasoning the request asks for, read before it is forwarded.
+   * `undefined` when the request says nothing, which is not the same as none.
+   */
+  reasoningOf?(body: unknown): ReasoningRequest | undefined;
 }
 
 /** What an adapter needs in order to authenticate one request. */
@@ -100,6 +106,8 @@ export interface ParsedResponse {
   readonly stopReason: string | undefined;
   /** Tool names the model asked to run. Arguments are never read. */
   readonly invokedTools: readonly string[];
+  /** Reasoning tokens billed, where the provider reports them separately. */
+  readonly reasoningTokens?: number | undefined;
 }
 
 /**
@@ -120,6 +128,8 @@ export interface StreamUsageCollector {
   readonly parseErrors: number;
   /** Tool names seen in the stream. Names only; argument deltas are ignored. */
   readonly invokedTools: readonly string[];
+  /** Reasoning tokens billed, where the provider reports them separately. */
+  readonly reasoningTokens?: number | undefined;
 
   /**
    * True when the stream did not yield trustworthy usage — it was truncated,

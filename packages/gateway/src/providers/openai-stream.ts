@@ -1,4 +1,11 @@
-import { NO_MODIFIERS, parseOpenAiUsage, type PriceModifiers, type TokenUsage, ZERO_USAGE } from "@costgrid/core";
+import {
+  NO_MODIFIERS,
+  parseOpenAiReasoningTokens,
+  parseOpenAiUsage,
+  type PriceModifiers,
+  type TokenUsage,
+  ZERO_USAGE,
+} from "@costgrid/core";
 import type { StreamUsageCollector } from "./types.js";
 import { MAX_TOOLS_PER_CALL, toolName } from "./tools.js";
 
@@ -28,6 +35,7 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
   #tools: string[] = [];
   #sawUsage = false;
   #sawAnyChunk = false;
+  #reasoningTokens: number | undefined;
 
   feed(chunk: string): void {
     this.#buffer += chunk;
@@ -89,6 +97,7 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
       if (typeof r["model"] === "string") this.#model = r["model"];
       if (r["usage"] != null) {
         this.#usage = parseOpenAiUsage(r["usage"]);
+        this.#reasoningTokens = parseOpenAiReasoningTokens(r["usage"]);
         this.#sawUsage = true;
       }
       if (typeof r["status"] === "string") this.#stopReason = r["status"];
@@ -97,6 +106,7 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
     // Chat Completions: `usage` is null on every chunk but the last.
     if (event["usage"] != null) {
       this.#usage = parseOpenAiUsage(event["usage"]);
+      this.#reasoningTokens = parseOpenAiReasoningTokens(event["usage"]);
       this.#sawUsage = true;
     }
 
@@ -128,6 +138,10 @@ export class OpenAiStreamCollector implements StreamUsageCollector {
 
   get usage(): TokenUsage {
     return this.#usage;
+  }
+
+  get reasoningTokens(): number | undefined {
+    return this.#reasoningTokens;
   }
 
   get model(): string | undefined {
