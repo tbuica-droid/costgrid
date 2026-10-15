@@ -239,4 +239,10 @@ Built by Tomas Buica &mdash; <tomasbuica@outlook.com>.
 
 ## License
 
-MIT
+[Functional Source License 1.1, Apache 2.0 future license (FSL-1.1-ALv2)](LICENSE).
+You may use, change and share CostGrid for any purpose except offering a
+competing product or service. Two years after each version is released, that
+version becomes available under the Apache License 2.0.
+
+Versions released before 15 October 2026 were published under the MIT License,
+and remain available under it.
