@@ -9,10 +9,13 @@
  * has to reason about the second. Used edges are solid, granted ones dashed.
  */
 
-const INK = "#0f1411";
-const GOLD = "#9d7b1f";
-const RUST = "#a8452a";
-const COLOR = { agent: INK, model: GOLD, tool: RUST };
+// Theme tokens, applied as inline style rather than presentation attributes so
+// var() resolves and the graph follows the light/dark setting.
+const ACCENT = "var(--cg-accent)";
+const INK2 = "var(--cg-ink-2)";
+const INK3 = "var(--cg-ink-3)";
+const COLOR = { agent: ACCENT, model: INK2, tool: INK3 };
+const LABEL_SIZE = 12.5;
 
 /** Deterministic seeding, so the same fleet lays out the same way each visit. */
 function makeRandom(seed) {
@@ -35,7 +38,7 @@ function layout(nodes, edges, W, H) {
     n.vx = 0;
     n.vy = 0;
     n.r = n.kind === "tool" ? 6 : 8 + Math.sqrt(Number(n.costUsd) || 0) * 1.6;
-    n.labelHalf = (n.id.length * 10 * 0.58) / 2;
+    n.labelHalf = (n.id.length * LABEL_SIZE * 0.6) / 2;
   }
 
   const live = edges.filter((e) => byId.has(e.from) && byId.has(e.to));
@@ -141,7 +144,7 @@ export function drawTopology(mount, panel, topo, helpers) {
       y1: a.y,
       x2: b.x,
       y2: b.y,
-      stroke: e.kind === "uses" || e.kind === "grants" ? RUST : e.kind === "delegates" ? INK : GOLD,
+      style: `stroke:${e.kind === "uses" || e.kind === "grants" ? INK3 : e.kind === "delegates" ? ACCENT : INK2}`,
       "stroke-width": e.kind === "delegates" ? 1.6 : 1.2,
       "stroke-opacity": 0.28,
       // A capability never exercised is drawn as the weaker claim it is.
@@ -153,22 +156,21 @@ export function drawTopology(mount, panel, topo, helpers) {
 
   const nodeEls = nodes.map((n) => {
     const g = el("g", { style: "cursor:pointer", tabindex: "0", role: "button", "aria-label": n.id });
-    const halo = el("circle", { cx: n.x, cy: n.y, r: n.r + 5, fill: GOLD, "fill-opacity": 0 });
+    const halo = el("circle", { cx: n.x, cy: n.y, r: n.r + 5, style: `fill:${ACCENT}`, "fill-opacity": 0 });
     const dot = el("circle", {
       cx: n.x,
       cy: n.y,
       r: n.r,
-      fill: n.kind === "tool" ? "#f5f2e9" : COLOR[n.kind],
-      stroke: COLOR[n.kind],
+      style: `fill:${n.kind === "tool" ? "var(--cg-surface)" : COLOR[n.kind]};stroke:${COLOR[n.kind]}`,
       "stroke-width": 1.4,
     });
     const label = el("text", {
       x: n.x,
-      y: n.y + n.r + 13,
+      y: n.y + n.r + 15,
       "text-anchor": "middle",
-      "font-family": "var(--mono)",
-      "font-size": 10,
-      fill: n.kind === "agent" ? INK : "rgba(15,20,17,0.62)",
+      style: `font-family:var(--cg-font-mono);font-size:${LABEL_SIZE}px;fill:${
+        n.kind === "agent" ? "var(--cg-ink)" : INK2
+      }`,
     });
     label.textContent = n.id;
     g.append(halo, dot, label);
@@ -215,7 +217,7 @@ export function drawTopology(mount, panel, topo, helpers) {
     const list = (ids) =>
       ids.length === 0 ? '<span style="color:var(--muted)">none</span>' : ids.map(escapeHtml).join(", ");
 
-    let html = `<div style="font-size:16px;font-weight:600">${escapeHtml(n.id)}</div>
+    let html = `<div style="font-size:16px;font-weight:700">${escapeHtml(n.id)}</div>
       <div class="rail" style="margin:4px 0 14px">${n.kind}${
         n.department ? ` · ${escapeHtml(n.department)}` : ""
       }</div>`;

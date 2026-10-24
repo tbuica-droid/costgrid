@@ -1,8 +1,12 @@
+/* A note on its own surface. Not a left-border card. */
 .cg-callout {
-  border-left: 2px solid var(--cg-rule);
-  padding: var(--cg-space-1) 0 var(--cg-space-1) var(--cg-space-4);
+  background: var(--cg-surface-2);
+  border: 1px solid var(--cg-line);
+  border-radius: var(--cg-radius-md);
+  padding: var(--cg-space-3) var(--cg-space-4);
 }
-.cg-callout--warning { border-left-color: var(--cg-over); }
+.cg-callout--warning { background: var(--cg-warn-bg); border-color: transparent; }
+.cg-callout--warning .cg-callout__title { color: var(--cg-warn); }
 
 .cg-callout__title {
   font-size: var(--cg-text-sm);
@@ -13,6 +17,6 @@
 .cg-callout__body {
   font-size: var(--cg-text-sm);
   line-height: var(--cg-leading-snug);
-  color: var(--cg-ink-soft);
+  color: var(--cg-ink-2);
   max-width: 68ch;
 }

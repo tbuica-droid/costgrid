@@ -34,8 +34,7 @@ export async function call(method, path, body) {
 export function flashBanner() {
   if (!state.flash) return "";
   const { kind, text } = state.flash;
-  const colour = kind === "error" ? "var(--rust)" : "var(--green)";
-  return `<div class="banner" style="border-color:${colour}"><strong style="color:${colour}">
+  return `<div class="banner ${kind === "error" ? "bad" : "good"}" role="status"><strong>
     ${escapeHtml(text)}</strong></div>`;
 }
 

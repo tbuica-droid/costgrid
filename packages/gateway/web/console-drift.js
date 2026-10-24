@@ -7,14 +7,14 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, relativeTime } from "./ui.js";
+import { button, count, escapeHtml, pageHead, relativeTime } from "./ui.js";
 
 const view = { days: 7 };
 
 function signalCard(s) {
   const invented = s.kind === "invented-tool";
   return `<div class="card" style="margin-bottom:12px">
-    <h3 style="margin:0 0 6px;font-size:16px">${escapeHtml(s.headline)}</h3>
+    <h3>${escapeHtml(s.headline)}</h3>
     <p style="margin:0 0 8px">${escapeHtml(s.evidence)}</p>
     <p class="kpi-sub">${count(s.occurrences)} time${s.occurrences === 1 ? "" : "s"}, first seen ${relativeTime(s.firstSeenAt)}.</p>
     ${
@@ -59,18 +59,19 @@ export async function render() {
   }
 
   return `
-    <h2>What changed</h2>
-    <p class="section-note">What your agents started doing that they never did before, compared
+    ${pageHead(
+      "What changed",
+      `What your agents started doing that they never did before, compared
       against the 30 days before the window. Nothing here reads content: it is names, counts and
-      who handed work to whom.</p>
+      who handed work to whom.`,
+      `<form id="drift-window" class="form-row">
+        <select name="days" aria-label="Window">
+          ${[1, 7, 30].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} day${d === 1 ? "" : "s"}</option>`).join("")}
+        </select>
+        ${button("Show", 'type="submit"', "secondary")}
+      </form>`,
+    )}
     ${flashBanner()}
-    <form id="drift-window" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-      <span class="rail">Window</span>
-      <select name="days" style="padding:8px">
-        ${[1, 7, 30].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} day${d === 1 ? "" : "s"}</option>`).join("")}
-      </select>
-      ${button("Show", 'type="submit"')}
-    </form>
     ${body}
     <p class="section-note" style="margin-top:22px">CostGrid can tell you what is unusual. It cannot
       tell you what is wrong. Most new behaviour is a release.</p>`;

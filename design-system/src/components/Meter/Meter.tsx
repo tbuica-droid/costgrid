@@ -13,7 +13,7 @@ export interface MeterProps extends React.HTMLAttributes<HTMLDivElement> {
 /**
  * A budget against its ceiling.
  *
- * Fills in ink until it passes the limit, then turns the signal colour. The
+ * Fills in the chart colour until it passes the limit, then turns red. The
  * bar does not shade gradually from green to red on the way up: a budget at
  * 70% is not a warning, it is a budget at 70%, and colouring it teaches people
  * to ignore the colour when it finally matters.

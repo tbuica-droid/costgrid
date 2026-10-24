@@ -1,30 +1,31 @@
 .cg-secthead { display: flex; flex-direction: column; gap: var(--cg-space-3); max-width: 62ch; }
 .cg-secthead--center { align-items: center; text-align: center; margin-inline: auto; }
 
+/* The overline: the only uppercase label in the system, in the accent. */
 .cg-secthead__eyebrow {
   font-size: var(--cg-text-xs);
-  font-weight: var(--cg-weight-medium);
+  font-weight: var(--cg-weight-semibold);
   letter-spacing: var(--cg-tracking-label);
   text-transform: uppercase;
-  color: var(--cg-ink-faint);
+  color: var(--cg-accent);
 }
 
 .cg-secthead__title {
   margin: 0;
   font-family: var(--cg-font-display);
-  font-weight: var(--cg-weight-regular);
+  font-weight: var(--cg-weight-bold);
   font-size: var(--cg-text-2xl);
   line-height: var(--cg-leading-tight);
   letter-spacing: var(--cg-tracking-tight);
   text-wrap: balance;
 }
 @media (min-width: 768px) { .cg-secthead__title { font-size: var(--cg-text-3xl); } }
-.cg-secthead__title--hero { font-size: var(--cg-text-4xl); }
+.cg-secthead__title--hero { font-size: var(--cg-text-4xl); line-height: 1.06; letter-spacing: -0.03em; }
 
 .cg-secthead__lede {
   margin: 0;
   font-size: var(--cg-text-lg);
   line-height: var(--cg-leading-normal);
-  color: var(--cg-ink-soft);
+  color: var(--cg-ink-2);
   text-wrap: pretty;
 }

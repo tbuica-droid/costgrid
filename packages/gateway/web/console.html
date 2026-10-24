@@ -1,28 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CostGrid — Console</title>
+<script src="/app/theme.js"></script>
 <link rel="stylesheet" href="/app/styles.css" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230f1411'/><rect x='3' y='9' width='2' height='4' fill='%239d7b1f'/><rect x='7' y='5' width='2' height='8' fill='%23f5f2e9'/><rect x='11' y='7' width='2' height='6' fill='%23a8452a'/></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='1.75' y='1.75' width='22.5' height='22.5' rx='5' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
 </head>
 <body>
 
-<header>
-  <span class="brand">CostGrid</span>
-  <span class="tagline">Agentic FinOps &amp; AI governance</span>
-  <nav id="nav"></nav>
-</header>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="14" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="7" y="14" width="5" height="5" rx="1" fill="currentColor"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        CostGrid
+      </div>
+      <div class="workspace" id="workspace" hidden></div>
+      <nav id="nav" class="side-nav" aria-label="Console"></nav>
+    </div>
+  </aside>
 
-<main id="main">
-  <p class="rail">Loading…</p>
-</main>
+  <div class="content">
+    <main id="main">
+      <p class="rail">Loading…</p>
+    </main>
 
-<footer>
-  <span>CostGrid console</span>
-  <span id="footer-note"></span>
-</footer>
+    <footer>
+      <span>CostGrid console</span>
+      <span id="footer-note"></span>
+    </footer>
+  </div>
+</div>
 
 <script type="module" src="/app/console.js"></script>
 </body>

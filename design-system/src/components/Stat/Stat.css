@@ -1,21 +1,17 @@
-.cg-stat { display: flex; flex-direction: column; gap: var(--cg-space-2); }
+.cg-stat { display: flex; flex-direction: column; gap: 6px; }
 
 .cg-stat__label {
   font-size: var(--cg-text-xs);
   font-weight: var(--cg-weight-medium);
-  letter-spacing: var(--cg-tracking-label);
-  text-transform: uppercase;
-  color: var(--cg-ink-faint);
-  line-height: 1;
+  color: var(--cg-ink-2);
+  line-height: 1.35;
 }
 
-/* The figure is set in the display serif. This is the one place the serif
- * earns its keep: a large lining numeral in a text serif reads as a printed
- * account rather than as a dashboard widget. */
+/* The figure: Manrope 700, tight, tabular. */
 .cg-stat__value {
   font-family: var(--cg-font-display);
-  font-weight: var(--cg-weight-regular);
-  line-height: 1;
+  font-weight: var(--cg-weight-bold);
+  line-height: 1.1;
   letter-spacing: var(--cg-tracking-tight);
   color: var(--cg-ink);
 }
@@ -26,7 +22,7 @@
 .cg-stat__value--saved { color: var(--cg-saved); }
 
 .cg-stat__note {
-  font-size: var(--cg-text-sm);
+  font-size: var(--cg-text-xs);
   line-height: var(--cg-leading-snug);
-  color: var(--cg-ink-soft);
+  color: var(--cg-ink-3);
 }

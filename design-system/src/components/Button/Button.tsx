@@ -6,18 +6,18 @@ export type ButtonVariant = "primary" | "secondary" | "quiet";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** `primary` is the solid ink block. Use one per view. */
+  /** `primary` is the champagne accent pill. Use one per view. */
   variant?: ButtonVariant;
   size?: ButtonSize;
   fullWidth?: boolean;
 }
 
 /**
- * An action. Squared off rather than pill shaped, because this product reads
- * as an instrument rather than a consumer app.
+ * An action, as a fully rounded pill. Primary is the accent; secondary is an
+ * outline; quiet is text.
  *
- * Note there is no destructive variant. Signal colour in this system means
- * "money moved the wrong way", and a button is not a fact about money.
+ * Note there is no destructive variant. State colour in this system means
+ * on track, needs a look or failing, and a button is not a state.
  *
  * @example
  * <Button>Start the free trial</Button>

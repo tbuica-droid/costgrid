@@ -7,7 +7,7 @@
  */
 
 import { call, flashBanner, formValues, loadSession, loadSetup, state } from "./console-api.js";
-import { button, count, escapeHtml, field, relativeTime } from "./ui.js";
+import { count, escapeHtml, field, pageHead, relativeTime } from "./ui.js";
 
 function backupSection(desktop, tenantId) {
   if (!desktop) {
@@ -19,10 +19,7 @@ function backupSection(desktop, tenantId) {
     <p style="margin:0 0 12px">A consistent copy of everything CostGrid has recorded on this computer,
       safe to take while it is running. Provider keys inside it stay encrypted; without the master key
       in your keychain they cannot be read.</p>
-    <a href="/console/${escapeHtml(tenantId)}/backup" download
-       style="display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:0.04em;
-              padding:9px 16px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);
-              text-decoration:none">Download a backup</a>
+    <a href="/console/${escapeHtml(tenantId)}/backup" download class="btn btn-primary">Download a backup</a>
   </div>`;
 }
 
@@ -78,7 +75,7 @@ function anchorsSection(a, desktop) {
 }
 
 function eraseSection(org, desktop) {
-  return `<div class="card" style="border-color:var(--rust)">
+  return `<div class="card danger">
     <p style="margin:0 0 8px">Deletes everything belonging to <strong>${escapeHtml(org.tenantName)}</strong>:
       every call, rule, key, report and the record of changes. ${
         desktop ? "Your account on this computer goes with it, and setup starts again." : ""
@@ -86,11 +83,9 @@ function eraseSection(org, desktop) {
       because that record would itself be your data.</p>
     <p class="kpi-sub" style="margin-bottom:12px">This is the answer to a deletion request. The counts
       shown afterwards are the confirmation to close it with.</p>
-    <form id="erase-form" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <form id="erase-form" class="form-row end">
       ${field(`Type the organisation's name, ${org.tenantName}, to confirm`, "confirm", "text", 'autocomplete="off"')}
-      <button type="submit" style="font-family:var(--mono);font-size:12px;letter-spacing:0.04em;padding:9px 16px;
-        border:1px solid var(--rust);background:var(--rust);color:var(--bg);cursor:pointer;margin-bottom:14px">
-        Delete everything</button>
+      <button type="submit" class="btn btn-danger solid">Delete everything</button>
     </form>
   </div>`;
 }
@@ -105,8 +100,7 @@ export async function render() {
   ]);
 
   return `
-    <h2>Your data</h2>
-    <p class="section-note">Where it is, whether it has been touched, and how to take it away.</p>
+    ${pageHead("Your data", "Where it is, whether it has been touched, and how to take it away.")}
     ${flashBanner()}
 
     <h2 style="margin-top:22px">Backup</h2>

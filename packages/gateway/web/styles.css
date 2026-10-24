@@ -1,111 +1,116 @@
 /*
- * Dashboard styling.
+ * Dashboard and console styling: "Midnight".
  *
- * The palette, type and spacing come from the design system
- * (design-system/src/tokens.css), inlined below by
- * `npm run sync-design-tokens` so the dashboard and the marketing site cannot
- * drift apart. Do not edit the token block by hand; edit it in the design
- * system and re-run the sync.
- *
- * The short names under it are a local alias layer, kept so the rest of this
- * file did not have to be rewritten when the system arrived.
+ * The palette, type and shapes come from the design system
+ * (design-system/src/tokens.css), inlined below by `npm run sync-design-tokens`
+ * so the app and the design system cannot drift apart. Do not edit the token
+ * block by hand; edit it in the design system and re-run the sync.
  *
  * No CSS framework and no webfont CDN: the gateway may run inside a network
- * that cannot reach either, and a dashboard that renders unstyled in a
- * customer's VPC is worse than a plainer one that always works. The three
- * faces the marketing site uses are served from the gateway itself (the
- * fonts/ folder next to this file), and every stack in the tokens still has
- * system fallbacks for the moment before they load.
+ * that cannot reach either. Manrope and JetBrains Mono are served from the
+ * gateway itself (the fonts/ folder next to this file), and every stack in the
+ * tokens still has system fallbacks for the moment before they load.
  */
 
 /* --- BEGIN generated tokens, do not edit ------------------------------- */
 /*
- * CostGrid design tokens.
+ * CostGrid design tokens: "Midnight".
  *
- * One rule decides most of what follows: **colour is never decorative.** It
- * appears only on money that moved the wrong way, or money that was saved.
- * Everything else is ink on paper. That is why this does not look like the
- * other tools in the category, all of which pick a brand accent and then paint
- * buttons, links, icons and borders with it until the accent means nothing.
+ * Dark is the brand, and the default. Champagne is the one accent: primary
+ * buttons, the active nav icon, the headline figure, the focus ring. It is
+ * never a fill for a large area. Green, amber and red mean state (on track,
+ * needs a look, failing) and always sit next to a word that says so.
  *
- * Here, a red number is a fact about the customer's bill. If you find yourself
- * reaching for a colour to make something look nicer, the answer is weight,
- * size or space instead.
+ * Readable first: one face, Manrope, for everything anyone reads, at sizes
+ * that hold up on a laptop screen. JetBrains Mono only for keys and ids.
+ * Figures are tabular everywhere, because a column of costs that jitters as
+ * digits change is a column nobody trusts.
  *
- * The second decision is figures. This product exists to show numbers, so
- * numbers get the good typography: tabular, lining, aligned on the decimal.
- * A column of costs that jitters as digits change is a column nobody trusts.
+ * Every colour pair here clears 4.5:1 for text in both themes. Light is
+ * opt-in: `data-theme="light"` on <html>, or `data-theme="system"` when the
+ * operating system asks for light.
  */
 
 :root {
-  /* --- Ink and paper -----------------------------------------------------
-   * Real greys, not black at reduced opacity. Opacity greys go muddy over a
-   * tinted ground and shift when you layer two of them.
-   */
-  --cg-ink:            #16130f;
-  --cg-ink-soft:       #4a443c;
-  --cg-ink-faint:      #8a8175;
-  --cg-paper:          #faf8f4;
-  --cg-surface:        #ffffff;
-  --cg-surface-sunk:   #f2efe8;
+  color-scheme: dark;
 
-  /* --- Rules -------------------------------------------------------------
-   * Three weights, each with a job, borrowed from how a ledger is set:
-   * hairline separates rows, rule closes a group, total sits under a sum.
-   * Using one hairline for all three is what makes a page read as a grid of
-   * equally important boxes.
-   */
-  --cg-rule-hair:      #e8e3d9;
-  --cg-rule:           #d5cec1;
-  --cg-rule-total:     var(--cg-ink);
+  /* --- Surfaces, darkest to lightest ------------------------------------ */
+  --cg-bg:             #0b0d12;
+  --cg-sidebar:        #0f1218;
+  --cg-surface:        #12151c;
+  --cg-surface-2:      #171b24;
+  --cg-nav-active:     #1b2029;
 
-  /* --- Signals -----------------------------------------------------------
-   * The only colours in the system. `over` is spend going the wrong way:
-   * over budget, blocked, failed, rising. `saved` is money kept.
-   */
-  --cg-over:           #a63a22;
-  --cg-over-wash:      #f7ece8;
-  --cg-saved:          #2e6b4f;
-  --cg-saved-wash:     #e9f1ec;
+  /* --- Lines: a group border, a row divider, a control edge ------------- */
+  --cg-line:           #252b37;
+  --cg-line-soft:      #1f2430;
+  --cg-control:        #333a48;
 
-  /* --- Focus -------------------------------------------------------------
-   * Deliberately not a signal colour: a focus ring is not a fact about money.
-   */
-  --cg-focus:          #16130f;
+  /* --- Ink --------------------------------------------------------------- */
+  --cg-ink:            #f1f2f5;
+  --cg-ink-2:          #b4bac6;
+  --cg-ink-3:          #8b93a1;
 
-  /* --- Type --------------------------------------------------------------
-   * Serif for display, sans for reading, mono only for things you would copy:
-   * code, ids, model names. The same three faces as the marketing site. The
-   * dashboard ships them with itself rather than loading them from a font
-   * CDN, because it runs inside customer networks that may reach nothing,
-   * and every stack still has system fallbacks for the moment before they load.
-   */
-  --cg-font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --cg-font-sans:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
-                     "Segoe UI", Helvetica, Arial, sans-serif;
+  /* --- The accent -------------------------------------------------------- */
+  --cg-accent:         #d9b46c;
+  --cg-on-accent:      #1a1307;
+  --cg-accent-wash:    #17140e;
+  --cg-accent-line:    #3a3222;
+  --cg-chart:          #b38b38;
+
+  /* --- State: text on its own background, always with a word ----------- */
+  --cg-good:           #7dd8a8;
+  --cg-good-bg:        #13261c;
+  --cg-warn:           #f2c46e;
+  --cg-warn-bg:        #2c2312;
+  --cg-bad:            #f4948a;
+  --cg-bad-bg:         #321a17;
+
+  --cg-shadow:         0 40px 80px -40px rgba(0, 0, 0, 0.8);
+
+  /* --- Older names, kept so existing styles and components still resolve */
+  --cg-paper:          var(--cg-bg);
+  --cg-surface-sunk:   var(--cg-surface-2);
+  --cg-ink-soft:       var(--cg-ink-2);
+  --cg-ink-faint:      var(--cg-ink-3);
+  --cg-rule-hair:      var(--cg-line-soft);
+  --cg-rule:           var(--cg-line);
+  --cg-rule-total:     var(--cg-ink-3);
+  --cg-over:           var(--cg-bad);
+  --cg-over-wash:      var(--cg-bad-bg);
+  --cg-saved:          var(--cg-good);
+  --cg-saved-wash:     var(--cg-good-bg);
+  --cg-focus:          var(--cg-accent);
+
+  /* --- Type -------------------------------------------------------------- */
+  --cg-font-display: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Helvetica, Arial, sans-serif;
+  --cg-font-sans:    "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Helvetica, Arial, sans-serif;
   --cg-font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                      Consolas, monospace;
 
-  /* A modest scale. Sixteen sizes is not a scale, it is an accident. */
-  --cg-text-xs:   0.75rem;    /* 12 */
-  --cg-text-sm:   0.875rem;   /* 14 */
-  --cg-text-base: 1rem;       /* 16 */
-  --cg-text-lg:   1.125rem;   /* 18 */
-  --cg-text-xl:   1.375rem;   /* 22 */
-  --cg-text-2xl:  1.75rem;    /* 28 */
-  --cg-text-3xl:  2.5rem;     /* 40 */
-  --cg-text-4xl:  clamp(2.5rem, 5vw, 4rem);
+  --cg-text-xs:   0.8125rem;   /* 13, captions and labels */
+  --cg-text-sm:   0.875rem;    /* 14 */
+  --cg-text-body: 0.90625rem;  /* 14.5, app body */
+  --cg-text-base: 1rem;        /* 16, site body */
+  --cg-text-lg:   1.125rem;    /* 18 */
+  --cg-text-xl:   1.5rem;      /* 24, page title */
+  --cg-text-2xl:  1.875rem;    /* 30, figures */
+  --cg-text-3xl:  2.5rem;      /* 40, site sections */
+  --cg-text-4xl:  clamp(2.5rem, 5vw, 4.125rem);
 
-  --cg-weight-regular: 400;
-  --cg-weight-medium:  500;
-  --cg-weight-bold:    600;
+  --cg-weight-regular:  400;
+  --cg-weight-medium:   500;
+  --cg-weight-semibold: 600;
+  --cg-weight-bold:     700;
 
   --cg-leading-tight:  1.1;
-  --cg-leading-snug:   1.35;
-  --cg-leading-normal: 1.6;
+  --cg-leading-snug:   1.45;
+  --cg-leading-normal: 1.55;
 
   --cg-tracking-tight: -0.02em;
-  --cg-tracking-label: 0.08em;
+  --cg-tracking-label: 0.12em;   /* the site overline, the only uppercase */
 
   /* --- Space: 4px base --------------------------------------------------- */
   --cg-space-1:  0.25rem;
@@ -118,17 +123,42 @@
   --cg-space-8:  4rem;
   --cg-space-9:  6rem;
 
-  /* --- Radius ------------------------------------------------------------
-   * Nearly square. A financial instrument does not have pill buttons.
-   */
-  --cg-radius-sm: 2px;
-  --cg-radius-md: 3px;
+  /* --- Shape: pills for actions and state, soft corners for surfaces ---- */
+  --cg-radius-sm:     8px;     /* nav items */
+  --cg-radius-field:  10px;    /* inputs */
+  --cg-radius-md:     12px;    /* cards and panels */
+  --cg-radius-window: 14px;    /* raised windows */
+  --cg-radius-pill:   999px;   /* buttons and status pills */
+}
 
-  /* --- Elevation ---------------------------------------------------------
-   * One shadow, used rarely. Depth is not how this system separates things;
-   * rules and space are.
-   */
-  --cg-shadow: 0 1px 2px rgba(22, 19, 15, 0.06), 0 8px 24px rgba(22, 19, 15, 0.05);
+:root[data-theme="light"] {
+  color-scheme: light;
+  --cg-bg: #f5f6f8; --cg-sidebar: #eef0f3; --cg-surface: #ffffff;
+  --cg-surface-2: #f8f9fb; --cg-nav-active: #e4e7ec;
+  --cg-line: #e1e4ea; --cg-line-soft: #eceef2; --cg-control: #cfd4dc;
+  --cg-ink: #12151c; --cg-ink-2: #4a5160; --cg-ink-3: #5f6673;
+  --cg-accent: #8a6628; --cg-on-accent: #ffffff;
+  --cg-accent-wash: #f7f1e4; --cg-accent-line: #e6d6b3; --cg-chart: #a8823a;
+  --cg-good: #17603a; --cg-good-bg: #e3f1e8;
+  --cg-warn: #8a4b00; --cg-warn-bg: #fdf0dc;
+  --cg-bad: #a1241a; --cg-bad-bg: #fbe6e3;
+  --cg-shadow: 0 24px 60px -30px rgba(18, 21, 28, 0.25);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+    --cg-bg: #f5f6f8; --cg-sidebar: #eef0f3; --cg-surface: #ffffff;
+    --cg-surface-2: #f8f9fb; --cg-nav-active: #e4e7ec;
+    --cg-line: #e1e4ea; --cg-line-soft: #eceef2; --cg-control: #cfd4dc;
+    --cg-ink: #12151c; --cg-ink-2: #4a5160; --cg-ink-3: #5f6673;
+    --cg-accent: #8a6628; --cg-on-accent: #ffffff;
+    --cg-accent-wash: #f7f1e4; --cg-accent-line: #e6d6b3; --cg-chart: #a8823a;
+    --cg-good: #17603a; --cg-good-bg: #e3f1e8;
+    --cg-warn: #8a4b00; --cg-warn-bg: #fdf0dc;
+    --cg-bad: #a1241a; --cg-bad-bg: #fbe6e3;
+    --cg-shadow: 0 24px 60px -30px rgba(18, 21, 28, 0.25);
+  }
 }
 
 /*
@@ -138,11 +168,9 @@
 .cg-root {
   font-family: var(--cg-font-sans);
   color: var(--cg-ink);
-  font-size: var(--cg-text-base);
+  font-size: var(--cg-text-body);
   line-height: var(--cg-leading-normal);
   box-sizing: border-box;
-  /* Lining, tabular figures everywhere by default. This is a product about
-   * numbers; proportional digits make a column of costs wobble. */
   font-variant-numeric: lining-nums tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -162,291 +190,289 @@
 }
 /* --- END generated tokens ---------------------------------------------- */
 
-/*
- * The webfonts, shipped with the dashboard. Latin only, and only the weights
- * the page uses; each file is about 20KB. Swap, not block: text is readable
- * in the fallback face at once and changes to the real one when it lands.
- */
-@font-face {
-  font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap;
-  src: url("fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap;
-  src: url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap;
-  src: url("fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Source Serif 4"; font-style: normal; font-weight: 600; font-display: swap;
-  src: url("fonts/source-serif-4-latin-600-normal.woff2") format("woff2");
-}
+/* Latin only, and only the weights the app uses. Swap, not block: text is
+ * readable in the fallback face at once and changes when the real one lands. */
+@font-face { font-family: "Manrope"; font-weight: 400; font-display: swap; src: url("fonts/manrope-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-weight: 500; font-display: swap; src: url("fonts/manrope-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-weight: 600; font-display: swap; src: url("fonts/manrope-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("fonts/manrope-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
 
+/* Short local names, kept because inline styles in the views still use them. */
 :root {
-  --bg: var(--cg-paper);
-  --ink: var(--cg-ink);
-  /* The old --gold accent is gone. Colour in this system means money moved:
-   * rust for spend going the wrong way, green for money kept. Anything that
-   * used gold decoratively now uses ink. */
-  --gold: var(--cg-ink);
-  --rust: var(--cg-over);
-  --green: var(--cg-saved);
-  --rule: var(--cg-rule);
-  --rule-soft: var(--cg-rule-hair);
-  --muted: var(--cg-ink-soft);
-  --muted-strong: var(--cg-ink);
-  --panel: var(--cg-surface-sunk);
-
-  --sans: var(--cg-font-sans);
-  --mono: var(--cg-font-mono);
-  --display: var(--cg-font-display);
+  --bg: var(--cg-bg); --ink: var(--cg-ink); --gold: var(--cg-accent);
+  --rust: var(--cg-bad); --green: var(--cg-good);
+  --rule: var(--cg-line); --rule-soft: var(--cg-line-soft);
+  --muted: var(--cg-ink-2); --muted-strong: var(--cg-ink); --panel: var(--cg-surface-2);
+  --sans: var(--cg-font-sans); --mono: var(--cg-font-mono); --display: var(--cg-font-display);
 }
 
 * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--ink);
+html, body { margin: 0; padding: 0; background: var(--cg-bg); color: var(--cg-ink); }
+body {
   font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-variant-numeric: lining-nums tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------------------------------------------------------------- chrome */
+a { color: var(--cg-ink); text-decoration-color: var(--cg-control); text-underline-offset: 2px; }
+a:hover { color: var(--cg-accent); text-decoration-color: currentColor; }
+strong { font-weight: 600; }
+code {
+  font-family: var(--mono); font-size: 0.86em; padding: 1px 6px;
+  background: var(--cg-surface-2); border: 1px solid var(--cg-line-soft); border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+:focus-visible { outline: 2px solid var(--cg-accent); outline-offset: 2px; }
 
-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 0 clamp(16px, 3vw, 40px);
-  height: 56px;
-  background: rgba(245, 242, 233, 0.94);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--rule);
+/* ----------------------------------------------------------------- shell */
+
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { background: var(--cg-sidebar); border-right: 1px solid var(--cg-line-soft); }
+/* Sticky inside a full-height column: the nav stays put while the page
+ * scrolls, and a short window scrolls the nav rather than clipping it. */
+.sidebar-inner {
+  position: sticky; top: 0; max-height: 100vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px; padding: 18px 12px;
 }
 
-.brand { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
-
-.tagline {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
+.brand {
+  display: flex; align-items: center; gap: 10px; padding: 4px 8px;
+  font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--cg-ink);
 }
+.brand .logo { width: 26px; height: 26px; flex: none; color: var(--cg-accent); }
 
-nav { display: flex; gap: 4px; margin-left: auto; }
-
-nav button {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 7px 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
+.workspace {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px;
+  border: 1px solid var(--cg-line); border-radius: var(--cg-radius-field);
 }
-
-nav button:hover { color: var(--ink); }
-nav button[aria-current="true"] { color: var(--bg); background: var(--ink); }
-
-select {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  padding: 6px 8px;
-  border: 1px solid var(--rule);
-  background: transparent;
-  color: var(--ink);
+.workspace[hidden] { display: none; }
+.workspace-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.workspace-note { font-size: 12.5px; color: var(--cg-ink-3); }
+.workspace-orgs { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.workspace-orgs button {
+  font: inherit; font-size: 13px; text-align: left; padding: 5px 8px; border: 0;
+  border-radius: 6px; background: transparent; color: var(--cg-ink-2); cursor: pointer;
 }
+.workspace-orgs button:hover { background: var(--cg-surface-2); color: var(--cg-ink); }
+.workspace-orgs button[aria-current="true"] { background: var(--cg-nav-active); color: var(--cg-ink); font-weight: 600; }
 
-/* Back to the console from the dashboard, in the app and in a browser tab. */
-.console-link {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 7px 12px;
-  border: 1px solid var(--rule);
-  color: var(--ink);
-  text-decoration: none;
-  white-space: nowrap;
+.side-nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+  border: 0; border-radius: var(--cg-radius-sm); background: transparent;
+  font: inherit; font-size: 14.5px; text-align: left; text-decoration: none;
+  color: var(--cg-ink-2); cursor: pointer;
 }
-.console-link:hover { background: var(--ink); color: var(--bg); }
+.nav-item:hover { color: var(--cg-ink); background: var(--cg-surface-2); }
+.nav-item[aria-current="true"] { color: var(--cg-ink); background: var(--cg-nav-active); font-weight: 600; }
+.nav-item[aria-current="true"] .icon { color: var(--cg-accent); }
 
-main { padding: clamp(20px, 3vw, 40px); max-width: 1400px; }
+.side-field { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; font-size: 13px; font-weight: 500; color: var(--cg-ink-2); }
+
+.content { min-width: 0; display: flex; flex-direction: column; }
+main { flex: 1; width: 100%; max-width: 1320px; padding: 24px 28px 32px; }
+footer {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between;
+  padding: 14px 28px; border-top: 1px solid var(--cg-line-soft);
+  font-size: 13px; color: var(--cg-ink-3);
+}
+.notice { margin: 20px 28px 0; }
+
+/* One page header per screen: title and a line under it, actions on the right. */
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px 24px; margin-bottom: 20px;
+}
+.page-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 80ch; }
+.page-head h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+.page-sub { margin: 0; color: var(--cg-ink-2); }
+.page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 
 /* ------------------------------------------------------------- structure */
 
-/* Headings in the serif, as on the site. Everything under them stays sans. */
-h2, h3 { font-family: var(--display); }
+h2 { font-size: 18px; line-height: 1.3; font-weight: 700; letter-spacing: -0.01em; margin: 28px 0 6px; }
+h3 { font-size: 16px; line-height: 1.35; font-weight: 700; margin: 0 0 6px; }
 
-h2 {
-  font-size: clamp(19px, 2vw, 26px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 0 0 4px;
-}
+.section-note { margin: 0 0 16px; max-width: 80ch; color: var(--cg-ink-2); }
+.rail { font-size: 13px; font-weight: 500; color: var(--cg-ink-2); }
+.step-label { font-size: 13px; font-weight: 700; color: var(--cg-accent); }
 
-.section-note {
-  font-size: 14px;
-  color: var(--muted);
-  margin: 0 0 22px;
-  max-width: 74ch;
-  line-height: 1.5;
-}
-
-.rail {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.grid { display: grid; gap: 18px; }
-.cols-4 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.grid { display: grid; gap: 12px; }
+.cols-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 
-.card { border: 1px solid var(--rule); padding: 18px; background: var(--bg); }
-.card.sunk { background: var(--panel); }
-
-.kpi-value {
-  font-family: var(--mono);
-  font-size: 28px;
-  letter-spacing: -0.02em;
-  margin: 8px 0 4px;
-  line-height: 1.1;
+.card {
+  min-width: 0; padding: 18px 20px; background: var(--cg-surface);
+  border: 1px solid var(--cg-line); border-radius: var(--cg-radius-md);
 }
+.card.sunk { background: var(--cg-surface-2); }
+.card.danger { border-color: var(--cg-bad); }
+.stack > * + * { margin-top: 12px; }
 
-.kpi-sub { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+/* KPI tiles: a card that leads with a figure. */
+.kpi, .card:has(> .kpi-value) {
+  display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--cg-surface-2);
+}
+.kpi-value { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.kpi-sub { font-size: 13px; line-height: 1.45; color: var(--cg-ink-3); }
+p.kpi-sub { font-size: 14px; color: var(--cg-ink-2); }
 
-/* Kept as a name so existing markup keeps working. Under this system a
- * figure is only coloured when its direction is the news, so this is ink. */
-.accent-gold { color: var(--cg-ink); }
-.accent-rust { color: var(--rust); }
-.accent-green { color: var(--green); }
+.accent-gold { color: var(--cg-accent); }
+.accent-rust { color: var(--cg-bad); }
+.accent-green { color: var(--cg-good); }
 
 /* ---------------------------------------------------------------- tables */
 
-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 400;
-  text-align: left;
-  padding: 10px 12px 10px 0;
-  border-bottom: 1px solid var(--rule);
-  white-space: nowrap;
+  text-align: left; font-size: 13px; font-weight: 600; color: var(--cg-ink-2);
+  padding: 10px 16px; border-bottom: 1px solid var(--cg-line); white-space: nowrap;
+}
+td { padding: 12px 16px; border-bottom: 1px solid var(--cg-line-soft); vertical-align: top; }
+th:first-child, td:first-child { padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* A table that is the whole panel runs edge to edge, like the reference. */
+.card:has(> table:only-child) { padding: 0; }
+.card > table:only-child th:first-child, .card > table:only-child td:first-child { padding-left: 20px; }
+.card > table:only-child th:last-child, .card > table:only-child td:last-child { padding-right: 20px; }
+.card > table:only-child tbody tr:hover td { background: var(--cg-surface-2); }
+
+.num { text-align: right; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+th.num { text-align: right; }
+.scroll-x { overflow-x: auto; min-width: 0; }
+
+/* -------------------------------------------------------------- controls */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 16px; border: 1px solid var(--cg-control); border-radius: var(--cg-radius-pill);
+  background: transparent; color: var(--cg-ink); font: inherit; font-size: 14px;
+  font-weight: 600; line-height: 1.2; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.btn:hover { color: var(--cg-ink); background: var(--cg-surface-2); border-color: var(--cg-ink-3); }
+.btn-primary { background: var(--cg-accent); border-color: var(--cg-accent); color: var(--cg-on-accent); font-weight: 700; }
+.btn-primary:hover { background: var(--cg-accent); border-color: var(--cg-accent); color: var(--cg-on-accent); filter: brightness(1.08); }
+.btn-quiet { border-color: transparent; color: var(--cg-ink-2); padding-inline: 8px; }
+.btn-quiet:hover { border-color: transparent; background: transparent; color: var(--cg-ink); }
+.btn-sm { font-size: 13px; padding: 5px 12px; }
+.btn-danger { color: var(--cg-bad); }
+.btn-danger:hover { color: var(--cg-bad); background: var(--cg-bad-bg); border-color: var(--cg-bad); }
+.btn-danger.solid { background: var(--cg-bad-bg); border-color: var(--cg-bad); }
+.btn-good { color: var(--cg-good); }
+.btn-good:hover { color: var(--cg-good); background: var(--cg-good-bg); border-color: var(--cg-good); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  max-width: 100%; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.4;
+  color: var(--cg-ink); background: var(--cg-surface);
+  border: 1px solid var(--cg-control); border-radius: var(--cg-radius-field);
+}
+input::placeholder, textarea::placeholder { color: var(--cg-ink-3); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--cg-accent); outline-offset: 1px; }
+select:disabled { opacity: 0.7; }
+input[type="checkbox"], input[type="radio"] {
+  width: 16px; height: 16px; margin: 0 8px 0 0; vertical-align: -3px; accent-color: var(--cg-accent);
 }
 
-td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--rule-soft); }
-tbody tr:hover { background: var(--panel); }
+.field { display: block; margin-bottom: 14px; }
+.field-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--cg-ink-2); }
+.field input, .field select { width: 100%; max-width: 420px; }
+.check { display: flex; align-items: center; margin-bottom: 14px; font-size: 14px; }
+.form-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.form-row.end { align-items: flex-end; }
+.form-row + .form-row { margin-top: 10px; }
+.form-row .field { margin-bottom: 0; }
+.form-row .field input { width: 200px; }
+.form-row .note { flex-basis: 100%; }
+.provider { min-width: 90px; font-weight: 600; }
+.w-key { width: 260px; }
+.w-num { width: 120px; }
+.w-wide { min-width: 340px; }
 
-.num { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
-th.num { text-align: right; padding-right: 0; }
-td.num { padding-right: 0; }
-/* Numbers are flush right with no padding, so whatever sits after one needs
-   its own gap or the two run together. */
-td.num, th.num { padding-left: 16px; }
-.num + td, .num + th { padding-left: 16px; }
+.segmented {
+  display: inline-flex; gap: 2px; padding: 3px; background: var(--cg-surface);
+  border: 1px solid var(--cg-control); border-radius: var(--cg-radius-pill);
+}
+.segmented button {
+  padding: 6px 14px; border: 0; border-radius: var(--cg-radius-pill); background: transparent;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--cg-ink-2); cursor: pointer;
+}
+.segmented button:hover { color: var(--cg-ink); }
+.segmented button[aria-pressed="true"] { background: var(--cg-nav-active); color: var(--cg-ink); }
 
-.scroll-x { overflow-x: auto; }
+details summary { cursor: pointer; }
 
-/* ----------------------------------------------------------------- misc */
+/* ---------------------------------------------------------- status, notes */
 
+/* A status pill always carries a word; the colour only repeats it. */
 .tag {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border: 1px solid var(--rule);
-  white-space: nowrap;
+  display: inline-block; padding: 2px 10px; border: 1px solid var(--cg-line);
+  border-radius: var(--cg-radius-pill); background: var(--cg-surface-2); color: var(--cg-ink-2);
+  font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; vertical-align: middle;
 }
-
-.tag.block { border-color: var(--rust); color: var(--rust); }
-.tag.warn { border-color: var(--cg-over); color: var(--cg-over); }
-.tag.monitor { color: var(--muted); }
-.tag.on { border-color: var(--green); color: var(--green); }
-.tag.off { color: var(--muted); }
+.tag::first-letter { text-transform: uppercase; }
+.tag.on { background: var(--cg-good-bg); color: var(--cg-good); border-color: transparent; }
+.tag.warn { background: var(--cg-warn-bg); color: var(--cg-warn); border-color: transparent; }
+.tag.block { background: var(--cg-bad-bg); color: var(--cg-bad); border-color: transparent; }
 
 .banner {
-  border: 1px solid var(--rust);
-  border-left-width: 3px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--muted-strong);
+  margin-bottom: 20px; padding: 12px 16px; border-radius: var(--cg-radius-md);
+  background: var(--cg-warn-bg); color: var(--cg-ink); font-size: 14px; line-height: 1.55;
 }
-
-.banner strong { color: var(--rust); }
+.banner strong { color: var(--cg-warn); }
+.banner.good { background: var(--cg-good-bg); }
+.banner.good strong { color: var(--cg-good); }
+.banner.bad { background: var(--cg-bad-bg); }
+.banner.bad strong { color: var(--cg-bad); }
+.banner code.key { display: block; margin-top: 6px; word-break: break-all; }
 
 .empty {
-  border: 1px dashed var(--rule);
-  padding: 40px 24px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
+  padding: 40px 24px; text-align: center; color: var(--cg-ink-2);
+  background: var(--cg-surface); border: 1px solid var(--cg-line); border-radius: var(--cg-radius-md);
 }
 
-.empty code {
-  font-family: var(--mono);
-  font-size: 12px;
-  background: var(--panel);
-  padding: 2px 6px;
+.code-block {
+  margin: 6px 0 14px; padding: 12px 14px; overflow-x: auto;
+  font-family: var(--mono); font-size: 13px; line-height: 1.6;
+  background: var(--cg-surface-2); border: 1px solid var(--cg-line); border-radius: var(--cg-radius-field);
 }
+
+/* ---------------------------------------------------------------- charts */
 
 svg { display: block; width: 100%; height: auto; }
+.icon { width: 17px; height: 17px; flex: none; }
+.chart-bar { fill: var(--cg-chart); }
+.chart-line { fill: none; stroke: var(--cg-chart); stroke-width: 2; }
+.chart-grid { stroke: var(--cg-line-soft); stroke-width: 1; }
+.chart-axis { stroke: var(--cg-line); stroke-width: 1; }
+.chart-label { fill: var(--cg-ink-3); font-family: var(--sans); font-size: 13px; }
+.chart-accent { fill: var(--cg-accent); stroke: var(--cg-accent); }
+.chart-ink { fill: var(--cg-ink); stroke: var(--cg-ink); }
+.chart-accent.chart-label, .chart-ink.chart-label { stroke: none; font-weight: 600; }
+.bar { height: 8px; min-width: 2px; border-radius: 4px; background: var(--cg-chart); }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 12px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--cg-ink-2); }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
+.swatch.accent { background: var(--cg-accent); }
+.swatch.ink { background: var(--cg-ink); }
 
-.swatch { display: inline-block; width: 9px; height: 9px; margin-right: 6px; }
+/* ---------------------------------------------------------- narrow window */
 
-footer {
-  border-top: 1px solid var(--rule);
-  margin-top: 40px;
-  padding: 16px clamp(16px, 3vw, 40px);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  justify-content: space-between;
-}
-
-@media (max-width: 720px) {
-  header { flex-wrap: wrap; height: auto; padding-block: 10px; gap: 10px; }
-  .tagline { display: none; }
-  nav { margin-left: 0; width: 100%; overflow-x: auto; }
+@media (max-width: 900px) {
+  .shell { display: block; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--cg-line-soft); }
+  .sidebar-inner { position: static; max-height: none; gap: 12px; padding: 12px 16px; }
+  .side-nav { flex-direction: row; overflow-x: auto; gap: 4px; }
+  .nav-item { width: auto; flex: none; white-space: nowrap; }
+  .side-field { flex-direction: row; align-items: center; }
+  main { padding: 20px 16px 28px; }
+  footer { padding: 14px 16px; }
+  .notice { margin: 16px 16px 0; }
+  .w-wide, .w-key { min-width: 0; width: 100%; }
 }

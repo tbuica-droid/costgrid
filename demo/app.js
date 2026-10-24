@@ -57,10 +57,18 @@ function relativeTime(timestamp) {
 }
 
 function card(label, value, sub, accent = "") {
-  return `<div class="card">
+  return `<div class="card kpi">
     <div class="rail">${escapeHtml(label)}</div>
     <div class="kpi-value ${accent}">${value}</div>
     <div class="kpi-sub">${sub}</div>
+  </div>`;
+}
+
+/** The header each view opens with: title and note left, its own controls right. */
+function head(title, note, actions = "") {
+  return `<div class="page-head">
+    <div class="page-head-text"><h1>${escapeHtml(title)}</h1><p class="page-sub">${note}</p></div>
+    ${actions ? `<div class="page-actions">${actions}</div>` : ""}
   </div>`;
 }
 
@@ -181,31 +189,41 @@ function barChart(buckets) {
   const barWidth = Math.max(1, slot * 0.72);
   const plotHeight = height - pad.top - pad.bottom;
 
+  // Rounded at the top only, so a bar still sits flat on its baseline.
   const bars = buckets
     .map((bucket, index) => {
       const value = Number(bucket.costUsd);
       const barHeight = Math.max(value > 0 ? 1 : 0, (value / max) * plotHeight);
       const x = pad.left + index * slot + (slot - barWidth) / 2;
       const y = pad.top + plotHeight - barHeight;
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}"
-        height="${barHeight.toFixed(1)}" fill="var(--ink)">
+      const r = Math.min(4, barWidth / 2, barHeight);
+      const d = `M${x.toFixed(1)},${(y + barHeight).toFixed(1)}V${(y + r).toFixed(1)}`
+        + `Q${x.toFixed(1)},${y.toFixed(1)} ${(x + r).toFixed(1)},${y.toFixed(1)}`
+        + `H${(x + barWidth - r).toFixed(1)}`
+        + `Q${(x + barWidth).toFixed(1)},${y.toFixed(1)} ${(x + barWidth).toFixed(1)},${(y + r).toFixed(1)}`
+        + `V${(y + barHeight).toFixed(1)}Z`;
+      return `<path class="chart-bar" d="${d}">
         <title>${escapeHtml(bucket.day)}: ${money(bucket.costUsd)}, ${bucket.calls} calls</title>
-      </rect>`;
+      </path>`;
     })
     .join("");
 
   const firstDay = buckets[0].day;
   const lastDay = buckets[buckets.length - 1].day;
+  const base = pad.top + plotHeight;
+  const grid = [0, 0.5].map((f) => (pad.top + plotHeight * f).toFixed(1))
+    .map((gy) => `<line class="chart-grid" x1="0" y1="${gy}" x2="${width}" y2="${gy}"
+      vector-effect="non-scaling-stroke" />`)
+    .join("");
 
   return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img"
       aria-label="Daily spend">
-    <line x1="0" y1="${pad.top + plotHeight}" x2="${width}" y2="${pad.top + plotHeight}"
-      stroke="var(--rule)" />
+    ${grid}
+    <line class="chart-axis" x1="0" y1="${base}" x2="${width}" y2="${base}"
+      vector-effect="non-scaling-stroke" />
     ${bars}
-    <text x="0" y="${height - 6}" font-family="var(--mono)" font-size="11"
-      fill="rgba(15,20,17,0.5)">${escapeHtml(firstDay)}</text>
-    <text x="${width}" y="${height - 6}" text-anchor="end" font-family="var(--mono)"
-      font-size="11" fill="rgba(15,20,17,0.5)">${escapeHtml(lastDay)} · peak ${money(String(max))}</text>
+    <text class="chart-label" x="0" y="${height - 6}">${escapeHtml(firstDay)}</text>
+    <text class="chart-label" x="${width}" y="${height - 6}" text-anchor="end">${escapeHtml(lastDay)} · peak ${money(String(max))}</text>
   </svg>`;
 }
 
@@ -228,25 +246,28 @@ function curveChart(routing) {
     .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.share).toFixed(1)},${y(p.cost).toFixed(1)}`)
     .join(" ");
 
-  const marker = (share, cost, color, label, anchor) => `
-    <line x1="${x(share).toFixed(1)}" y1="${pad.top}" x2="${x(share).toFixed(1)}"
-      y2="${pad.top + plotHeight}" stroke="${color}" stroke-width="1" stroke-dasharray="3 4" />
-    <circle cx="${x(share).toFixed(1)}" cy="${y(cost).toFixed(1)}" r="4.5" fill="${color}" />
-    <text x="${(x(share) + (anchor === "end" ? -6 : 6)).toFixed(1)}" y="${pad.top + 11}"
-      text-anchor="${anchor}" font-family="var(--mono)" font-size="11" fill="${color}">${label}</text>`;
+  // `tone` is a class, not a colour, so the markers follow the light/dark theme.
+  const marker = (share, cost, tone, label, anchor) => `
+    <line class="${tone}" x1="${x(share).toFixed(1)}" y1="${pad.top}" x2="${x(share).toFixed(1)}"
+      y2="${pad.top + plotHeight}" stroke-width="1" stroke-dasharray="3 4" />
+    <circle class="${tone}" cx="${x(share).toFixed(1)}" cy="${y(cost).toFixed(1)}" r="4.5" />
+    <text class="${tone} chart-label" x="${(x(share) + (anchor === "end" ? -6 : 6)).toFixed(1)}"
+      y="${pad.top + 11}" text-anchor="${anchor}">${label}</text>`;
+
+  const grid = [0, 0.5].map((f) => (pad.top + plotHeight * f).toFixed(1))
+    .map((gy) => `<line class="chart-grid" x1="0" y1="${gy}" x2="${width}" y2="${gy}" />`)
+    .join("");
 
   return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Blended cost curve">
-    <line x1="0" y1="${pad.top + plotHeight}" x2="${width}" y2="${pad.top + plotHeight}"
-      stroke="var(--rule)" />
-    <path d="${path}" fill="none" stroke="var(--ink)" stroke-width="2" />
-    ${marker(routing.optimalShare, routing.optimalBlendedCost, "var(--gold)",
+    ${grid}
+    <line class="chart-axis" x1="0" y1="${pad.top + plotHeight}" x2="${width}" y2="${pad.top + plotHeight}" />
+    <path class="chart-line" d="${path}" />
+    ${marker(routing.optimalShare, routing.optimalBlendedCost, "chart-accent",
       `optimum ${pct(routing.optimalShare, 0)}`, "end")}
-    ${marker(routing.observedShare, routing.observedBlendedCost, "var(--rust)",
+    ${marker(routing.observedShare, routing.observedBlendedCost, "chart-ink",
       `you ${pct(routing.observedShare, 0)}`, "start")}
-    <text x="0" y="${height - 8}" font-family="var(--mono)" font-size="11"
-      fill="rgba(15,20,17,0.5)">$${min.toFixed(2)}/Mtok at optimum</text>
-    <text x="${width}" y="${height - 8}" text-anchor="end" font-family="var(--mono)"
-      font-size="11" fill="rgba(15,20,17,0.5)">substitution share →</text>
+    <text class="chart-label" x="0" y="${height - 8}">$${min.toFixed(2)}/Mtok at optimum</text>
+    <text class="chart-label" x="${width}" y="${height - 8}" text-anchor="end">substitution share →</text>
   </svg>`;
 }
 
@@ -259,8 +280,8 @@ function breakdownTable(rows, label) {
       const share = (Number(row.costUsd) / max) * 100;
       return `<tr>
         <td>${escapeHtml(row.key)}</td>
-        <td style="width:38%">
-          <div style="height:7px;background:var(--ink);width:${share.toFixed(1)}%"></div>
+        <td style="width:38%;vertical-align:middle">
+          <div class="bar" style="width:${share.toFixed(1)}%"></div>
         </td>
         <td class="num">${money(row.costUsd)}</td>
         <td class="num">${count(row.calls)}</td>
@@ -290,8 +311,11 @@ async function renderOverview() {
 
   // A prospect who has imported history but routed nothing still sees their
   // own numbers — the whole point of the import.
+  const title = head("Overview", `Measured from the <code>usage</code> object of every call that
+      passed through this gateway. Spend excludes blocked and errored calls, which were
+      never billed.`);
   if (overview.calls === 0) {
-    return `${staleBanner(overview)}${emptyState(history.present)}${importedSection(history)}`;
+    return `${title}${staleBanner(overview)}${emptyState(history.present)}${importedSection(history)}`;
   }
 
   const kpis = [
@@ -303,16 +327,13 @@ async function renderOverview() {
       `${count(overview.cacheReadTokens)} tokens reused, billed at a fraction of the input rate`,
       overview.cacheHitRatio > 0.3 ? "accent-green" : ""),
     card("Sent to cheaper models", pct(overview.substitutionShare),
-      `best modelled share ${pct(overview.routing.optimalShare, 0)}`, "accent-gold"),
+      `the model suggests ${pct(overview.routing.optimalShare, 0)}; a switch only saves money when measured`),
   ].join("");
 
   return `
+    ${title}
     ${staleBanner(overview)}
     ${unpricedBanner(overview.unpricedCalls)}
-    <h2>Overview</h2>
-    <p class="section-note">Measured from the <code>usage</code> object of every call that
-      passed through this gateway. Spend excludes blocked and errored calls, which were
-      never billed.</p>
     <div class="grid cols-4">${kpis}</div>
 
     <div class="card" style="margin-top:18px">
@@ -350,11 +371,10 @@ async function renderAgents() {
     .join("");
 
   return `
-    <h2>Agents</h2>
-    <p class="section-note">One row per cost line. Label traffic with the
+    ${head("Agents", `One row per cost line. Label traffic with the
       <code>x-costgrid-agent</code> header; anything unlabelled arrives as
       <code>unattributed</code>, which is a visible gap rather than a silent one.
-      Cost per call counts successful calls only.</p>
+      Cost per call counts successful calls only.`)}
     <div class="card scroll-x"><table>
       <thead><tr>
         <th>Agent</th><th>Department</th>
@@ -441,13 +461,12 @@ async function renderRouting() {
         }`;
 
   return `
-    <h2>Routing</h2>
-    <p class="section-note">The share you send to cheaper models, the fraction of tokens served off the
+    ${head("Routing", `The share you send to cheaper models, the fraction of tokens served off the
       most expensive tier, is <strong>measured from traffic</strong>. Everything else on this page
-      is a model, and is only as good as the assumptions below it.</p>
+      is a model, and is only as good as the assumptions below it.`)}
 
     <div class="grid cols-4">
-      ${card("Observed share", pct(routing.observedShare), "measured from your calls", "accent-rust")}
+      ${card("Observed share", pct(routing.observedShare), "measured from your calls")}
       ${card("Modelled optimum", pct(routing.optimalShare), "where marginal saving = marginal risk", "accent-gold")}
       ${card("Modelled headroom", pct(routing.savingFraction, 0), "on the token line, at the optimum")}
       ${card("Projected saving", money(String(overview.routing.projectedSavingUsd)),
@@ -459,8 +478,8 @@ async function renderRouting() {
         <div class="rail">Blended cost curve</div>
         <div style="margin-top:14px">${curveChart(routing)}</div>
         <div class="legend">
-          <span><span class="swatch" style="background:var(--rust)"></span>your traffic</span>
-          <span><span class="swatch" style="background:var(--gold)"></span>modelled optimum</span>
+          <span><span class="swatch ink"></span>your traffic</span>
+          <span><span class="swatch accent"></span>modelled optimum</span>
         </div>
       </div>
       <div class="card">
@@ -544,10 +563,8 @@ async function renderPolicies() {
             <td>${escapeHtml(scopeOf(p.scope))}</td>
             <td>${describe(p.rule)}</td>
             <td class="num">
-              <button data-toggle="${escapeHtml(p.id)}" data-enabled="${p.enabled}"
-                style="font-family:var(--mono);font-size:11px;padding:4px 9px;
-                       border:1px solid var(--rule);background:transparent;cursor:pointer">
-                ${p.enabled ? "disable" : "enable"}
+              <button class="btn btn-sm" data-toggle="${escapeHtml(p.id)}" data-enabled="${p.enabled}">
+                ${p.enabled ? "Disable" : "Enable"}
               </button>
             </td>
           </tr>`,
@@ -571,12 +588,11 @@ async function renderPolicies() {
     : `<tr><td colspan="4" class="kpi-sub">No policy events recorded.</td></tr>`;
 
   return `
-    <h2>Policies</h2>
-    <p class="section-note">A <strong>block</strong> is evaluated before the request is
+    ${head("Policies", `A <strong>block</strong> is evaluated before the request is
       forwarded, so a blocked call costs nothing. <strong>Warn</strong> forwards it and returns
       an <code>x-costgrid-warnings</code> header. <strong>Monitor</strong> only records. Start
       there to see what a rule would do before it does it. Add rules with
-      <code>costgrid policy</code>.</p>
+      <code>costgrid policy</code>.`)}
 
     <div class="card scroll-x"><table>
       <thead><tr><th></th><th>Action</th><th>Scope</th><th>Rule</th><th></th></tr></thead>
@@ -655,12 +671,11 @@ async function renderPricing() {
     : "";
 
   return `
-    <h2>Pricing catalog</h2>
-    ${stale}
-    <p class="section-note">Every model CostGrid can price, in $ per million tokens. A call on
+    ${head("Pricing catalog", `Every model CostGrid can price, in $ per million tokens. A call on
       a model <em>not</em> listed is still metered, but recorded as unpriced, so its cost reads as
       zero and totals say so, rather than showing it as free traffic. These are first-party API
-      list rates; Bedrock and Google Cloud are partner-operated and priced separately.</p>
+      list rates; Bedrock and Google Cloud are partner-operated and priced separately.`)}
+    ${stale}
     ${[...byProvider.entries()].map(([provider, rows]) => tableFor(provider, rows)).join("")}
     <p class="section-note" style="margin-top:22px">Several things change what a call costs
       without changing the model, and all are metered: <strong>fast mode</strong> and
@@ -779,26 +794,19 @@ async function renderStatement() {
   ].join("");
 
   return `
-    <h2>Statement</h2>
-    <p class="section-note">A closed calendar month in UTC, comparable against the one before
+    ${head("Statement", `A closed calendar month in UTC, comparable against the one before
       it, not a trailing window. This is the view that reconciles against a provider
-      invoice, and the CSV is the same numbers for a spreadsheet.</p>
+      invoice, and the CSV is the same numbers for a spreadsheet.`,
+      `<select id="statement-month" aria-label="Month">${options.join("")}</select>
+      <a class="btn" href="/api/statement.csv?month=${encodeURIComponent(s.month)}">Download CSV</a>`)}
+    ${
+      s.partial
+        ? `<p class="kpi-sub" style="margin:-8px 0 16px">Month to date: ${s.daysElapsed.toFixed(1)} of
+           ${s.daysInMonth} days. Figures are not final.</p>`
+        : ""
+    }
 
-    <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <select id="statement-month" style="font-family:var(--mono);font-size:12px;padding:6px 8px;
-        border:1px solid var(--rule);background:transparent">${options.join("")}</select>
-      <a href="/api/statement.csv?month=${encodeURIComponent(s.month)}"
-         style="font-family:var(--mono);font-size:12px;padding:6px 10px;
-                border:1px solid var(--rule);text-decoration:none">Download CSV</a>
-      ${
-        s.partial
-          ? `<span class="kpi-sub">Month to date: ${s.daysElapsed.toFixed(1)} of
-             ${s.daysInMonth} days. Figures are not final.</span>`
-          : ""
-      }
-    </div>
-
-    <div class="grid cols-4" style="margin-top:18px">${kpis}</div>
+    <div class="grid cols-4">${kpis}</div>
 
     <div class="card" style="margin-top:18px">${lines(s.byDepartment, "Department")}</div>
     <div class="grid cols-2" style="margin-top:18px">
@@ -877,13 +885,12 @@ async function renderTopology() {
   ].join("");
 
   return `
-    ${cycleBanner}
-    <h2>Topology</h2>
-    <p class="section-note">Read out of metered traffic: which agents called which
+    ${head("Topology", `Read out of metered traffic: which agents called which
       models, which tools they invoked, and who delegated to whom. Nothing here comes
       from a config file. Solid edges were exercised in this window, dashed ones are
       capability an agent holds and has not used. Tool <em>names</em> only; arguments
-      are never stored.</p>
+      are never stored.`)}
+    ${cycleBanner}
     <div class="grid cols-4">${kpis}</div>
     <div class="grid cols-2" style="margin-top:18px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
       <div class="card"><div id="topo-graph"></div></div>
@@ -928,7 +935,7 @@ async function render() {
     document.getElementById("footer-note").textContent =
       `${state.view} · ${scope} · updated ${new Date().toLocaleTimeString()}`;
   } catch (error) {
-    main.innerHTML = `<div class="banner"><strong>Could not load.</strong>
+    main.innerHTML = `<div class="banner bad"><strong>Could not load.</strong>
       ${escapeHtml(error.message)}</div>`;
   }
 }
@@ -978,9 +985,12 @@ render();
 // appears once the route answers.
 fetch("/console/setup").then((response) => {
   if (!response.ok) return;
+  // A link, not a button, so the view switcher above leaves it alone.
   const link = document.createElement("a");
-  link.className = "console-link";
+  link.className = "nav-item";
   link.href = "/console";
-  link.textContent = "Console";
-  document.getElementById("range").insertAdjacentElement("afterend", link);
+  link.innerHTML = `<svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none"
+    stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="11" r="2.6"/>
+    <path d="m7.9 9.1 5.4-5.4M11.2 5.8l1.6 1.6"/></svg>Console`;
+  document.getElementById("nav").append(link);
 }).catch(() => {});

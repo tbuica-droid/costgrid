@@ -35,7 +35,7 @@ export function ssoSection(sso) {
       ${field("Application (client) ID", "clientId", "text", `value="${escapeHtml(c?.clientId ?? "")}"`)}
       ${field("Client secret", "clientSecret", "password", 'autocomplete="off" placeholder="Paste it again to change it"')}
       ${field("Email domains", "emailDomains", "text", `value="${escapeHtml((c?.emailDomains ?? []).join(", "))}" placeholder="acme.com, acme.co.uk"`)}
-      <label style="font-size:13px"><input type="checkbox" name="enforced" ${c?.enforced ? "checked" : ""} />
+      <label class="check"><input type="checkbox" name="enforced" ${c?.enforced ? "checked" : ""} />
         Require it: refuse CostGrid passwords for those domains</label>
       ${button("Save company sign-in", 'type="submit"')}
       <span class="kpi-sub">We look up the technical details from the issuer URL, so that
@@ -55,7 +55,7 @@ export function retentionSection(retention) {
       <div><div class="rail">Record of changes</div>
         <div class="kpi-value">${say(retention.auditDays)}</div></div>
     </div>
-    <form id="retention-form" style="margin-top:14px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <form id="retention-form" class="form-row end" style="margin-top:16px">
       ${field("Call detail (days)", "callDays", "number", `value="${retention.callDays}" min="0"`)}
       ${field("Rule firings (days)", "eventDays", "number", `value="${retention.eventDays}" min="0"`)}
       ${button("Save", 'type="submit"')}
@@ -74,7 +74,7 @@ export function auditSection(audit) {
     }</span></p>
     <p>${escapeHtml(audit.summary)}</p>
     <p class="kpi-sub" style="margin-top:12px">Fingerprint of the whole record:</p>
-    <p><code style="word-break:break-all">${escapeHtml(audit.head)}</code></p>
+    <p><code>${escapeHtml(audit.head)}</code></p>
     <p class="kpi-sub">Keep a copy of that somewhere outside CostGrid, such as an email to
       whoever is responsible for your audit. It stands for everything recorded up to now, so if
       any of it is ever changed you can show that it was.</p>

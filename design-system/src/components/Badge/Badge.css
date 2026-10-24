@@ -1,14 +1,18 @@
+/* A status pill: fully rounded, state text on its own background, and always
+ * a word inside it. Colour alone never carries the meaning. */
 .cg-badge {
-  display: inline-block;
-  font-family: var(--cg-font-mono);
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--cg-font-sans);
   font-size: var(--cg-text-xs);
-  line-height: 1;
-  padding: 0.3em 0.5em;
-  border-radius: var(--cg-radius-sm);
-  border: 1px solid var(--cg-rule);
-  color: var(--cg-ink-soft);
-  background: var(--cg-surface);
+  font-weight: var(--cg-weight-semibold);
+  line-height: 1.35;
+  padding: 3px 10px;
+  border-radius: var(--cg-radius-pill);
+  border: 1px solid var(--cg-line);
+  color: var(--cg-ink-2);
+  background: var(--cg-surface-2);
   white-space: nowrap;
 }
-.cg-badge--over  { color: var(--cg-over);  border-color: var(--cg-over);  background: var(--cg-over-wash); }
-.cg-badge--saved { color: var(--cg-saved); border-color: var(--cg-saved); background: var(--cg-saved-wash); }
+.cg-badge--over  { color: var(--cg-over);  border-color: transparent; background: var(--cg-over-wash); }
+.cg-badge--saved { color: var(--cg-saved); border-color: transparent; background: var(--cg-saved-wash); }

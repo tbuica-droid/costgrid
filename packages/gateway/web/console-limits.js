@@ -9,7 +9,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, field, money, relativeTime } from "./ui.js";
+import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
 
 const view = { data: null };
 
@@ -19,10 +19,9 @@ const ACTIONS = {
   block: "Refuse calls over the limit",
 };
 
-const small = (text, attrs, colour = "var(--ink)") =>
-  `<button type="button" ${attrs}
-     style="font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--rule);
-            background:transparent;color:${colour};cursor:pointer">${escapeHtml(text)}</button>`;
+/** A small outline pill. `tone` is "danger" for stopping, "good" for resuming. */
+const small = (text, attrs, tone = "") =>
+  `<button type="button" class="btn btn-sm${tone ? ` btn-${tone}` : ""}" ${attrs}>${escapeHtml(text)}</button>`;
 
 function scopeText(scope) {
   if (scope.kind === "tenant") return "everything";
@@ -86,8 +85,8 @@ function stopsSection(d) {
             <td>${stop ? '<span class="tag off">stopped</span>' : '<span class="tag on">running</span>'}</td>
             <td class="num">${
               stop
-                ? small("Resume", `data-action="limits-resume" data-id="${escapeHtml(stop.id)}"`, "var(--green)")
-                : small("Stop", `data-action="limits-stop-agent" data-agent="${escapeHtml(a.id)}"`, "var(--rust)")
+                ? small("Resume", `data-action="limits-resume" data-id="${escapeHtml(stop.id)}"`, "good")
+                : small("Stop", `data-action="limits-stop-agent" data-agent="${escapeHtml(a.id)}"`, "danger")
             }</td>
           </tr>`;
         })
@@ -99,14 +98,14 @@ function stopsSection(d) {
     <p style="margin:0 0 10px">${
       everything
         ? `<span class="tag off">everything stopped</span> since ${relativeTime(everything.createdAt)} by
-           ${escapeHtml(everything.owner ?? "someone")}. ${small("Resume everything", `data-action="limits-resume" data-id="${escapeHtml(everything.id)}"`, "var(--green)")}`
+           ${escapeHtml(everything.owner ?? "someone")}. ${small("Resume everything", `data-action="limits-resume" data-id="${escapeHtml(everything.id)}"`, "good")}`
         : `Stopping refuses the next call before it reaches the provider. Nothing is billed, other agents
-           are untouched, and resuming keeps the record. ${small("Stop everything", 'data-action="limits-stop-all"', "var(--rust)")}`
+           are untouched, and resuming keeps the record. ${small("Stop everything", 'data-action="limits-stop-all"', "danger")}`
     }</p>
     ${others
       .map(
         (s) => `<p class="kpi-sub">Team ${escapeHtml(s.scope.department)} is stopped.
-          ${small("Resume", `data-action="limits-resume" data-id="${escapeHtml(s.id)}"`, "var(--green)")}</p>`,
+          ${small("Resume", `data-action="limits-resume" data-id="${escapeHtml(s.id)}"`, "good")}</p>`,
       )
       .join("")}
     <div class="scroll-x"><table>
@@ -121,9 +120,9 @@ function newLimitForm(d) {
     .map((t) => `<option value="department:${escapeHtml(t)}">Team ${escapeHtml(t)}</option>`)
     .join("");
   const models = d.models.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.id)} (${m.tier})</option>`).join("");
-  const select = (label, name, options) => `<label style="display:block;margin-bottom:14px">
-      <span class="rail" style="display:block;margin-bottom:6px">${escapeHtml(label)}</span>
-      <select name="${name}" style="padding:9px 11px;max-width:420px;width:100%">${options}</select></label>`;
+  const select = (label, name, options) => `<label class="field">
+      <span class="field-label">${escapeHtml(label)}</span>
+      <select name="${name}">${options}</select></label>`;
 
   return `<form id="limit-form" class="card">
     ${select(
@@ -158,7 +157,7 @@ function registerSection(d) {
         <td style="white-space:normal;min-width:200px"><strong>${escapeHtml(r.name)}</strong><br />
           <span class="kpi-sub">${escapeHtml(ruleText(r.rule))} · ${escapeHtml(scopeText(r.scope))}</span></td>
         <td>${r.enabled ? `<span class="tag ${r.action === "monitor" ? "monitor" : "on"}">${escapeHtml(actionLabel(r.rule, r.action))}</span>` : '<span class="tag off">off</span>'}</td>
-        <td style="white-space:normal">${r.owner ? escapeHtml(r.owner) : '<span class="kpi-sub" style="color:var(--rust)">no owner</span>'}
+        <td style="white-space:normal">${r.owner ? escapeHtml(r.owner) : '<span class="tag warn">no owner</span>'}
           ${r.reason ? `<br /><span class="kpi-sub">${escapeHtml(r.reason)}</span>` : ""}</td>
         <td style="white-space:nowrap">${count(fired)} time${fired === 1 ? "" : "s"}<br /><span class="kpi-sub">${
           r.lastFiredAt ? `last ${relativeTime(r.lastFiredAt)}` : "never fired"
@@ -173,7 +172,7 @@ function registerSection(d) {
       </tr>`;
     })
     .join("");
-  return `<div class="scroll-x"><table>
+  return `<div class="card scroll-x"><table>
     <thead><tr><th>Rule</th><th>Action</th><th>Owner and reason</th><th>Fired, 30 days</th><th>History</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
@@ -231,24 +230,26 @@ function alertsSection(d) {
           : "Paste a Slack or Discord incoming-webhook address, or any address that accepts a JSON post, to have alerts sent to a channel."
       } The address is stored encrypted and never shown again.</p>
       ${field("Webhook address", "webhookUrl", "url", `placeholder="${s.webhookConfigured ? "Leave blank to keep the current one" : "https://hooks.slack.com/services/…"}" autocomplete="off"`)}
-      <label style="display:block;margin-bottom:14px"><input type="checkbox" name="desktop" ${s.desktop ? "checked" : ""} />
+      <label class="check"><input type="checkbox" name="desktop" ${s.desktop ? "checked" : ""} />
         Show a notification on this computer</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="form-row">
         ${button("Save", 'type="submit"')}
-        ${button("Send a test alert", 'type="button" data-action="alerts-test"')}
-        ${s.webhookConfigured ? small("Remove address", 'data-action="alerts-remove"', "var(--rust)") : ""}
+        ${button("Send a test alert", 'type="button" data-action="alerts-test"', "secondary")}
+        ${s.webhookConfigured ? small("Remove address", 'data-action="alerts-remove"', "danger") : ""}
       </div>
     </form>
-    ${rows ? `<div class="scroll-x" style="margin-top:12px"><table><thead><tr><th>When</th><th>Alert</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}`;
+    ${rows ? `<div class="card scroll-x" style="margin-top:12px"><table><thead><tr><th>When</th><th>Alert</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}`;
 }
 
 export async function render() {
   const d = await call("GET", `/console/${state.tenantId}/limits`);
   view.data = d;
   return `
-    <h2>Limits</h2>
-    <p class="section-note">Every limit is checked before a call is sent. A call over a limit that refuses is
-      answered "over budget" by CostGrid and never reaches the provider, so it is never billed.</p>
+    ${pageHead(
+      "Limits",
+      `Every limit is checked before a call is sent. A call over a limit that refuses is
+      answered "over budget" by CostGrid and never reaches the provider, so it is never billed.`,
+    )}
     ${flashBanner()}
     <h2 style="margin-top:22px">Stop</h2>
     ${stopsSection(d)}

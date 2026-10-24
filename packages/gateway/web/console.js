@@ -26,7 +26,7 @@ import * as limits from "./console-limits.js";
 import * as results from "./console-results.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
-import { button, escapeHtml, field } from "./ui.js";
+import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
 
 const PAGES = [
   ["setup", "Setup", wizard.render],
@@ -56,9 +56,8 @@ function renderAuth() {
        are encrypted before they touch disk and are never shown again.`;
 
   return `
-    <div style="max-width:460px">
-      <h2>${heading}</h2>
-      <p class="section-note">${note}</p>
+    <div style="max-width:480px">
+      ${pageHead(heading, note)}
       ${flashBanner()}
       <form id="auth-form" class="card">
         ${signingUp ? field("Your name", "name") : ""}
@@ -84,37 +83,44 @@ function renderAuth() {
 function renderNoOrganisation() {
   return `
     <div style="max-width:560px">
-      <h2>Nothing here</h2>
-      <p class="section-note">You are signed in as ${escapeHtml(state.user.email)} but are not a
-        member of any organisation.</p>
+      ${pageHead(
+        "Nothing here",
+        `You are signed in as ${escapeHtml(state.user.email)} but are not a member of any organisation.`,
+        '<a href="#" id="logout" class="btn">Sign out</a>',
+      )}
       ${flashBanner()}
-      <p><a href="#" id="logout">Sign out</a></p>
     </div>`;
 }
 
 // ------------------------------------------------------------------- shell
 
+/** The sidebar: whose workspace this is, then one item per screen. */
 function renderNav() {
   const nav = document.getElementById("nav");
+  const workspace = document.getElementById("workspace");
   if (!state.user || !state.tenantId) {
     nav.innerHTML = "";
+    workspace.hidden = true;
+    workspace.innerHTML = "";
     return;
   }
+  const current = state.orgs.find((o) => o.tenantId === state.tenantId);
   const orgs =
     state.orgs.length > 1
-      ? state.orgs
+      ? `<div class="workspace-orgs" role="group" aria-label="Switch organisation">${state.orgs
           .map(
             (o) => `<button data-tenant="${escapeHtml(o.tenantId)}"
                  aria-current="${o.tenantId === state.tenantId}">${escapeHtml(o.tenantName)}</button>`,
           )
-          .join("") + '<span style="width:12px"></span>'
+          .join("")}</div>`
       : "";
-  nav.innerHTML =
-    orgs +
-    PAGES.map(
-      ([id, label]) =>
-        `<button data-page="${id}" aria-current="${id === state.page}">${escapeHtml(label)}</button>`,
-    ).join("");
+  workspace.innerHTML = `<span class="workspace-name">${escapeHtml(current?.tenantName ?? "Organisation")}</span>
+    <span class="workspace-note">${escapeHtml(state.user.email)}</span>${orgs}`;
+  workspace.hidden = false;
+  nav.innerHTML = PAGES.map(
+    ([id, label]) =>
+      `<button class="nav-item" data-page="${id}" aria-current="${id === state.page}">${icon(id)}${escapeHtml(label)}</button>`,
+  ).join("");
 }
 
 async function render() {
@@ -127,7 +133,7 @@ async function render() {
       ? `${state.orgs.length} organisation${state.orgs.length === 1 ? "" : "s"}`
       : "";
   } catch (error) {
-    main.innerHTML = `<div class="banner"><strong>${escapeHtml(error.message)}</strong></div>`;
+    main.innerHTML = `<div class="banner bad"><strong>${escapeHtml(error.message)}</strong></div>`;
   }
   renderNav();
   state.flash = null;
@@ -236,13 +242,15 @@ document.addEventListener("submit", async (event) => {
 
 document.addEventListener("click", async (event) => {
   const target = event.target.closest(
-    "[data-view], [data-tenant], [data-page], [data-action], [data-remove], [data-revoke], #logout",
+    "[data-view], [data-tenant], [data-page], [data-action], [data-remove], [data-revoke], [data-appearance], #logout",
   );
   if (!target) return;
   event.preventDefault();
 
   try {
-    if (target.dataset.view) {
+    if (target.dataset.appearance) {
+      setAppearance(target.dataset.appearance);
+    } else if (target.dataset.view) {
       state.view = target.dataset.view;
     } else if (target.dataset.tenant) {
       state.tenantId = target.dataset.tenant;

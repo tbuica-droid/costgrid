@@ -1,14 +1,33 @@
 /**
- * The settings screen: provider keys, imported history, gateway keys, plan,
- * company sign-in, retention and the record of changes.
+ * The settings screen: appearance, provider keys, imported history, gateway
+ * keys, plan, company sign-in, retention and the record of changes.
  *
  * Moved here unchanged from the console's main file when the console grew
- * other screens. The forms it renders are still handled there.
+ * other screens. The forms it renders are still handled there, and so is the
+ * appearance switch, which is stored in this browser rather than on the server.
  */
 
 import { call, flashBanner, state } from "./console-api.js";
 import { auditSection, retentionSection, ssoSection } from "./console-security.js";
-import { button, count, escapeHtml, money, relativeTime } from "./ui.js";
+import { button, count, escapeHtml, getAppearance, money, pageHead, relativeTime } from "./ui.js";
+
+const APPEARANCES = [
+  ["dark", "Dark"],
+  ["light", "Light"],
+  ["system", "Match system"],
+];
+
+function appearanceSection() {
+  const current = getAppearance();
+  return `<div class="card">
+    <div class="segmented" role="group" aria-label="Appearance">${APPEARANCES.map(
+      ([value, label]) =>
+        `<button type="button" data-appearance="${value}" aria-pressed="${value === current}">${label}</button>`,
+    ).join("")}</div>
+    <p class="kpi-sub" style="margin:10px 0 0">Saved on this computer only. Match system follows your
+      operating system's light or dark setting.</p>
+  </div>`;
+}
 
 export async function renderSettings() {
   const tenantId = state.tenantId;
@@ -35,19 +54,14 @@ export async function renderSettings() {
             : '<span class="tag off">not set</span>'
         }</td>
         <td class="num">
-          <form class="cred-form" data-provider="${escapeHtml(p.provider)}"
-                style="display:flex;gap:8px;justify-content:flex-end">
+          <form class="cred-form form-row" data-provider="${escapeHtml(p.provider)}"
+                style="justify-content:flex-end;flex-wrap:nowrap">
             <input name="apiKey" type="password" placeholder="${p.configured ? "Replace key" : "Paste key"}"
-              autocomplete="off"
-              style="padding:7px 10px;border:1px solid var(--rule);background:var(--bg);
-                     color:var(--ink);font-family:var(--mono);font-size:12px;width:210px" />
+              autocomplete="off" class="w-key" />
             ${button("Save", 'type="submit"')}
             ${
               p.configured
-                ? `<button type="button" data-remove="${escapeHtml(p.provider)}"
-                     style="font-family:var(--mono);font-size:12px;padding:9px 12px;
-                            border:1px solid var(--rule);background:transparent;
-                            color:var(--rust);cursor:pointer">Remove</button>`
+                ? `<button type="button" class="btn btn-danger" data-remove="${escapeHtml(p.provider)}">Remove</button>`
                 : ""
             }
           </form>
@@ -66,10 +80,7 @@ export async function renderSettings() {
             <td class="num">${
               k.revokedAt
                 ? "—"
-                : `<button type="button" data-revoke="${escapeHtml(k.id)}"
-                     style="font-family:var(--mono);font-size:11px;padding:5px 10px;
-                            border:1px solid var(--rule);background:transparent;
-                            color:var(--rust);cursor:pointer">Revoke</button>`
+                : `<button type="button" class="btn btn-sm btn-danger" data-revoke="${escapeHtml(k.id)}">Revoke</button>`
             }</td>
           </tr>`,
         )
@@ -86,13 +97,17 @@ export async function renderSettings() {
     .join("");
 
   return `
-    <h2>${escapeHtml(org?.tenantName ?? "Organisation")}</h2>
-    <p class="section-note">Signed in as ${escapeHtml(state.user.email)}
-      · <a href="/" >Open the dashboard</a>
-      · <a href="#" id="logout">Sign out</a></p>
+    ${pageHead(
+      org?.tenantName ?? "Organisation",
+      `Signed in as ${escapeHtml(state.user.email)}`,
+      '<a href="/" class="btn">Open the dashboard</a><a href="#" id="logout" class="btn btn-quiet">Sign out</a>',
+    )}
     ${flashBanner()}
 
-    <h2 style="margin-top:26px">Provider credentials</h2>
+    <h2>Appearance</h2>
+    ${appearanceSection()}
+
+    <h2>Provider credentials</h2>
     <p class="section-note">Your own API keys. CostGrid encrypts each one before storing it and
       presents it only to that provider. It is never returned to this page, and a database dump
       does not contain it. A provider with no key here serves no route for your organisation.</p>
@@ -101,7 +116,7 @@ export async function renderSettings() {
       <tbody>${credentialRows}</tbody>
     </table></div>
 
-    <h2 style="margin-top:26px">Import your history</h2>
+    <h2>Import your history</h2>
     <p class="section-note">See your last 90 days before routing a single request. Paste an
       <strong>admin</strong> key and CostGrid reads your organisation's usage report straight from
       the provider. The key is used for this one request and <strong>never stored</strong>.</p>
@@ -111,26 +126,23 @@ export async function renderSettings() {
     <div class="card">
       ${importState.providers
         .map(
-          (p) => `<form class="import-form" data-provider="${escapeHtml(p.provider)}"
-                        style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-            <span style="min-width:90px"><strong>${escapeHtml(p.provider)}</strong></span>
-            <input name="adminKey" type="password" placeholder="Admin key" autocomplete="off"
-              style="padding:8px 11px;border:1px solid var(--rule);background:var(--bg);
-                     color:var(--ink);font-family:var(--mono);font-size:12px;width:260px" />
-            <select name="days" style="padding:8px">
+          (p) => `<form class="import-form form-row" data-provider="${escapeHtml(p.provider)}">
+            <span class="provider">${escapeHtml(p.provider)}</span>
+            <input name="adminKey" type="password" placeholder="Admin key" autocomplete="off" class="w-key" />
+            <select name="days" aria-label="How far back">
               <option value="30">30 days</option>
               <option value="90" selected>90 days</option>
               <option value="365">1 year</option>
             </select>
             ${button("Import", 'type="submit"')}
-            <span class="kpi-sub" style="flex-basis:100%">${escapeHtml(p.keyHint)}</span>
+            <span class="kpi-sub note">${escapeHtml(p.keyHint)}</span>
           </form>`,
         )
         .join("")}
       ${
         importState.runs.length
-          ? `<div class="scroll-x" style="margin-top:8px"><table>
-               <thead><tr><th>When</th><th>Provider</th><th>Range</th><th>Rows</th><th>Status</th></tr></thead>
+          ? `<div class="scroll-x" style="margin-top:16px"><table>
+               <thead><tr><th>When</th><th>Provider</th><th>Range</th><th class="num">Rows</th><th>Status</th></tr></thead>
                <tbody>${importState.runs
                  .map(
                    (r) => `<tr>
@@ -147,21 +159,19 @@ export async function renderSettings() {
       }
     </div>
 
-    <h2 style="margin-top:26px">Gateway API keys</h2>
+    <h2>Gateway API keys</h2>
     <p class="section-note">What your services present to CostGrid, as the
       <code>x-costgrid-key</code> header. Shown once at creation.</p>
     <div class="card scroll-x"><table>
       <thead><tr><th>Name</th><th>Prefix</th><th>Status</th><th class="num"></th></tr></thead>
       <tbody>${keyRows}</tbody>
     </table></div>
-    <form id="key-form" style="display:flex;gap:8px;margin-top:14px;align-items:center">
-      <input name="name" placeholder="Key name, e.g. ci-pipeline"
-        style="padding:9px 11px;border:1px solid var(--rule);background:var(--bg);
-               color:var(--ink);font-family:var(--sans);font-size:14px;width:260px" />
+    <form id="key-form" class="form-row" style="margin-top:14px">
+      <input name="name" placeholder="Key name, e.g. ci-pipeline" aria-label="Key name" class="w-key" />
       ${button("Create key", 'type="submit"')}
     </form>
 
-    <h2 style="margin-top:26px">Plan and billing</h2>
+    <h2>Plan and billing</h2>
     <p class="section-note">Two separate numbers: what your AI cost you, and what CostGrid
       charges for governing it. Billing is invoiced manually in this release. Changing the plan
       here records the intent, it does not charge a card.</p>
@@ -187,27 +197,27 @@ export async function renderSettings() {
         <div class="kpi-sub">this product exists to shrink that bill</div>
       </div>
     </div>
-    <form id="plan-form" style="display:flex;gap:8px;margin-top:14px;align-items:center">
-      <select name="plan" style="padding:9px 11px;min-width:340px">${planOptions}</select>
-      ${button("Change plan", 'type="submit"')}
+    <form id="plan-form" class="form-row" style="margin-top:14px">
+      <select name="plan" class="w-wide" aria-label="Plan">${planOptions}</select>
+      ${button("Change plan", 'type="submit"', "secondary")}
     </form>
     <p class="section-note" style="margin-top:10px">Rate limit on this plan:
       ${count(billing.plan.rateLimitPerMinute)} requests/minute.</p>
 
-    <h2 style="margin-top:26px">Company sign-in</h2>
+    <h2>Company sign-in</h2>
     <p class="section-note">Let people sign in with your company account instead of a CostGrid
       password. Works with Microsoft, Okta, Google Workspace and anything else that speaks
       OpenID Connect. Your identity provider decides who gets in, and we check that its answer
       is genuine before trusting it.</p>
     ${ssoSection(sso)}
 
-    <h2 style="margin-top:26px">How long we keep your data</h2>
+    <h2>How long we keep your data</h2>
     <p class="section-note">Nothing is deleted unless you ask for it. Set a limit here and
       CostGrid removes anything older once a day. Deleted data is gone from every report,
       including months you have already sent out, so pick a window you can live with.</p>
     ${retentionSection(retention)}
 
-    <h2 style="margin-top:26px">Record of changes</h2>
+    <h2>Record of changes</h2>
     <p class="section-note">Every change someone makes is written down: who added a key, who
       changed a budget, who signed in. Each entry is locked to the one before it, so an entry
       cannot be altered or removed without this check failing.</p>

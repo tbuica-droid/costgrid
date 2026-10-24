@@ -1,42 +1,53 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CostGrid</title>
+<script src="/app/theme.js"></script>
 <link rel="stylesheet" href="/app/styles.css" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230f1411'/><rect x='3' y='9' width='2' height='4' fill='%239d7b1f'/><rect x='7' y='5' width='2' height='8' fill='%23f5f2e9'/><rect x='11' y='7' width='2' height='6' fill='%23a8452a'/></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='1.75' y='1.75' width='22.5' height='22.5' rx='5' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
 </head>
 <body>
 
-<header>
-  <span class="brand">CostGrid</span>
-  <span class="tagline">See and control what your AI spends</span>
-  <nav id="nav">
-    <button data-view="overview" aria-current="true">Overview</button>
-    <button data-view="statement">Statement</button>
-    <button data-view="topology">Topology</button>
-    <button data-view="agents">Agents</button>
-    <button data-view="routing">Routing</button>
-    <button data-view="policies">Policies</button>
-    <button data-view="pricing">Pricing</button>
-  </nav>
-  <select id="range" aria-label="Time range">
-    <option value="1">24 hours</option>
-    <option value="7">7 days</option>
-    <option value="30" selected>30 days</option>
-    <option value="90">90 days</option>
-  </select>
-</header>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="14" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="7" y="14" width="5" height="5" rx="1" fill="currentColor"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        CostGrid
+      </div>
+      <nav id="nav" class="side-nav" aria-label="Dashboard">
+        <button class="nav-item" data-view="overview" aria-current="true"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 8.5 3l6 5.5M4 7.5v6h9v-6"/></svg>Overview</button>
+        <button class="nav-item" data-view="statement"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5H10L12.5 5v9.5h-8zM10 2.5V5h2.5M6.5 8.5h4M6.5 11h4"/></svg>Statement</button>
+        <button class="nav-item" data-view="topology"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="4.5" r="2"/><circle cx="12.5" cy="4.5" r="2"/><circle cx="8.5" cy="12.5" r="2"/><path d="M6.5 4.5h4M5.5 6.3l2 4.4M11.5 6.3l-2 4.4"/></svg>Topology</button>
+        <button class="nav-item" data-view="agents"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="6" r="2.6"/><path d="M3.5 14c.8-2.5 2.7-3.6 5-3.6s4.2 1.1 5 3.6"/></svg>Agents</button>
+        <button class="nav-item" data-view="routing"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5h4l4-4h4M6.5 8.5l4 4h4M12.5 2.5l2 2-2 2M12.5 10.5l2 2-2 2"/></svg>Routing</button>
+        <button class="nav-item" data-view="policies"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 2.5l5 2v4c0 3-2.2 5.2-5 6-2.8-.8-5-3-5-6v-4z"/></svg>Policies</button>
+        <button class="nav-item" data-view="pricing"><svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5v5l6 6 6-6-6-6h-5a1 1 0 0 0-1 1z"/><circle cx="5.5" cy="5.5" r="1"/></svg>Pricing</button>
+      </nav>
+      <label class="side-field">Time range
+        <select id="range">
+          <option value="1">24 hours</option>
+          <option value="7">7 days</option>
+          <option value="30" selected>30 days</option>
+          <option value="90">90 days</option>
+        </select>
+      </label>
+    </div>
+  </aside>
 
-<main id="main">
-  <p class="rail">Loading…</p>
-</main>
+  <div class="content">
+    <main id="main">
+      <p class="rail">Loading…</p>
+    </main>
 
-<footer>
-  <span>CostGrid · metering live traffic through this gateway</span>
-  <span id="footer-note"></span>
-</footer>
+    <footer>
+      <span>CostGrid · metering live traffic through this gateway</span>
+      <span id="footer-note"></span>
+    </footer>
+  </div>
+</div>
 
 <script type="module" src="/app/app.js"></script>
 </body>

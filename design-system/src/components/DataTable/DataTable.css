@@ -10,23 +10,21 @@
   padding-top: var(--cg-space-3);
   text-align: left;
   font-size: var(--cg-text-xs);
-  color: var(--cg-ink-faint);
+  color: var(--cg-ink-3);
 }
 
 .cg-table th {
   text-align: left;
   font-size: var(--cg-text-xs);
-  font-weight: var(--cg-weight-medium);
-  letter-spacing: var(--cg-tracking-label);
-  text-transform: uppercase;
-  color: var(--cg-ink-faint);
+  font-weight: var(--cg-weight-semibold);
+  color: var(--cg-ink-2);
   padding: 0 var(--cg-space-4) var(--cg-space-3);
-  border-bottom: 1px solid var(--cg-rule);
+  border-bottom: 1px solid var(--cg-line);
   white-space: nowrap;
 }
 .cg-table td {
   padding: var(--cg-space-3) var(--cg-space-4);
-  border-bottom: 1px solid var(--cg-rule-hair);
+  border-bottom: 1px solid var(--cg-line-soft);
   color: var(--cg-ink);
   vertical-align: baseline;
 }
@@ -37,7 +35,7 @@
 
 /* The total is closed off above, the way a sum is. */
 .cg-table tfoot td {
-  border-top: 2px solid var(--cg-rule-total);
+  border-top: 1px solid var(--cg-rule-total);
   border-bottom: none;
   font-weight: var(--cg-weight-bold);
   padding-top: var(--cg-space-3);

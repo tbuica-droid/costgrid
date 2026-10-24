@@ -21,7 +21,7 @@ export interface PanelProps extends React.HTMLAttributes<HTMLDivElement> {
  * @example
  * <Panel>Most content needs no box at all.</Panel>
  * @example
- * <Panel variant="inverse" padding="lg">A dark closing section.</Panel>
+ * <Panel variant="inverse" padding="lg">A raised window, with the one shadow.</Panel>
  */
 export function Panel({ variant = "plain", padding = "md", className, ...rest }: PanelProps) {
   return (

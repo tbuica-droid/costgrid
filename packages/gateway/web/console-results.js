@@ -8,7 +8,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, field, money } from "./ui.js";
+import { button, count, escapeHtml, field, money, pageHead } from "./ui.js";
 
 const view = { days: 30 };
 
@@ -97,8 +97,8 @@ function fullCostSection(f, costs, categories) {
     .map(
       (c) => `<tr><td><strong>${escapeHtml(c.label)}</strong><br /><span class="kpi-sub">${escapeHtml(categories[c.category])}</span></td>
         <td class="num">${money(c.monthlyAmountUsd)}</td><td>${escapeHtml(c.startsMonth)}${c.endsMonth ? ` to ${escapeHtml(c.endsMonth)}` : " onwards"}</td>
-        <td class="num"><button type="button" data-action="cost-remove" data-id="${escapeHtml(c.id)}"
-          style="font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--rule);background:transparent;color:var(--rust);cursor:pointer">Remove</button></td></tr>`,
+        <td class="num"><button type="button" class="btn btn-sm btn-danger" data-action="cost-remove"
+          data-id="${escapeHtml(c.id)}">Remove</button></td></tr>`,
     )
     .join("");
   return `<div class="grid cols-4">
@@ -110,8 +110,8 @@ function fullCostSection(f, costs, categories) {
     ${rows ? `<div class="scroll-x" style="margin-top:12px"><table><thead><tr><th>Entered cost</th><th class="num">Per month</th><th>Applies</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
     <form id="cost-form" class="card" style="margin-top:12px">
       ${field("What it is", "label", "text", 'placeholder="Support platform licence"')}
-      <label style="display:block;margin-bottom:14px"><span class="rail" style="display:block;margin-bottom:6px">Category</span>
-        <select name="category" style="padding:9px 11px">${Object.entries(categories).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join("")}</select></label>
+      <label class="field"><span class="field-label">Category</span>
+        <select name="category">${Object.entries(categories).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join("")}</select></label>
       ${field("Per month, in dollars", "monthlyUsd", "text", 'placeholder="400"')}
       ${field("From month (YYYY-MM)", "startsMonth", "text", `value="${escapeHtml(f.month)}"`)}
       ${button("Add cost", 'type="submit"')}
@@ -123,17 +123,19 @@ function fullCostSection(f, costs, categories) {
 
 export async function render() {
   const d = await call("GET", `/console/${state.tenantId}/results?days=${view.days}`);
-  return `
-    <h2>Results</h2>
-    <p class="section-note">Whether the spending is worth it: cost per result that worked, what a typical and a bad
-      run cost, where reasoning money goes, and the full monthly cost.</p>
-    ${flashBanner()}
-    <form id="results-window" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-      <span class="rail">Window</span>
-      <select name="days" style="padding:8px">${[7, 30, 90].map((n) => `<option value="${n}" ${n === view.days ? "selected" : ""}>${n} days</option>`).join("")}</select>
-      ${button("Show", 'type="submit"')}
-      <a href="/console/${encodeURIComponent(state.tenantId)}/evidence" style="margin-left:auto" class="kpi-sub">Download this month's evidence pack</a>
+  const actions = `<form id="results-window" class="form-row">
+      <select name="days" aria-label="Window">${[7, 30, 90].map((n) => `<option value="${n}" ${n === view.days ? "selected" : ""}>${n} days</option>`).join("")}</select>
+      ${button("Show", 'type="submit"', "secondary")}
     </form>
+    <a href="/console/${encodeURIComponent(state.tenantId)}/evidence" class="btn">Download this month's evidence pack</a>`;
+  return `
+    ${pageHead(
+      "Results",
+      `Whether the spending is worth it: cost per result that worked, what a typical and a bad
+      run cost, where reasoning money goes, and the full monthly cost.`,
+      actions,
+    )}
+    ${flashBanner()}
     <h2>What the money bought</h2>
     ${outcomesSection(d.outcomes)}
     <h2 style="margin-top:26px">What a run costs</h2>

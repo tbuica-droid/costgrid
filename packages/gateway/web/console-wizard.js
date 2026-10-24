@@ -9,7 +9,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, money } from "./ui.js";
+import { button, count, escapeHtml, money, pageHead } from "./ui.js";
 
 const held = { preflight: {}, newKey: null, newKeyName: null };
 let poll = null;
@@ -30,10 +30,10 @@ function step(n, title, status, body) {
       : status === "next"
         ? '<span class="tag warn">next</span>'
         : '<span class="tag off">later</span>';
-  return `<div class="card" style="margin-bottom:14px">
-    <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
-      <span class="rail">Step ${n}</span>
-      <h3 style="margin:0;font-size:16px">${escapeHtml(title)}</h3>${tag}
+  return `<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span class="step-label">Step ${n}</span>
+      <h3 style="margin:0">${escapeHtml(title)}</h3>${tag}
     </div>
     <div style="margin-top:12px">${body}</div>
   </div>`;
@@ -41,15 +41,13 @@ function step(n, title, status, body) {
 
 const input = (name, placeholder, type = "text") =>
   `<input name="${name}" type="${type}" placeholder="${escapeHtml(placeholder)}" autocomplete="off"
-     style="padding:8px 11px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);
-            font-family:var(--mono);font-size:12px;width:260px" />`;
+     aria-label="${escapeHtml(placeholder)}" class="w-key" />`;
 
 function providerKeys(providers) {
   return providers
     .map(
-      (p) => `<form class="wizard-cred-form" data-provider="${escapeHtml(p.provider)}"
-                style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-        <span style="min-width:90px"><strong>${escapeHtml(p.provider)}</strong></span>
+      (p) => `<form class="wizard-cred-form form-row" data-provider="${escapeHtml(p.provider)}">
+        <span class="provider">${escapeHtml(p.provider)}</span>
         ${
           p.configured
             ? `<span class="tag on">saved</span> <code>${escapeHtml(p.hint)}</code>`
@@ -85,8 +83,7 @@ function preflightResult(provider) {
 function snippets(providers, key) {
   const origin = location.origin;
   const k = escapeHtml(key);
-  const pre = (text) =>
-    `<pre style="margin:6px 0 14px;padding:12px;border:1px solid var(--rule);overflow-x:auto;font-size:12px">${text}</pre>`;
+  const pre = (text) => `<pre class="code-block">${text}</pre>`;
   const out = [];
   if (providers.includes("anthropic")) {
     out.push(
@@ -120,17 +117,16 @@ function snippets(providers, key) {
 function trialSection(importState, history, tenant) {
   const forms = importState.providers
     .map(
-      (p) => `<form class="wizard-import-form" data-provider="${escapeHtml(p.provider)}"
-                style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-        <span style="min-width:90px"><strong>${escapeHtml(p.provider)}</strong></span>
+      (p) => `<form class="wizard-import-form form-row" data-provider="${escapeHtml(p.provider)}">
+        <span class="provider">${escapeHtml(p.provider)}</span>
         ${input("adminKey", "Admin key", "password")}
-        <select name="days" style="padding:8px">
+        <select name="days" aria-label="How far back">
           <option value="30">30 days</option>
           <option value="90" selected>90 days</option>
           <option value="365">1 year</option>
         </select>
         ${button("Show my spend", 'type="submit"')}
-        <span class="kpi-sub" style="flex-basis:100%">${escapeHtml(p.keyHint)}</span>
+        <span class="kpi-sub note">${escapeHtml(p.keyHint)}</span>
       </form>`,
     )
     .join("");
@@ -142,10 +138,10 @@ function trialSection(importState, history, tenant) {
        <a href="/?tenant=${encodeURIComponent(tenant)}">Open the dashboard</a> to see it by day and by model.</p>`
     : "";
 
-  return `<div class="card sunk" style="margin-bottom:22px">
-    <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
-      <span class="rail">Before you change anything</span>
-      <h3 style="margin:0;font-size:16px">See your real spend now</h3>
+  return `<div class="card sunk" style="margin-bottom:20px">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span class="step-label">Before you change anything</span>
+      <h3 style="margin:0">See your real spend now</h3>
       ${history.present ? '<span class="tag on">imported</span>' : ""}
     </div>
     <p class="kpi-sub" style="margin:10px 0 12px">Paste an <strong>admin</strong> key and CostGrid reads
@@ -181,9 +177,11 @@ export async function render() {
 
   const keyValue = held.newKey ?? "cg_live_…";
   return `
-    <h2>Set up CostGrid</h2>
-    <p class="section-note">Five steps from nothing to a real number. Each one is checked against
-      what is actually saved, so you can leave and come back.</p>
+    ${pageHead(
+      "Set up CostGrid",
+      `Five steps from nothing to a real number. Each one is checked against
+      what is actually saved, so you can leave and come back.`,
+    )}
     ${flashBanner()}
     ${trialSection(importState, history, t)}
 
@@ -215,12 +213,12 @@ export async function render() {
       }
       ${
         held.newKey
-          ? `<div class="banner" style="border-color:var(--green)"><strong style="color:var(--green)">
+          ? `<div class="banner good"><strong>
                Key "${escapeHtml(held.newKeyName)}" created. Copy it now, it is not shown again:</strong>
-               <code style="word-break:break-all;display:block;margin-top:6px">${escapeHtml(held.newKey)}</code></div>`
+               <code class="key">${escapeHtml(held.newKey)}</code></div>`
           : ""
       }
-      <form id="wizard-key-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <form id="wizard-key-form" class="form-row">
         ${input("name", "Key name, e.g. my-app")}
         ${button("Create key", 'type="submit"')}
       </form>`)}

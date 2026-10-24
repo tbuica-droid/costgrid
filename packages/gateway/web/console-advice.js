@@ -8,7 +8,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, field, money, relativeTime } from "./ui.js";
+import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
 
 const view = { days: 30, proposals: [], lastRun: null };
 
@@ -36,7 +36,7 @@ function backtestLine(b, intent) {
 
 function proposalCard(p, index) {
   return `<div class="card" style="margin-bottom:12px">
-    <h3 style="margin:0 0 6px;font-size:16px">${escapeHtml(p.headline)}</h3>
+    <h3>${escapeHtml(p.headline)}</h3>
     <p style="margin:0 0 8px">${escapeHtml(p.evidence)}</p>
     ${p.backtest ? `<p class="kpi-sub" style="margin-bottom:10px">${escapeHtml(backtestLine(p.backtest, p.intent))}</p>` : ""}
     ${
@@ -89,18 +89,18 @@ function autopilotSection(pilot) {
     <p class="kpi-sub"><strong>Monitor</strong> creates rules that measure and change nothing.
       <strong>Apply</strong> also switches on routing that already replayed with a saving. It can never
       refuse a call or set a budget, at any level.</p>
-    <form id="autopilot-form" style="margin-top:14px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-      <label style="display:block;margin-bottom:14px"><span class="rail" style="display:block;margin-bottom:6px">Level</span>
-        <select name="level" style="padding:9px 11px">
+    <form id="autopilot-form" class="form-row end" style="margin:16px 0 14px">
+      <label class="field"><span class="field-label">Level</span>
+        <select name="level">
           ${["off", "monitor", "apply"].map((l) => `<option value="${l}" ${l === s.level ? "selected" : ""}>${l}</option>`).join("")}
         </select></label>
-      ${field("Max share of spend per change (%)", "maxImpactPct", "number", `value="${s.maxImpactPct}" min="1" max="100" style="width:120px"`)}
-      ${field("Max changes per run", "maxActions", "number", `value="${s.maxActions}" min="1" max="50" style="width:120px"`)}
+      ${field("Max share of spend per change (%)", "maxImpactPct", "number", `value="${s.maxImpactPct}" min="1" max="100"`)}
+      ${field("Max changes per run", "maxActions", "number", `value="${s.maxActions}" min="1" max="50"`)}
       ${button("Save", 'type="submit"')}
     </form>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${button("Run now", 'type="button" data-action="autopilot-run"')}
-      ${button("Undo everything it did", 'type="button" data-action="autopilot-undo"')}
+    <div class="form-row">
+      ${button("Run now", 'type="button" data-action="autopilot-run"', "secondary")}
+      ${button("Undo everything it did", 'type="button" data-action="autopilot-undo"', "secondary")}
     </div>
     ${
       run
@@ -113,7 +113,7 @@ function autopilotSection(pilot) {
     }
     ${
       rows
-        ? `<div class="scroll-x" style="margin-top:14px"><table>
+        ? `<div class="scroll-x" style="margin-top:16px"><table>
              <thead><tr><th>When</th><th>What it did</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
         : ""
     }
@@ -129,18 +129,19 @@ export async function render() {
   view.proposals = advice.proposals;
 
   return `
-    <h2>Advice</h2>
-    <p class="section-note">CostGrid reads your own traffic and proposes rules. Each one is replayed
+    ${pageHead(
+      "Advice",
+      `CostGrid reads your own traffic and proposes rules. Each one is replayed
       against the same window, so the saving is shown before you switch anything on. It proposes; it
-      does not apply anything until you say so.</p>
+      does not apply anything until you say so.`,
+      `<form id="advice-window" class="form-row">
+        <select name="days" aria-label="Window">
+          ${[7, 30, 90].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} days</option>`).join("")}
+        </select>
+        ${button("Show", 'type="submit"', "secondary")}
+      </form>`,
+    )}
     ${flashBanner()}
-    <form id="advice-window" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-      <span class="rail">Window</span>
-      <select name="days" style="padding:8px">
-        ${[7, 30, 90].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} days</option>`).join("")}
-      </select>
-      ${button("Show", 'type="submit"')}
-    </form>
     ${proposals(view.proposals)}
 
     <h2 style="margin-top:26px">Autopilot</h2>
