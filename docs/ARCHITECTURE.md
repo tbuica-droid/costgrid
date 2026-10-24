@@ -66,10 +66,8 @@ code. The old proxy steps are still there, folded under "Advanced".
   copy; it never contains a key or a link to their computer.
 - **Usage is broken down by source.** `imported_usage` rows carry a source:
   a Claude API key or workspace, an OpenAI project or API key, or `account`
-  when the report has no breakdown. `usage_sources` holds the owner's name for
-  each source and its purpose preset (`packages/core/src/presets.ts`: support,
-  sales leads, content, data entry, other, each with what counts as a finished
-  job). Step 3 (one key per agent) builds on this table.
+  when the report has no breakdown. `usage_sources` lists them; step 3 puts
+  each one on an agent.
 - **An import replaces its window.** `ImportsRepository.putRows` deletes the
   provider's rows for the days it covers and inserts the new ones in one
   transaction, so an old account-level total and a new per-source breakdown
@@ -80,13 +78,47 @@ code. The old proxy steps are still there, folded under "Advanced".
   hourly and per-minute buckets to days, recognises cost exports and asks for
   the usage export instead, and reports problems in plain words. A Claude
   export names keys rather than identifying them, so its source is
-  `<workspace> / <key name>`; the admin API uses ids. Matching the two is left
-  to step 3.
+  `<workspace> / <key name>`; the admin API uses ids (matched below).
 - **The gateway never loads native code.** The secure store is an interface
   (`packages/gateway/src/secret-store.ts`). The desktop app supplies a
   Keychain-backed one (`packages/desktop/src/secret-store.ts`, using
   `@napi-rs/keyring`), probed at start; without it the key is used once, as on
   a server.
+
+### Agents: which key, workspace or project is which job
+
+Step 3 of setup. An **agent** is one job the owner's AI does ("Support bot").
+The owner names it, picks its purpose preset (`packages/core/src/presets.ts`:
+support, sales leads, content, data entry, other, each with what counts as a
+finished job), and says which sources it uses.
+
+- **One table for both kinds of agent.** `agents` holds the agents the proxy
+  registers on first sight and the agents an owner names (`origin`). An
+  owner's agent id is a slug of its name and doubles as the
+  `x-costgrid-agent` value, so proxied traffic sent under it lands on the same
+  agent. Seen-times are NULL until it sends any, and the Limits screen only
+  lists agents that have.
+- **A source belongs to one agent or none.** `usage_sources.agent_id`, checked
+  by `AgentsRepository` (`packages/db/src/agents.ts`) because SQLite cannot add
+  a two-column foreign key to an existing table. A key used by several agents
+  is marked `shared` and is never put on any of them: neither provider can
+  split one key's usage by request, so CostGrid does not divide it by
+  guesswork. The console explains how to give each agent its own key instead.
+- **The same Claude key seen two ways is matched by name.** A usage file's
+  `Support / support-bot` and the admin API's `apikey_…` labelled
+  `support-bot` in workspace `Support` are paired by
+  `packages/core/src/source-match.ts` only when each is the other's only
+  candidate. An undecided twin then takes its partner's agent
+  (`assigned_by = 'match'`, audited as `source.matched` by the system). An
+  owner's decision, including "not the same key", is never overridden. Keys
+  outside a workspace are not matched until a real export confirms how the
+  file names the default workspace.
+- **Imported and metered cost stay apart per agent.** An agent card shows the
+  provider-report cost of its sources (with the list-price estimate share
+  labelled) and, separately, the cost of calls CostGrid measured under its id.
+  Never one number made of both.
+- Migration 15 turned every source named in step 2 into an agent of its own,
+  so nothing typed there was lost.
 
 ## Package layout
 

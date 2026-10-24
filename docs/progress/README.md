@@ -199,3 +199,18 @@ An audit of the twelve sources the project was meant to be built on found the pr
 **Still to check with real accounts:** a usage file with real usage in it from each provider, a real Claude admin key in the Mac app (Keychain prompt, key names), OpenAI admin key permissions.
 
 **Website hero (24 October 2026).** The home page opens with a full-screen hero: a floating glass navigation bar, the headline arriving letter by letter, and a glass tagline pill ("See the cost. Spot the waste. Fix it first."). The moving background is CSS (two slow glows and a drifting grid). The reference design used a video hosted by a third party with an unknown licence, so it was left out: loading it would have sent every visitor's IP address to that host. Visitors who ask for less motion get a still page, and without JavaScript everything shows at once.
+
+## Version 2, step 3: one key per agent (24 October 2026)
+
+**What changed**
+- **Agents above keys.** Setup's third step is now "Match each key to an agent". An agent is one job the AI does ("Support bot"). The owner names it, picks what counts as a finished job, and chooses which Claude keys, workspaces and OpenAI projects or keys it uses. One agent can use keys from both providers.
+- **Shared keys are flagged, not guessed.** Neither Claude nor OpenAI can tell which agent used a shared key, so CostGrid never divides its cost. It marks the key as shared and shows a step-by-step guide to giving each agent its own key (a workspace or project per agent where possible). Spending from before the split stays with the shared key.
+- **The same key seen twice is recognised.** A Claude key named in a usage file and the same key seen later through an admin key are matched by name, only when nothing else could be meant. The owner sees "Matched by name" and can undo it with one click.
+- **Costs stay honest.** Each agent shows the provider-report cost of its keys (saying how much is a list-price estimate) and, on its own line, any cost CostGrid measured directly. The two are never added together.
+- Names and purposes given in step 2 became agents automatically.
+
+**How it was checked**
+- 891 tests pass, up from 882 after step 2 (new tests for the upgrade, the agent rules, the name matching and the new routes, including access by other organisations and from other sites).
+- In a browser on a throwaway database: sample usage files from both providers, one agent with a Claude key and an OpenAI key, a matched twin and its undo, a shared key and its guide, at desktop and phone width, dark and light.
+
+**Still to check with real accounts:** how a real Claude usage file names keys in the default workspace, before those can be matched too.

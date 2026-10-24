@@ -29,9 +29,12 @@ needs no code and no proxy:
      the file covers. No admin role needed.
    - **Ask my developer.** A ready-written message asking whoever set up your
      AI to export the file or create a key for you.
-3. **Say what each workflow is for.** Name each key, workspace or project and
-   pick what counts as a finished job for it: customer support, sales leads,
-   content, data entry or other.
+3. **Match each key to an agent.** An agent is one job your AI does, such as
+   "Support bot". Name it, pick what counts as a finished job (customer
+   support, sales leads, content, data entry or other), and choose which keys,
+   workspaces or projects it uses. If several agents share one key, say so:
+   CostGrid then explains how to give each agent its own key, since neither
+   provider can split a shared key's costs afterwards.
 
 Sending traffic through CostGrid, below, is still there in the app under
 "Advanced".
