@@ -3,139 +3,47 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CostGrid Research</title>
-    <meta
-      name="description"
-      content="The twelve academic and institutional sources CostGrid is built on, what each one found, which feature it became, and a NIST AI RMF crosswalk."
-    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>CostGrid Research and the LCSO method</title>
+    <meta name="description" content="The sources CostGrid is built on, what each one found and which feature it became, updated in October 2026; CostGrid's draft method for the cost per successful outcome (LCSO); and a NIST AI RMF crosswalk." />
+    <meta property="og:title" content="CostGrid Research and the LCSO method" />
+    <meta property="og:description" content="The sources behind CostGrid, the draft Levelized Cost per Successful Outcome (LCSO) method, and what we don't claim." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://costgrid.dev/research.html" />
     <link rel="canonical" href="https://costgrid.dev/research.html" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2316130f'/><rect x='3' y='9' width='2' height='4' fill='%23faf8f4'/><rect x='7' y='5' width='2' height='8' fill='%23faf8f4'/><rect x='11' y='4' width='2' height='9' fill='%23a63a22'/></svg>">
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      :root {
-        --paper: #faf8f4;
-        --paper-deep: #f2efe8;
-        --card: #ffffff;
-        --ink: #16130f;
-        --ink-soft: #4a443c;
-        --ink-faint: #8a8175;
-        --signal: #a63a22;
-        --rule-soft: #e8e3d9;
-        --rule: #d5cec1;
-        --positive: #3f7a52;
-        --radius: 0.5rem;
-        --sans: "IBM Plex Sans", system-ui, sans-serif;
-        --serif: "Source Serif 4", Georgia, serif;
-        --mono: "JetBrains Mono", ui-monospace, monospace;
-      }
-      * { box-sizing: border-box; }
-      html { scroll-behavior: smooth; }
-      body {
-        margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
-        font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased;
-      }
-      h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-      p { margin: 0; }
-      a { color: inherit; }
-      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
-      .section { border-bottom: 1px solid var(--rule-soft); padding: 56px 0; scroll-margin-top: 72px; }
-      .section.deep { background: var(--paper-deep); }
-      .label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); }
-      .muted { color: var(--ink-soft); }
-      .lede { font-size: 17px; color: var(--ink-soft); max-width: 720px; margin-top: 16px; }
-      h1 { font-size: 38px; line-height: 1.1; margin-top: 12px; max-width: 16ch; }
-      h2.head { font-size: 30px; line-height: 1.15; margin-top: 10px; }
-      @media (min-width: 900px) { h1 { font-size: 52px; } h2.head { font-size: 36px; } .wrap { padding: 0 20px; } }
-
-      header.nav { position: sticky; top: 0; z-index: 10; background: rgba(250, 248, 244, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule-soft); }
-      .nav-in { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 12px; }
-      .brand { font-family: var(--mono); font-size: 14px; text-decoration: none; font-weight: 500; }
-      .brand .mark { color: var(--signal); }
-      .nav-links { display: flex; gap: 18px; font-size: 14px; }
-      .nav-links a { text-decoration: none; color: var(--ink-soft); }
-      .nav-links a:hover { color: var(--signal); }
-      @media (max-width: 560px) { .nav-links .wide { display: none; } }
-
-      .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 28px; font-size: 14px; color: var(--ink-soft); }
-      .tag { display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border: 1px solid; border-radius: 3px; white-space: nowrap; }
-      .tag.built { color: var(--positive); border-color: var(--positive); }
-      .tag.shapes { color: #8a5a00; border-color: #c9a35b; }
-      .tag.context { color: var(--ink-faint); border-color: var(--rule); }
-
-      .source { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 22px; margin-top: 16px; display: grid; gap: 18px; }
-      @media (min-width: 900px) { .source { grid-template-columns: 0.9fr 1.1fr 1.1fr; padding: 26px; } }
-      .source h3 { font-size: 19px; line-height: 1.25; margin-top: 10px; }
-      .cite { font-size: 13px; color: var(--ink-faint); margin-top: 6px; }
-      .cite a { color: var(--ink-soft); }
-      .col-title { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
-      .source p + p { margin-top: 8px; }
-      .where { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin-top: 10px; }
-
-      .table-wrap { overflow-x: auto; margin-top: 24px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
-      table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px; }
-      th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); padding: 12px 14px; border-bottom: 1px solid var(--rule); background: var(--paper-deep); }
-      td { padding: 13px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
-      tr:last-child td { border-bottom: 0; }
-      td.id { font-family: var(--mono); font-size: 12.5px; min-width: 190px; }
-      td .nist { color: var(--ink-faint); font-family: var(--sans); font-size: 13px; display: block; margin-top: 4px; }
-      td.evidence { color: var(--ink-soft); font-size: 13.5px; }
-      /* On a phone each outcome becomes a small card rather than a wide table. */
-      @media (max-width: 700px) {
-        table { min-width: 0; }
-        thead { display: none; }
-        tr { display: block; border-bottom: 1px solid var(--rule); }
-        tr:last-child { border-bottom: 0; }
-        td { display: block; border: 0; padding: 4px 16px; }
-        td.id { padding-top: 16px; min-width: 0; }
-        td.evidence { padding-bottom: 16px; }
-        td.evidence::before { content: "Evidence: "; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
-      }
-
-      .claims { display: grid; gap: 14px; margin-top: 24px; }
-      @media (min-width: 900px) { .claims { grid-template-columns: 1fr 1fr; } }
-      .claim { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px 20px; }
-      .claim strong { display: block; margin-bottom: 4px; }
-
-      footer { background: var(--ink); color: rgba(250, 248, 244, 0.7); padding: 36px 0; font-size: 13px; }
-      footer a { color: var(--paper); }
-    </style>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
+    <link rel="stylesheet" href="site.css" />
   </head>
   <body>
-    <header class="nav">
-      <div class="wrap nav-in">
-        <a class="brand" href="./"><span class="mark">&gt;_</span> costgrid.dev</a>
-        <nav class="nav-links">
+    <header class="site-head">
+      <div class="wrap head-in">
+        <a class="brand" href="./" aria-label="CostGrid home">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
+          CostGrid
+        </a>
+        <nav class="site-nav" aria-label="Research">
           <a href="#sources">Sources</a>
+          <a href="#lcso">LCSO method</a>
           <a href="#nist">NIST AI RMF</a>
-          <a class="wide" href="#limits">What we don't claim</a>
-          <a href="./">Home</a>
+          <a href="#limits">What we don't claim</a>
         </nav>
+        <a class="btn btn-sm" href="./#download">Download for Mac</a>
       </div>
     </header>
 
-    <section class="section" id="top">
+    <main>
+    <section class="r-hero" id="top">
       <div class="wrap">
         <span class="label">The research behind CostGrid</span>
-        <h1>Twelve sources, and what each one became.</h1>
-        <p class="lede">
-          CostGrid was designed from academic and institutional research on what AI really costs to run
-          and how it should be governed. This page lists every source, what it found, the feature it led
-          to, and where to see that feature in the app. Where a source only informs the context and no
-          feature comes from it, it says so.
-        </p>
-        <p class="lede" style="font-size: 15px">
-          Checked against the product's code on 3 October 2026. Findings are summarised in our own words;
-          follow each link for the original.
-        </p>
+        <h1>Twelve sources, an October update, and our own method.</h1>
+        <p class="lede">CostGrid was designed from academic and institutional research on what AI really costs to run and how it should be governed. This page lists every source, what it found, the feature it led to, and where to see that feature in the app. Where a source only informs the context and no feature comes from it, it says so.</p>
+        <p class="lede">In October 2026 we checked every source against newer research. That corrected several cards below, and it led to CostGrid's own method for the cost of a successful outcome, <a href="#lcso">LCSO</a>, published here as a draft.</p>
+        <p class="lede" style="font-size: 15px">Checked against the product's code on 3 October 2026 and revised on 23 October 2026. Findings are summarised in our own words; follow each link for the original.</p>
         <div class="legend">
           <span><span class="tag built">Built in</span> a feature exists because of this source</span>
           <span><span class="tag shapes">Shapes</span> it changed how a feature works or reports</span>
-          <span><span class="tag context">Context</span> market background, no feature claimed</span>
+          <span><span class="tag context">Context</span> background, no feature claimed</span>
         </div>
       </div>
     </section>
@@ -148,22 +56,16 @@
         <article class="source" id="ey">
           <div>
             <span class="tag built">Built in</span>
-            <h3>The Total Cost of Agents</h3>
-            <p class="cite">EY (Smith, Wanner, Butler, Diasio), "Unlocking agentic value", June 2026.
-              <a href="https://www.ey.com/en_us/insights/ai/agentic-ai-token-costs">ey.com</a></p>
+            <h3>Unlocking agentic value</h3>
+            <p class="cite">EY (Smith, Wanner, Butler, Diasio). Whitepaper 1 of EY's "Total Cost of Agents" series, 1 June 2026. <a href="https://www.ey.com/en_us/insights/ai/agentic-ai-token-costs">ey.com</a></p>
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>Tokens are one of seven cost categories in running an agent; most business cases count only
-              the first three. A support chat that cost $0.04 in 2023 can cost $1.20 as an orchestrated agent.
-              It calls for "circuit breakers": spend ceilings and automatic shut-offs per agent, workflow and
-              business unit, with a named owner for each cost before it is spent.</p>
+            <p>Tokens are one of seven cost categories in running an agent; most business cases count only the first three. A support chat that cost $0.04 in 2023 can cost $1.20 as an orchestrated agent. It calls for "circuit breakers": spend ceilings and automatic shut-offs per agent, workflow and business unit, with a named owner for each cost before it is spent.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Spending limits per agent, team or everything, per day, month or run, checked before each call
-              is sent. A stop button for any agent or team. An owner and reason on every rule. Non-token costs
-              entered under EY's categories, so the monthly statement shows a full cost.</p>
+            <p>Spending limits per agent, team or everything, per day, month or run, checked before each call sent through CostGrid. A stop button for any agent or team. An owner and reason on every rule. Non-token costs entered under EY's categories, so the monthly statement shows a full cost.</p>
             <p class="where">App: Limits · Results › Full cost</p>
           </div>
         </article>
@@ -172,20 +74,15 @@
           <div>
             <span class="tag built">Built in</span>
             <h3>How Do AI Agents Spend Your Money?</h3>
-            <p class="cite">Bai, Huang, Wang, Sun, Mihalcea, Brynjolfsson, Pentland, Pei. University of Michigan,
-              Stanford, MIT and others. April 2026. <a href="https://arxiv.org/abs/2604.22750">arXiv:2604.22750</a></p>
+            <p class="cite">Bai, Huang, Wang, Sun, Mihalcea, Brynjolfsson, Pentland, Pei. University of Michigan, Stanford, MIT and others. April 2026. <a href="https://arxiv.org/abs/2604.22750">arXiv:2604.22750</a></p>
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>Agentic tasks use roughly a thousand times the tokens of a single question, mostly as input.
-              Runs of the same task differed by up to 30 times. Spending more did not reliably buy accuracy, and
-              models could not predict their own cost beforehand (correlation of 0.39 at best).</p>
+            <p>Agentic tasks use roughly a thousand times the tokens of a single question, mostly as input. Runs of the same task differed by up to 30 times. Spending more did not reliably buy accuracy, and models could not predict their own cost beforehand (correlation of 0.39 at best).</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>It does not try to predict cost. It enforces a ceiling on each run before the next call is sent,
-              shows each agent's typical and bad run (median and 95th percentile) instead of an average, and
-              warns while a run is still going when it passes three times what that agent's runs usually cost.</p>
+            <p>It does not try to predict cost. It enforces a ceiling on each run before the next call is sent, shows each agent's typical and bad run (median and 95th percentile) instead of an average, and warns while a run is still going when it passes three times what that agent's runs usually cost.</p>
             <p class="where">App: Limits › per-run limits · Results › What a run costs · Alerts</p>
           </div>
         </article>
@@ -194,20 +91,15 @@
           <div>
             <span class="tag built">Built in</span>
             <h3>The Price Reversal Phenomenon</h3>
-            <p class="cite">Chen, Zhang, He, Stoica, Zaharia, Zou. Stanford, UC Berkeley, CMU, Microsoft Research.
-              May 2026. <a href="https://arxiv.org/abs/2603.23971">arXiv:2603.23971</a></p>
+            <p class="cite">Chen, Zhang, He, Stoica, Zaharia, Zou. Stanford, UC Berkeley, CMU, Microsoft Research. Version 2, May 2026. <a href="https://arxiv.org/abs/2603.23971">arXiv:2603.23971</a></p>
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>In 32% of model pairs tested, the model with the lower list price cost more in total, by up to 28
-              times, because it used more reasoning tokens or more turns. Repeats of the same query varied up to
-              9.7 times in reasoning tokens. It recommends tracking actual cost per request.</p>
+            <p>In 32% of model pairs tested, the model with the lower list price cost more in total, by up to 28 times, because it used more reasoning tokens or more turns. Repeats of the same query varied up to 9.7 times in reasoning tokens. It recommends tracking actual cost per request.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Every call is priced from the provider's own token counts, not a list price. When a rule moves
-              traffic to a cheaper model, CostGrid measures cost per call and per whole run before and after on
-              your own traffic, and says plainly if the switch made things more expensive.</p>
+            <p>Every call is priced from the provider's own token counts, not a list price. When a rule moves traffic to a cheaper model, CostGrid measures cost per call and per whole run before and after on your own traffic, and says plainly if the switch made things more expensive.</p>
             <p class="where">App: Limits › Did switching save money? · Results › Reasoning</p>
           </div>
         </article>
@@ -216,20 +108,16 @@
           <div>
             <span class="tag built">Built in</span>
             <h3>The Illusion of Thinking</h3>
-            <p class="cite">Shojaee, Mirzadeh, Alizadeh, Horton, Bengio, Farajtabar. Apple. 2025.
-              <a href="https://arxiv.org/abs/2506.06941">arXiv:2506.06941</a></p>
+            <p class="cite">Shojaee, Mirzadeh, Alizadeh, Horton, Bengio, Farajtabar. Apple. 2025. <a href="https://arxiv.org/abs/2506.06941">arXiv:2506.06941</a></p>
           </div>
           <div>
-            <p class="col-title">What it found</p>
-            <p>On simple problems, models without extended reasoning were often more accurate and used fewer
-              tokens than reasoning models. On hard ones both failed, and reasoning effort fell off near the
-              point of failure. More thinking is not more value by default.</p>
+            <p class="col-title">What it found, and how we use it</p>
+            <p>On simple problems, models without extended reasoning were often as accurate as reasoning models while using fewer tokens. We cite it only for that narrower point: past a certain level, more reasoning adds cost without reliably adding accuracy.</p>
+            <p>Its stronger claim, that reasoning "collapses" on hard puzzles, was disputed because of output-length limits and puzzle instances that could not be solved (<a href="https://arxiv.org/abs/2506.09250">arXiv:2506.09250</a>, <a href="https://arxiv.org/abs/2507.01231">arXiv:2507.01231</a>). We don't rely on it. Newer work supports diminishing returns, not collapse (<a href="https://arxiv.org/abs/2608.16956">arXiv:2608.16956</a>, <a href="https://arxiv.org/abs/2604.05164">arXiv:2604.05164</a>).</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>A reasoning cap: a limit on the effort level or thinking budget a request may ask for. Spend broken
-              down by how much reasoning each call asked for, and a flag on agents that write short answers after
-              long reasoning, the first place to try a lower effort level.</p>
+            <p>A reasoning cap: a limit on the effort level or thinking budget a request may ask for. Spend broken down by how much reasoning each call asked for, and a flag on agents that write short answers after long reasoning, the first place to try a lower effort level.</p>
             <p class="where">App: Limits › How much the model may reason · Results › Reasoning</p>
           </div>
         </article>
@@ -242,16 +130,83 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>API bills and simple totals miss the lifecycle cost of AI. Like the levelized cost of electricity,
-              the fair comparison is total capital and running cost divided by the number of valid outputs.</p>
+            <p>API bills and simple totals miss the lifecycle cost of AI. Like the levelized cost of electricity, the fair comparison is total capital and running cost divided by the number of valid outputs.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Your software can report whether each run worked; CostGrid then shows cost per successful result
-              and the money spent on runs that failed, and full cost per success once other costs are entered.
-              Partly: it uses monthly entered costs and does not amortise capital spend.</p>
+            <p>Your software can report whether each run worked; CostGrid then shows cost per successful result and the money spent on runs that failed, and full cost per success once other costs are entered. Partly: it uses monthly entered costs and does not amortise capital spend. LCSO, below, is how we extend it.</p>
             <p class="where">App: Results › What the money bought · Full cost</p>
           </div>
+        </article>
+
+        <article class="lcso" id="lcso">
+          <span class="tag method">Our method · draft</span>
+          <h3>Levelized Cost per Successful Outcome (LCSO), v0.1 draft</h3>
+          <p class="cite">CostGrid. Version 0.1, 3 October 2026. Licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>: anyone may use and adapt it, with credit. Builds on LCOAI (Curcio, <a href="https://arxiv.org/abs/2509.02596">arXiv:2509.02596</a>).</p>
+          <p style="margin-top: 16px"><strong>What does one successful business outcome from an AI workflow actually cost, all-in?</strong> LCSO is CostGrid's answer, written so a finance team can budget against it and an auditor can re-perform it. It uses metadata only: identifiers, timestamps, usage counts, charges, outcome states and time records. No prompt or answer content.</p>
+          <p class="caveat">A working draft. It has not yet been reviewed by finance, audit or academic readers, and it will change.</p>
+
+          <h4>What changes from LCOAI</h4>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col"></th><th scope="col">LCOAI</th><th scope="col">LCSO</th></tr></thead>
+              <tbody>
+                <tr><td>What it divides by</td><td>Valid inferences</td><td><strong>Successful business outcomes</strong>, judged against a written, versioned definition with evidence</td></tr>
+                <tr><td>Failed work</td><td>Not treated separately</td><td><strong>Charged in full to the successes</strong>, and reported as the Failure Cost Share</td></tr>
+                <tr><td>People's time</td><td>Not included</td><td><strong>Review, rework and hand-off time</strong>, as a separate layer</td></tr>
+                <tr><td>Variability</td><td>Not measured</td><td><strong>Cost spread per task</strong> (p50, p90, p99) next to the average</td></tr>
+                <tr><td>Granularity</td><td>A deployment scenario</td><td>Each workflow and period, from live records</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Three layers, always reported together</h4>
+          <div class="layers">
+            <div class="layer"><b>LCSO-1 · metered</b><p>Model charges ÷ successes. Fully measured, and can be tied to the provider's invoice.</p></div>
+            <div class="layer"><b>LCSO-2 · operational</b><p>Adds other metered tools and the human time the AI caused: reviewing, fixing, and handing off failures.</p></div>
+            <div class="layer"><b>LCSO-3 · levelized</b><p>Adds fixed and platform costs: subscriptions, infrastructure, upkeep, with the allocation key stated.</p></div>
+          </div>
+          <p style="margin-top: 12px">Measured and estimated figures are kept apart and labelled. Human time from a time study is an estimate and is never blended silently into a measured number.</p>
+
+          <p class="callout">LCSO does not detect hallucinations; it measures their cost.</p>
+          <p style="margin-top: 12px">Wrong answers show up economically as failures, retries, rework and reversed successes. The Failure Cost Share is the share of model spend that did not directly produce a success: failed, abandoned and unknown tasks, plus the retries inside tasks that eventually worked.</p>
+
+          <h4>The savings rule</h4>
+          <p>A claim that a change lowered LCSO counts only if all of these hold:</p>
+          <ul class="dots" style="margin-top: 10px">
+            <li>Tasks are randomly assigned to the old setup or the new one (a holdout), on the customer's own tasks. Before-and-after comparisons are labelled observational.</li>
+            <li>Both groups use the same success definition and period.</li>
+            <li>The result has a confidence interval, bootstrapped over tasks.</li>
+            <li>The success rate stays within a non-inferiority margin declared in advance, such as −1 percentage point.</li>
+            <li>The metric, margin, sample size and duration are fixed before the test starts.</li>
+          </ul>
+
+          <h4>Worked example · illustrative numbers</h4>
+          <p>Tier-1 support ticket resolution, September 2026. Success means closed by the agent and not reopened within 7 days. 9,800 tickets resolved, 7,800 successes. Human time is estimated from a time study at $45 an hour. <strong>These are made-up numbers to show the arithmetic, not a customer's results.</strong></p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Metric</th><th scope="col">Calculation</th><th scope="col" class="r">Result</th></tr></thead>
+              <tbody>
+                <tr><td>LCSO-1</td><td>$3,040 model charges ÷ 7,800</td><td class="r"><strong>$0.390</strong></td></tr>
+                <tr><td>LCSO-2</td><td>($3,040 + $4,824 human time, estimated) ÷ 7,800</td><td class="r"><strong>$1.008</strong></td></tr>
+                <tr><td>LCSO-3</td><td>($7,864 + $4,000 fixed) ÷ 7,800</td><td class="r"><strong>$1.521</strong></td></tr>
+                <tr><td>Failure Cost Share</td><td>($620 escalated + $210 abandoned + $330 retries) ÷ $3,040</td><td class="r"><strong>38.2%</strong></td></tr>
+                <tr><td>Success rate</td><td>7,800 ÷ 9,800</td><td class="r"><strong>79.6%</strong></td></tr>
+                <tr><td>Human-Equivalent Ratio</td><td>$1.521 ÷ $6.75 (a person: 9 minutes at $45 an hour, time study, estimate)</td><td class="r"><strong>0.23</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top: 12px">In this example, model charges are only about a quarter of the all-in cost of each outcome. Failures and people's time are where much of the rest goes.</p>
+
+          <h4>Limitations of v0.1</h4>
+          <ul class="dots">
+            <li>Success is yes or no. Quality is not weighted yet.</li>
+            <li>Success definitions are specific to each organisation, so LCSO compares a workflow with itself over time, not one company with another.</li>
+            <li>Human time is often estimated. Estimates stay out of LCSO-1 but drive LCSO-2 and LCSO-3.</li>
+            <li>It measures cost, not the value of the outcome.</li>
+            <li>Loosening a success definition lowers LCSO. Versioning and sampling successes back to their evidence reduce this risk but don't remove it.</li>
+            <li>Every AI request needs task and run identifiers. Where they are missing, spend is reported as unattributed.</li>
+          </ul>
         </article>
 
         <article class="source" id="super-moore">
@@ -262,38 +217,30 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>Token prices fell about 600-fold from 2020 to 2026. Cheap models halve in price every 1.1 years
-              and mid-tier every 1.55, but flagship prices barely fall, because reasoning models charge on average
-              31.5 times more per token.</p>
+            <p>Token prices fell about 600-fold from 2020 to 2026. Cheap models halve in price every 1.1 years and mid-tier every 1.55, but flagship prices barely fall, because reasoning models charge on average 31.5 times more per token.</p>
+            <p class="caveat">Caveat: per-token price trends miss two things that drive bills. Newer tokenizers count the same text as more tokens (about 30% more for Claude 4.7 and later, per Anthropic's pricing page), and agentic work uses more tokens per task. Good for list prices, weak as a guide to what you'll pay.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Its price half-lives drive the 2023–2030 forecast in the research workbook. In the product, spend is
-              broken down by model tier, and reasoning spend is tracked separately, because the tier a call runs
-              on matters more than the falling headline price.</p>
+            <p>Its price half-lives drive the 2023–2030 forecast in the research workbook. In the product, spend is broken down by model tier, and reasoning spend is tracked separately, because the tier a call runs on matters more than the falling headline price.</p>
             <p class="where">Workbook · App: dashboard › tiers · Results › Reasoning</p>
           </div>
         </article>
 
         <article class="source" id="citadel">
           <div>
-            <span class="tag shapes">Shapes</span>
+            <span class="tag context">Context</span>
             <h3>Tokenomics</h3>
-            <p class="cite">Citadel Securities, Global Macro Strategy (Flight). June 2026.
-              <a href="https://www.citadelsecurities.com/news-and-insights/global-macro-strategy/tokenomics/">citadelsecurities.com</a></p>
+            <p class="cite">Citadel Securities, Global Macro Strategy. June 2026. Secondary reporting only: the primary note is not public. <a href="https://www.webpronews.com/citadels-ai-cost-reckoning-token-bills-bite-as-frontier-models-meet-economic-reality/">WebProNews report</a></p>
           </div>
           <div>
-            <p class="col-title">What it found</p>
-            <p>Buyers are becoming sensitive to the all-in cost of AI, token price times token volume, and are
-              moving work to cheaper models wherever frontier capability is not needed. It expects "frontier" and
-              "everyday" AI use to keep splitting apart.</p>
+            <p class="col-title">What it reportedly found</p>
+            <p>As reported, buyers are becoming sensitive to the all-in cost of AI, token price times token volume, and are moving work to cheaper models wherever frontier capability is not needed, so "frontier" and "everyday" AI use keep splitting apart.</p>
+            <p class="caveat">Secondary reporting. We could not check the details against the original note, so treat them as unverified.</p>
           </div>
           <div>
-            <p class="col-title">What CostGrid does</p>
-            <p>It reports what you pay as price times volume for each call rather than per-token list price, splits
-              spend between frontier and everyday model tiers, and lets you move everyday work to cheaper models
-              by rule or when a budget runs out, then measures whether that actually saved money.</p>
-            <p class="where">App: dashboard › tiers · Limits › switch model when over</p>
+            <p class="col-title">How it is used</p>
+            <p>Background only. The direction matches Gartner's August 2026 forecast that inference cost per agentic workflow will rise more than fivefold through 2028, which is why CostGrid reports price times volume per job rather than per-token list prices.</p>
           </div>
         </article>
       </div>
@@ -313,13 +260,11 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>A voluntary framework organising AI risk management into four functions, Govern, Map, Measure and
-              Manage, each broken into specific outcomes an organisation should be able to show.</p>
+            <p>A voluntary framework organising AI risk management into four functions, Govern, Map, Measure and Manage, each broken into specific outcomes an organisation should be able to show.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Supports specific outcomes for the cost and runtime-behaviour part of AI risk, mapped one by one in
-              the crosswalk below, with the evidence each produces.</p>
+            <p>Supports specific outcomes for the cost and runtime-behaviour part of AI risk, mapped one by one in the crosswalk below, with the evidence each produces.</p>
             <p class="where"><a href="#nist">See the crosswalk ↓</a></p>
           </div>
         </article>
@@ -333,15 +278,11 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>Autonomous agents act at machine speed, so governance has to run alongside them: a gateway that
-              controls which tools agents may use, behaviour monitoring, a kill switch, and a tamper-evident
-              record of what happened.</p>
+            <p>Autonomous agents act at machine speed, so governance has to run alongside them: a gateway that controls which tools agents may use, behaviour monitoring, a kill switch, and a tamper-evident record of what happened.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>The same pattern on a small scale, in the request path: tool allow and deny lists enforced before a
-              call is sent, a report of agents doing new things (including calling tools they were never given),
-              a stop button, and an audit log whose fingerprint can be sent off the machine.</p>
+            <p>The same pattern on a small scale, in the request path: tool allow and deny lists enforced before a call is sent, a report of agents doing new things (including calling tools they were never given), a stop button, and an audit log whose fingerprint can be sent off the machine.</p>
             <p class="where">App: Limits · What changed · Data › audit anchors</p>
           </div>
         </article>
@@ -355,15 +296,11 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>As agents take over work, business rules move out of governed systems and pile up as "rule debt"
-              that someone must eventually inventory, own, version and reconcile. What keeps value is evidence:
-              outputs that can be reviewed, signed off and traced to a responsible party.</p>
+            <p>As agents take over work, business rules move out of governed systems and pile up as "rule debt" that someone must eventually inventory, own, version and reconcile. What keeps value is evidence: outputs that can be reviewed, signed off and traced to a responsible party.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>A rule register: every limit with its owner, reason, when it went live, how often it fired and every
-              change to it, with unowned rules flagged. A monthly evidence pack bundles the statement, the
-              register, alerts sent and the audit log's verification in one file.</p>
+            <p>A rule register: every limit with its owner, reason, when it went live, how often it fired and every change to it, with unowned rules flagged. A monthly evidence pack bundles the statement, the register, alerts sent and the audit log's verification in one file.</p>
             <p class="where">App: Limits › Rule register · Results › evidence pack</p>
           </div>
         </article>
@@ -384,15 +321,11 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>Of 30 widely used agents, 12 offered no usage monitoring or only usage notices, and 4 documented no
-              way to stop them once running. Control is split between the model maker, the agent builder and the
-              business using it.</p>
+            <p>Of 30 widely used agents, 12 offered no usage monitoring or only usage notices, and 4 documented no way to stop them once running. Control is split between the model maker, the agent builder and the business using it.</p>
           </div>
           <div>
             <p class="col-title">What CostGrid does</p>
-            <p>Puts monitoring and a stop control on the business's side, independent of whoever built the agent,
-              for every request your software sends. It cannot reach AI inside tools you subscribe to, and the
-              site says so.</p>
+            <p>Puts monitoring and a stop control on the business's side, independent of whoever built the agent, for every request your software sends through CostGrid. It cannot reach AI inside tools you subscribe to, and the site says so.</p>
             <p class="where">App: Limits › Stop</p>
           </div>
         </article>
@@ -406,15 +339,11 @@
           </div>
           <div>
             <p class="col-title">What it found</p>
-            <p>88% of organisations use AI, but agents are deployed in under 10% of nearly every business function.
-              33% of organisations cite the NIST AI RMF as shaping their practices and 36% ISO/IEC 42001. Among
-              organisations reporting AI incidents, the share with three to five rose from 30% to 50%.</p>
+            <p>88% of organisations use AI, but agents are deployed in under 10% of nearly every business function. 33% of organisations cite the NIST AI RMF as shaping their practices and 36% ISO/IEC 42001. Among organisations reporting AI incidents, the share with three to five rose from 30% to 50%.</p>
           </div>
           <div>
             <p class="col-title">How it is used</p>
-            <p>No feature comes from it. It explains two choices: CostGrid works for an ordinary chatbot, not
-              only for agents, because that is where most businesses are; and the crosswalk below exists because
-              a third of buyers already work to NIST.</p>
+            <p>No feature comes from it. It explains two choices: CostGrid works for an ordinary chatbot, not only for agents, because that is where most businesses are; and the crosswalk below exists because about a third of organisations say NIST's framework shapes their practices.</p>
           </div>
         </article>
       </div>
@@ -424,12 +353,9 @@
       <div class="wrap">
         <span class="label">NIST AI RMF 1.0 crosswalk</span>
         <h2 class="head">What CostGrid supports, outcome by outcome.</h2>
-        <p class="lede">
-          The framework is voluntary and covers far more than cost. This maps only the outcomes CostGrid
-          supports, for software that sends its AI requests through CostGrid, and names the evidence each one
-          leaves. It is a mapping, not a certification.
+        <p class="lede"> The framework is voluntary and covers far more than cost. This maps only the outcomes CostGrid supports, for software that sends its AI requests through CostGrid, and names the evidence each one leaves. It is a mapping, not a certification.
         </p>
-        <div class="table-wrap">
+        <div class="table-wrap crosswalk">
           <table>
             <thead>
               <tr><th>Outcome</th><th>What CostGrid does</th><th>Evidence it produces</th></tr>
@@ -498,9 +424,7 @@
             </tbody>
           </table>
         </div>
-        <p class="muted" style="font-size: 14px; margin-top: 16px; max-width: 760px">
-          Not covered: model evaluation, bias and fairness, privacy impact, content safety, and AI inside tools
-          you subscribe to. Those need other controls.
+        <p class="muted" style="font-size: 14px; margin-top: 16px; max-width: 760px"> Not covered: model evaluation, bias and fairness, privacy impact, content safety, and AI inside tools you subscribe to. Those need other controls.
         </p>
       </div>
     </section>
@@ -510,32 +434,31 @@
         <span class="label">Stated plainly</span>
         <h2 class="head">What we don't claim.</h2>
         <div class="claims">
-          <div class="claim"><strong>We don't predict what a task will cost.</strong>
-            <span class="muted">The research says models can't, and neither can we. CostGrid caps and measures
-              instead.</span></div>
-          <div class="claim"><strong>Claude's thinking tokens aren't separated.</strong>
-            <span class="muted">Anthropic doesn't report them apart from output, so CostGrid shows what Claude
-              calls asked for, not an estimate of what they used.</span></div>
-          <div class="claim"><strong>Measured savings aren't a controlled experiment.</strong>
-            <span class="muted">They compare your traffic before and after a switch. If the work changed at the
-              same time, part of the difference is that, and the app says so.</span></div>
-          <div class="claim"><strong>Full cost is only as good as what's entered.</strong>
-            <span class="muted">CostGrid measures AI spend exactly; licences and people's time are typed in and
-              always shown apart.</span></div>
-          <div class="claim"><strong>The crosswalk is not a certification.</strong>
-            <span class="muted">NIST's framework is voluntary. The table shows which outcomes CostGrid's records
-              support, not that an organisation complies.</span></div>
-          <div class="claim"><strong>It only sees what goes through it.</strong>
-            <span class="muted">AI inside HubSpot, ChatGPT seats and other subscribed tools runs on their
-              accounts and is out of reach.</span></div>
+          <div class="claim"><strong>We don't predict what a task will cost.</strong><span class="muted">The research says models can't, and neither can we. CostGrid caps and measures instead.</span></div>
+          <div class="claim"><strong>We don't detect hallucinations.</strong><span class="muted">LCSO measures what failures, retries and rework cost. It doesn't judge whether an answer is right.</span></div>
+          <div class="claim"><strong>We don't detect prompt injection or hijacked agents.</strong><span class="muted">CostGrid works from usage metadata. Research puts metadata-only attack detection at about 0.64 AUROC, far too weak to sell as protection (<a href="https://arxiv.org/abs/2605.11053">arXiv:2605.11053</a>).</span></div>
+          <div class="claim"><strong>Stopping an agent isn't instant.</strong><span class="muted">A pause takes time to take effect. We measure that stop time and publish it rather than promise "instantly".</span></div>
+          <div class="claim"><strong>Savings need a randomised holdout.</strong><span class="muted">A claim that a change saved money needs a randomised comparison on your own tasks, with the same success definition, a confidence interval and a declared limit on how much the success rate may drop.</span></div>
+          <div class="claim"><strong>Before-and-after numbers aren't a controlled experiment.</strong><span class="muted">They compare your traffic before and after a switch. If the work changed at the same time, part of the difference is that, and the app says so.</span></div>
+          <div class="claim"><strong>The EU AI Act doesn't require this from August 2026.</strong><span class="muted">The high-risk logging and oversight duties now start on 2 December 2027 (Regulation (EU) 2026/1744). August 2026 brought transparency duties, which are about disclosure, not agent monitoring.</span></div>
+          <div class="claim"><strong>Claude's thinking tokens aren't separated.</strong><span class="muted">Anthropic doesn't report them apart from output, so CostGrid shows what Claude calls asked for, not an estimate of what they used.</span></div>
+          <div class="claim"><strong>Full cost is only as good as what's entered.</strong><span class="muted">CostGrid measures AI spend from provider records; licences and people's time are typed in or estimated, and always shown apart.</span></div>
+          <div class="claim"><strong>The crosswalk is not a certification.</strong><span class="muted">NIST's framework is voluntary, and NIST has published no official agentic profile. The table shows which outcomes CostGrid's records support, not that an organisation complies.</span></div>
+          <div class="claim"><strong>It only sees your own AI accounts.</strong><span class="muted">AI inside HubSpot, ChatGPT seats and other subscribed tools runs on their accounts and is out of reach.</span></div>
         </div>
       </div>
     </section>
+    </main>
 
-    <footer>
-      <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between">
-        <span>costgrid.dev — built by Tomas Buica</span>
-        <span><a href="./">Home</a> · <a href="./thesis.html">The thesis</a> · <a href="./dashboard.html">Research dashboard</a></span>
+    <footer class="site-foot">
+      <div class="wrap">
+        <div class="foot-facts">
+          <span>Site and software source-available under FSL-1.1-ALv2 · LCSO method CC BY 4.0</span>
+        </div>
+        <div class="foot-bot">
+          <span>costgrid.dev · built by Tomas Buica</span>
+          <nav aria-label="Footer"><a href="./">Home</a><a href="./#download">Download</a><a href="./demo/">Demo</a></nav>
+        </div>
       </div>
     </footer>
   </body>

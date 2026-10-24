@@ -3,1229 +3,370 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CostGrid — Know and cap what your business spends on AI</title>
-    <meta
-      name="description"
-      content="CostGrid is a Mac app that watches every AI call your software makes. It prices each one, shows which team, tool and model spent what, and stops the spending at the limit you set, before the invoice arrives."
-    />
-    <meta property="og:title" content="CostGrid — Know and cap what your business spends on AI" />
-    <meta property="og:description" content="CostGrid is a Mac app that watches every AI call your software makes. It prices each one, shows which team, tool and model spent what, and stops the spending at the limit you set, before the invoice arrives." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>CostGrid: optimize your AI costs by what actually gets done</title>
+    <meta name="description" content="CostGrid is a free Mac app for businesses that run their own AI agents on OpenAI or Claude. See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer and never sees your data." />
+    <meta property="og:title" content="CostGrid: optimize your AI costs by what actually gets done" />
+    <meta property="og:description" content="See the real cost of every successful job, spot the agents that waste money, and fix them first. A free Mac app that runs on your computer and never sees your data." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://costgrid.dev/" />
+    <meta property="og:site_name" content="CostGrid" />
     <link rel="canonical" href="https://costgrid.dev/" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2316130f'/><rect x='3' y='9' width='2' height='4' fill='%23faf8f4'/><rect x='7' y='5' width='2' height='8' fill='%23faf8f4'/><rect x='11' y='4' width='2' height='9' fill='%23a63a22'/></svg>">
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
+    <link rel="preload" href="fonts/manrope-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="site.css" />
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "CostGrid",
-      "description": "A Mac app that prices every AI call your software makes, shows who spent what, and stops the spending at the limit you set.",
+      "description": "A Mac app for businesses that run their own AI agents on OpenAI or Claude. It shows the real cost of every successful job, which agents waste money, and what to fix first. It runs on your computer and never reads prompts or AI answers.",
       "url": "https://costgrid.dev/",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "macOS",
       "offers": [
-        { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "Team", "price": "99", "priceCurrency": "USD" },
-        { "@type": "Offer", "name": "Business", "price": "499", "priceCurrency": "USD" }
+        { "@type": "Offer", "name": "View", "price": "0", "priceCurrency": "USD" }
       ],
       "author": { "@type": "Person", "name": "Tomas Buica" }
     }
     </script>
-    <style>
-      :root {
-        --paper: #faf8f4;
-        --paper-deep: #f2efe8;
-        --card: #ffffff;
-        --ink: #16130f;
-        --ink-soft: #4a443c;
-        --ink-faint: #8a8175;
-        --signal: #a63a22;
-        --rule-soft: #e8e3d9;
-        --rule: #d5cec1;
-        --positive: #3f7a52;
-        --radius: 0.5rem;
-        --shadow-paper: 0 1px 0 0 var(--rule-soft), 0 18px 40px -28px rgba(22, 19, 15, 0.35);
-        --sans: "IBM Plex Sans", system-ui, sans-serif;
-        --serif: "Source Serif 4", Georgia, serif;
-        --mono: "JetBrains Mono", ui-monospace, monospace;
-      }
-      * { box-sizing: border-box; }
-      [hidden] { display: none !important; }
-      html { scroll-behavior: smooth; }
-      body {
-        margin: 0;
-        background: var(--paper);
-        color: var(--ink);
-        font-family: var(--sans);
-        font-size: 16px;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-      }
-      h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-      p { margin: 0; }
-      ul, ol, dl, dd, dt { margin: 0; padding: 0; }
-      li { list-style: none; }
-      a { color: inherit; }
-      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-      .section { border-bottom: 1px solid var(--rule-soft); padding: 64px 0; scroll-margin-top: 80px; }
-      .section.deep { background: var(--paper-deep); }
-      .label {
-        font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
-        text-transform: uppercase; color: var(--ink-faint);
-      }
-      .muted { color: var(--ink-soft); }
-      .mono { font-family: var(--mono); }
-      h2.head { font-size: 34px; line-height: 1.15; margin-top: 12px; }
-      .lede { margin-top: 12px; max-width: 640px; color: var(--ink-soft); }
-      .card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
-      .grid { display: grid; gap: 24px; }
-      .grid > * { min-width: 0; }
-      @media (min-width: 900px) {
-        .g3 { grid-template-columns: repeat(3, 1fr); }
-        .g2 { grid-template-columns: repeat(2, 1fr); }
-        .section { padding: 80px 0; }
-        h2.head { font-size: 40px; }
-      }
-
-      /* buttons */
-      .btn {
-        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-        border-radius: var(--radius); padding: 11px 20px; font-size: 14px; font-weight: 500;
-        border: 1px solid transparent; cursor: pointer; text-decoration: none; transition: 0.15s;
-        font-family: inherit;
-      }
-      .btn-ink { background: var(--ink); color: var(--paper); }
-      .btn-ink:hover { background: #241f19; }
-      .btn-signal { background: var(--signal); color: #fff; }
-      .btn-signal:hover { background: #8e3019; }
-      .btn-outline { border-color: var(--rule); background: transparent; color: var(--ink); }
-      .btn-outline:hover { background: var(--paper-deep); }
-      .btn-ghost-dark { border-color: rgba(255,255,255,0.25); color: var(--paper); background: transparent; }
-      .btn-ghost-dark:hover { background: rgba(255,255,255,0.1); }
-      .btn-lg { padding: 13px 24px; font-size: 15px; }
-
-      /* nav */
-      header.nav {
-        position: sticky; top: 0; z-index: 40;
-        background: rgba(250, 248, 244, 0.9); backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--rule-soft);
-      }
-      .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-      .brand { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-weight: 500; text-decoration: none; }
-      .brand .mark {
-        width: 28px; height: 28px; border-radius: 6px; background: var(--ink); color: var(--paper);
-        display: grid; place-items: center; font-size: 12px;
-      }
-      .nav-links { display: none; gap: 26px; font-size: 14px; }
-      .nav-links a { text-decoration: none; color: var(--ink-soft); }
-      .nav-links a:hover { color: var(--signal); }
-      .nav-cta { display: none; gap: 10px; align-items: center; }
-      .menu-btn { display: inline-flex; background: none; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; cursor: pointer; }
-      #mobileMenu { display: none; border-top: 1px solid var(--rule-soft); padding: 12px 20px 20px; }
-      #mobileMenu.open { display: block; }
-      #mobileMenu a { display: block; padding: 10px 0; text-decoration: none; color: var(--ink-soft); font-size: 15px; }
-      @media (min-width: 900px) {
-        .nav-links, .nav-cta { display: flex; }
-        .menu-btn { display: none; }
-        #mobileMenu.open { display: none; }
-      }
-
-      /* hero */
-      .hero { position: relative; overflow: hidden; border-bottom: 1px solid var(--rule-soft); }
-      .hero .paperlines {
-        position: absolute; inset: 0; opacity: 0.4; pointer-events: none;
-        background-image:
-          linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
-          linear-gradient(to bottom, var(--rule-soft) 1px, transparent 1px);
-        background-size: 48px 48px;
-      }
-      .hero-in { position: relative; display: grid; gap: 48px; padding: 64px 0; }
-      @media (min-width: 1000px) { .hero-in { grid-template-columns: 1.05fr 0.95fr; align-items: center; padding: 88px 0; } }
-      .badge {
-        display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--rule);
-        background: var(--card); border-radius: 999px; padding: 5px 12px;
-        font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft);
-      }
-      h1 { font-size: 40px; line-height: 1.05; margin-top: 24px; }
-      @media (min-width: 700px) { h1 { font-size: 52px; } }
-      @media (min-width: 1000px) { h1 { font-size: 60px; } }
-      .signal { color: var(--signal); }
-      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule-soft);
-        border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; margin-top: 40px; max-width: 520px; }
-      .stats > div { background: var(--card); padding: 16px; }
-      .stats dd { font-family: var(--mono); font-size: 20px; margin-top: 4px; }
-
-      /* how it works */
-      .step { display: flex; flex-direction: column; padding: 20px; }
-      .step h3 { font-size: 20px; margin-top: 8px; }
-      .step p { flex: 1; margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
-      .step .who { margin-top: 16px; flex: 0; font-size: 12px; color: var(--ink-faint);
-        font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
-
-      /* what it is: one call through CostGrid (animated by flow.js) */
-      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
-        clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-      .flow { position: relative; margin-top: 36px; background: var(--card); border: 1px solid var(--rule);
-        border-radius: var(--radius); box-shadow: var(--shadow-paper); padding: 40px 20px 20px; }
-      .flow-tag { position: absolute; top: 14px; left: 20px; }
-      .flow-row { display: grid; grid-template-columns: 1fr; }
-      @media (min-width: 900px) {
-        .flow { padding: 44px 28px 24px; }
-        .flow-row { grid-template-columns: 1fr 88px 1.3fr 88px 1fr; align-items: center; }
-      }
-      .node { border: 1px solid var(--rule); border-radius: 8px; padding: 16px; background: var(--paper);
-        transition: box-shadow 0.3s, opacity 0.3s; }
-      .node strong { display: block; font-family: var(--serif); font-size: 19px; font-weight: 600; margin-top: 6px; }
-      .node .sub { display: block; font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
-      .node.lit { box-shadow: 0 0 0 3px rgba(166, 58, 34, 0.28); }
-      .node.dim { opacity: 0.4; }
-      .node-cg { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-      .node-cg .label { color: rgba(250, 248, 244, 0.6); }
-      .checks { margin-top: 12px; display: grid; gap: 6px; font-family: var(--mono); font-size: 12.5px; }
-      .checks li { display: flex; justify-content: space-between; gap: 12px; opacity: 0.3; transition: opacity 0.3s; }
-      .checks li.on { opacity: 1; }
-      .checks li b { font-weight: 500; }
-      .checks li.ok b { color: #9dd3ab; }
-      .checks li.bad b { color: #f0a58f; }
-      .verdict { display: block; margin-top: 10px; min-height: 21px; font-size: 14px; font-weight: 500; }
-      .verdict.ok { color: #9dd3ab; }
-      .verdict.bad { color: #f0a58f; }
-      .keychip { margin-top: 12px; display: inline-flex; gap: 6px; align-items: center; font-size: 12px;
-        border: 1px solid rgba(250, 248, 244, 0.25); border-radius: 999px; padding: 4px 10px;
-        color: rgba(250, 248, 244, 0.85); transition: border-color 0.3s, color 0.3s; }
-      .keychip.lit { border-color: #9dd3ab; color: #9dd3ab; }
-      .keychip svg { width: 14px; height: 14px; }
-      .wire { position: relative; height: 48px; }
-      .wire::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px dashed var(--rule); }
-      .pkt { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--ink);
-        left: calc(50% - 6px); top: calc(var(--t, 0) * (100% - 14px)); opacity: 0;
-        transition: top 0.9s ease-in-out, left 0.9s ease-in-out, opacity 0.2s; }
-      @media (min-width: 900px) {
-        .wire { height: 2px; }
-        .wire::before { left: 0; right: 0; top: 0; bottom: auto; border-left: none; border-top: 2px dashed var(--rule); }
-        .pkt { top: -6px; left: calc(var(--t, 0) * (100% - 14px)); }
-      }
-      .pkt.show { opacity: 1; }
-      .pkt.jump { transition: none; }
-      .pkt.ans { background: var(--positive); }
-      .pkt.stop { background: var(--signal); }
-      .flow-aside { display: grid; gap: 12px; margin-top: 16px; }
-      @media (min-width: 900px) { .flow-aside { grid-template-columns: 1fr 1fr; } }
-      .aside-item { display: flex; gap: 12px; align-items: flex-start; border: 1px dashed var(--rule);
-        border-radius: 6px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
-      .aside-item .mk { flex-shrink: 0; font-family: var(--mono); font-weight: 500; }
-      .flow-foot { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between;
-        margin-top: 20px; padding: 14px 16px; border-radius: 6px; background: var(--paper-deep); }
-      .flow-caption { flex: 1 1 100%; font-size: 15px; color: var(--ink); min-height: 92px; }
-      @media (min-width: 700px) { .flow-caption { flex-basis: 0; min-height: 48px; } }
-      .flow-ctl { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
-      .flow-ctl .btn { padding: 7px 14px; }
-      @media (prefers-reduced-motion: reduce) {
-        .pkt, .node, .checks li, .keychip { transition: none; }
-      }
-
-      /* why it's different, and who it's for */
-      .diff { padding: 20px; }
-      .diff h3 { font-size: 20px; margin-top: 8px; }
-      .diff p { margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
-      .fit { padding: 20px; }
-      .fit h3 { font-size: 18px; }
-      .fit ul { margin-top: 12px; display: grid; gap: 10px; font-size: 14px; color: var(--ink-soft); }
-      .fit li { display: flex; gap: 10px; }
-      .fit .no { color: var(--signal); flex-shrink: 0; }
-
-      /* is my key safe */
-      .safe { padding: 20px; }
-      .safe h3 { font-size: 18px; display: flex; gap: 10px; align-items: center; }
-      .safe h3 svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--signal); }
-      .safe p { margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
-
-      /* dashboard */
-      .dash { margin-top: 32px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--card);
-        overflow: hidden; box-shadow: var(--shadow-paper); }
-      .dash-bar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;
-        border-bottom: 1px solid var(--rule-soft); padding: 12px 20px; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
-      .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--positive); display: inline-block; margin-right: 8px; }
-      .metrics { display: grid; gap: 1px; background: var(--rule-soft); }
-      @media (min-width: 640px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
-      @media (min-width: 1000px) { .metrics { grid-template-columns: repeat(4, 1fr); } }
-      .metrics > div { background: var(--card); padding: 20px; }
-      .metrics dd { font-family: var(--mono); font-size: 24px; margin-top: 6px; letter-spacing: -0.02em; }
-      .metrics .delta { font-size: 12px; color: var(--ink-faint); margin-top: 4px; }
-      .tabs { border-top: 1px solid var(--rule-soft); padding: 20px; }
-      .tablist { display: inline-flex; gap: 4px; background: var(--paper-deep); border: 1px solid var(--rule-soft);
-        border-radius: 8px; padding: 4px; }
-      .tab { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 14px;
-        padding: 7px 14px; border-radius: 6px; color: var(--ink-soft); }
-      .tab[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(22,19,15,0.08); font-weight: 500; }
-      #rows { margin-top: 20px; display: grid; gap: 12px; }
-      .row { border: 1px solid var(--rule-soft); border-radius: 6px; padding: 12px 16px; }
-      .row-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 14px; }
-      .bar { margin-top: 8px; height: 6px; background: var(--rule-soft); border-radius: 999px; overflow: hidden; }
-      .bar i { display: block; height: 100%; background: var(--signal); border-radius: 999px; transition: width 0.5s ease; }
-      .row-bot { margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
-        font-size: 12px; color: var(--ink-soft); }
-
-      /* guarantees */
-      .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px;
-        font-family: var(--mono); font-size: 11px; border: 1px solid; }
-      .pill.allow { color: var(--positive); border-color: rgba(63,122,82,0.4); background: rgba(63,122,82,0.1); }
-      .pill.deny { color: var(--signal); border-color: rgba(166,58,34,0.4); background: rgba(166,58,34,0.1); text-decoration: line-through; }
-      table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      th { text-align: left; padding-bottom: 8px; border-bottom: 1px solid var(--rule-soft);
-        font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); font-weight: 400; }
-      td { padding: 12px 0; border-bottom: 1px solid var(--rule-soft); }
-      tr:last-child td { border-bottom: none; }
-      .num { text-align: right; font-family: var(--mono); }
-      .note { margin-top: 16px; border: 1px dashed var(--rule); border-radius: 6px; padding: 12px 16px;
-        font-size: 12px; line-height: 1.7; color: var(--ink-soft); }
-
-      /* pricing */
-      .plan { display: flex; flex-direction: column; padding: 24px; border: 1px solid var(--rule);
-        border-radius: var(--radius); background: var(--card); }
-      .plan.featured { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: var(--shadow-paper); }
-      .plan.featured .muted, .plan.featured li span { color: rgba(250,248,244,0.8); }
-      .price { font-family: var(--mono); font-size: 36px; }
-      .plan ul { flex: 1; margin-top: 24px; display: grid; gap: 10px; font-size: 14px; }
-      .plan li { display: flex; gap: 10px; }
-      .tick { color: var(--positive); flex-shrink: 0; }
-      .plan.featured .tick { color: var(--signal); }
-      .tag { border-radius: 999px; background: var(--signal); color: #fff; padding: 4px 10px;
-        font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
-      .source-card { transition: border-color 0.15s; }
-      .source-card:hover { border-color: var(--signal); }
-      .guarantee { display: flex; gap: 12px; align-items: flex-start; border: 1px solid rgba(166,58,34,0.4);
-        background: rgba(166,58,34,0.08); border-radius: 6px; padding: 12px 16px; max-width: 360px; }
-
-      /* form */
-      label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-      input, select, textarea {
-        width: 100%; font-family: inherit; font-size: 14px; color: var(--ink);
-        background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px;
-      }
-      input:focus, select:focus, textarea:focus { outline: 2px solid var(--signal); outline-offset: 1px; border-color: var(--signal); }
-      .field { margin-bottom: 18px; }
-      .err { color: var(--signal); font-size: 12px; margin-top: 6px; display: none; }
-      .field.invalid input, .field.invalid select { border-color: var(--signal); }
-      .field.invalid .err { display: block; }
-      .link-btn { background: none; border: none; padding: 0; font: inherit; color: inherit;
-        text-decoration: underline; cursor: pointer; }
-
-      /* faq */
-      .faq-item { border-bottom: 1px solid var(--rule-soft); }
-      .faq-q { width: 100%; background: none; border: none; cursor: pointer; font-family: inherit;
-        text-align: left; font-size: 16px; font-weight: 500; color: var(--ink);
-        padding: 18px 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
-      .faq-q:hover { color: var(--signal); }
-      .faq-q .chev { transition: transform 0.2s; color: var(--ink-faint); }
-      .faq-q[aria-expanded="true"] .chev { transform: rotate(180deg); }
-      .faq-a { display: none; padding-bottom: 18px; font-size: 14px; line-height: 1.7; color: var(--ink-soft); }
-      .faq-a.open { display: block; }
-
-      /* footer */
-      footer { background: var(--ink); color: var(--paper); }
-      .foot-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
-        gap: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 40px; }
-      .foot-bot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
-        padding-top: 24px; font-family: var(--mono); font-size: 12px; color: rgba(250,248,244,0.6); }
-    </style>
   </head>
   <body>
-    <header class="nav">
-      <div class="wrap nav-in">
-        <a class="brand" href="#top"><span class="mark">&gt;_</span> costgrid.dev</a>
-        <nav class="nav-links">
-          <a href="#what">What it is</a>
-          <a href="#how-it-works">How it works</a>
-          <a href="#security">Is my key safe?</a>
-          <a href="./research.html">Research</a>
+    <header class="site-head">
+      <div class="wrap head-in">
+        <a class="brand" href="./" aria-label="CostGrid home">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
+          CostGrid
+        </a>
+        <nav class="site-nav" aria-label="Site">
+          <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
-          <a href="#demo">Demo</a>
+          <a href="#privacy">Privacy</a>
+          <a href="./research.html">Research</a>
         </nav>
-        <div class="nav-cta">
-          <a class="btn btn-ink" href="#start" data-auth="out">Sign in</a>
-          <a class="btn btn-ink" href="#setup" data-auth="in" hidden>Your setup</a>
-        </div>
-        <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">☰</button>
-      </div>
-      <div id="mobileMenu">
-        <a href="#what">What it is</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#security">Is my key safe?</a>
-        <a href="./research.html">Research</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#demo">Demo</a>
-        <a href="#start" style="color: var(--signal); font-weight: 500" data-auth="out">Sign in</a>
-        <a href="#setup" style="color: var(--signal); font-weight: 500" data-auth="in" hidden>Your setup</a>
+        <a class="btn btn-sm" href="#download">Download for Mac</a>
       </div>
     </header>
 
-    <!-- HERO -->
-    <section class="hero" id="top">
-      <div class="paperlines"></div>
-      <div class="wrap hero-in">
-        <div>
-          <span class="badge">◈ For businesses building with AI</span>
-          <h1>
-            AI is getting cheaper every month.
-            <span class="signal">Your AI bill is going up anyway.</span>
-          </h1>
-          <p class="lede" style="font-size: 18px; margin-top: 24px">
-            CostGrid shows what every AI request your software makes costs, and which team or
-            tool made it. Then it stops the spending at the limit you set,
-            <strong style="color: var(--ink); font-weight: 600">before</strong> the request is
-            sent. Not after the invoice.
-          </p>
-          <p class="lede" style="font-size: 16px">
-            It's a Mac app that runs on your own machine, so your provider keys and data never
-            reach us. One flat price, never a share of your AI bill.
-          </p>
-          <div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px">
-            <a class="btn btn-lg btn-ink" href="#start">Start free trial →</a>
-            <a class="btn btn-lg btn-outline" href="#what">See how it works</a>
-          </div>
-          <dl class="stats">
-            <div><dt class="label">cut of your bill</dt><dd>0%</dd></div>
-            <div><dt class="label">savings guarantee</dt><dd>60 days</dd></div>
-            <div><dt class="label">delay added per call</dt><dd>~1.2 ms</dd></div>
-          </dl>
+    <main>
+      <section class="wrap hero" id="top">
+        <span class="overline">For businesses that run their own AI agents</span>
+        <h1>Optimize your AI costs by what actually gets done.</h1>
+        <p class="sub">See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer. Never sees your data.</p>
+        <div class="cta-row">
+          <a class="btn btn-accent btn-lg" href="#download">Download for Mac</a>
+          <a class="btn btn-lg" href="#how">See how it works</a>
         </div>
+        <p class="small">Free to use · Windows coming soon</p>
+      </section>
 
-        <div id="start" style="scroll-margin-top: 96px">
-          <div class="card" style="padding: 20px; box-shadow: var(--shadow-paper)">
-            <form id="signinForm" novalidate>
-              <div style="display: flex; justify-content: space-between; align-items: baseline">
-                <h2 style="font-size: 20px">Get CostGrid</h2>
-                <span class="label">no card</span>
+      <!-- Product shot: a preview of the Results screen being built, in HTML. Example data. -->
+      <section class="wrap shot" aria-label="Preview of the Results screen">
+        <figure class="win" style="margin: 0">
+          <div class="win-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="t">CostGrid</span></div>
+          <div class="win-body">
+            <aside class="app-side" aria-hidden="true">
+              <div class="biz"><b>Northwind Dental</b><span>Example business</span></div>
+              <div class="app-nav">
+                <span><svg width="17" height="17" viewBox="0 0 17 17"><path d="M2.5 8.5 8.5 3l6 5.5M4 7.5v6h9v-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Overview</span>
+                <span class="on"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M3.5 13.5v-5M8.5 13.5v-10M13.5 13.5v-7" fill="none" stroke="#d9b46c" stroke-width="1.8" stroke-linecap="round"/></svg>Results</span>
+                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="6" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 14c.8-2.5 2.7-3.6 5-3.6s4.2 1.1 5 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Agents</span>
+                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="8.5" r="5.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 5.5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Limits</span>
+                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="6" cy="11" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7.9 9.1 5.4-5.4M11.2 5.8l1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Keys</span>
+                <span><svg width="17" height="17" viewBox="0 0 17 17"><path d="M3 5h11M3 8.5h11M3 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Settings</span>
               </div>
-              <p class="muted" style="margin: 8px 0 16px; font-size: 14px">
-                Sign in with your work email and you get the app, the full demo and a free
-                trial. No password: we email you a one-time link.
-              </p>
-              <div class="field" id="f-signin">
-                <label for="signinEmail">Work email</label>
-                <input id="signinEmail" type="email" autocomplete="email" placeholder="you@company.com" />
-                <p class="err" id="signinErr">Enter a valid work email.</p>
+              <div class="plan-box"><b>View · Free</b><span>View and control, which can pause a runaway agent, is coming.</span><span style="color: var(--ink); font-weight: 600">Ask for a quote →</span></div>
+            </aside>
+            <div class="app-main">
+              <span class="example-tag">Preview of the Results screen we're building · example data</span>
+              <div class="app-top">
+                <div>
+                  <h2>Results</h2>
+                  <span class="sub">September 2026 · figures below for Support replies · OpenAI and Claude</span>
+                </div>
+                <div class="app-btns" aria-hidden="true">
+                  <span class="fake-btn">September 2026 ▾</span>
+                  <span class="fake-btn">Export statement</span>
+                  <span class="fake-btn primary">Add an agent</span>
+                </div>
               </div>
-              <button type="submit" class="btn btn-lg btn-ink" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
-              <p class="muted" style="text-align: center; font-size: 12px; margin-top: 12px">
-                Your prompts and provider keys never come to us. The account is for this website only.
-              </p>
-            </form>
-            <div id="signinSent" hidden style="padding: 12px 0">
-              <div style="font-size: 32px; color: var(--positive)">✓</div>
-              <h2 style="font-size: 24px; margin-top: 12px">Check your inbox.</h2>
-              <p class="muted" style="margin-top: 8px">
-                We sent a sign-in link to <span class="mono" style="color: var(--ink)" id="sentEmail"></span>.
-                Open it on this device and you land back here, signed in. Nothing in your inbox?
-                Give it a minute and check spam.
-              </p>
-              <button class="btn btn-outline" style="margin-top: 20px" id="signinAgain">Use a different email</button>
-            </div>
-            <div id="signedIn" hidden style="padding: 12px 0">
-              <div style="font-size: 32px; color: var(--positive)">✓</div>
-              <h2 style="font-size: 24px; margin-top: 12px">You're signed in.</h2>
-              <p class="muted" style="margin-top: 8px">
-                As <span class="mono" style="color: var(--ink)" data-user-email></span>.
-              </p>
-              <div style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 12px">
-                <a class="btn btn-ink" href="#setup">Your setup</a>
-                <a class="btn btn-outline" href="./demo/">Open the full demo</a>
+              <div class="kpis">
+                <div class="kpi"><span class="k">All-in cost per successful job</span><span class="v gold">$1.52</span><span class="n">Includes estimated staff time · AI bill alone: $0.39</span></div>
+                <div class="kpi"><span class="k">Spent on failed attempts</span><span class="v">38.2%</span><span class="n">$1,160 of $3,040</span></div>
+                <div class="kpi"><span class="k">Jobs that worked</span><span class="v">79.6%</span><span class="n">7,800 of 9,800</span></div>
+                <div class="kpi"><span class="k">Compared with a person</span><span class="v">23%</span><span class="n">of their cost · estimate</span></div>
               </div>
+              <div class="table-box">
+                <table class="agents">
+                  <caption class="sr-only">Example agents and what each finished job cost</caption>
+                  <thead><tr><th scope="col">Agent</th><th scope="col" class="r">Jobs done</th><th scope="col" class="r">AI cost / job</th><th scope="col" class="r">All-in / job</th><th scope="col" class="r">On failures</th><th scope="col">What it means</th><th scope="col">Status</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="name">Support replies</div><div class="kind">Customer support</div></td><td class="r">7,800</td><td class="r">$0.39</td><td class="r" style="font-weight: 600">$1.52</td><td class="r">38%</td><td class="means">About a quarter of a person's cost per ticket. The biggest part is staff checking replies.</td><td><span class="pill good">On track</span></td></tr>
+                    <tr><td><div class="name">Lead research</div><div class="kind">Sales leads</div></td><td class="r">1,240</td><td class="r">$0.84</td><td class="r" style="font-weight: 600">$2.10</td><td class="r">22%</td><td class="means">Steady. Few retries, and the cost per lead barely changes.</td><td><span class="pill good">On track</span></td></tr>
+                    <tr><td><div class="name">Invoice entry</div><div class="kind">Data entry</div></td><td class="r">3,410</td><td class="r">$0.06</td><td class="r" style="font-weight: 600">$0.41</td><td class="r">61%</td><td class="means">Cheap per attempt but fails often. Failures are most of its bill.</td><td><span class="pill warn">Needs a look</span></td></tr>
+                    <tr><td><div class="name">Blog drafts</div><div class="kind">Content</div></td><td class="r">0</td><td class="r">—</td><td class="r">—</td><td class="r">—</td><td class="means">$46.20 spent this month with no finished drafts.</td><td><span class="pill bad">No successes</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="small">Example data. "Compared with a person" is an estimate from public wage data, not your payroll.</p>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
+        </figure>
+      </section>
 
-    <!-- WHAT IT IS -->
-    <section class="section" id="what">
-      <div class="wrap">
-        <span class="label">What it is</span>
-        <h2 class="head">A meter and a shut-off valve for your AI spend.</h2>
-        <p class="lede">
-          Every time your software asks an AI provider like Anthropic or OpenAI for something, you
-          pay for that one request. CostGrid sits in between, on your own machine. It prices each
-          request, records which team and tool made it, and stops the ones that would break your
-          limits before they are sent.
-        </p>
-
-        <div class="flow" id="flow">
-          <span class="label flow-tag">Example · two requests, start to finish</span>
-          <div aria-hidden="true">
-            <div class="flow-row">
-              <div class="node" id="nodeApp">
-                <span class="label">Your software</span>
-                <strong>Support chatbot</strong>
-                <span class="sub">Built on Claude, tagged as the Support team.</span>
-              </div>
-              <div class="wire"><span class="pkt" id="pkt1"></span></div>
-              <div class="node node-cg" id="nodeCg">
-                <span class="label">CostGrid · on your machine</span>
-                <strong>Price it. Tag it. Check it.</strong>
-                <ul class="checks">
-                  <li id="chkPrice"><span>Cost of this request</span><b>$0.012</b></li>
-                  <li id="chkTeam"><span>Charged to</span><b>Support</b></li>
-                  <li id="chkCap"><span>Support, this month</span><b id="capVal">$312 of $500</b></li>
-                </ul>
-                <span class="verdict" id="flowVerdict"></span>
-                <span class="keychip" id="keyChip">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="8" r="3"/><path d="M8 8h6M12 8v2.5M14 8v2"/></svg>
-                  Your Anthropic key, encrypted here
-                </span>
-              </div>
-              <div class="wire"><span class="pkt" id="pkt2"></span></div>
-              <div class="node" id="nodeAi">
-                <span class="label">AI provider</span>
-                <strong>Anthropic</strong>
-                <span class="sub">Your account, billed as usual.</span>
-              </div>
-            </div>
+      <section class="section" id="problem">
+        <div class="wrap">
+          <span class="overline">The problem</span>
+          <h2 class="head">Your AI bill counts attempts, not finished jobs.</h2>
+          <div class="points">
+            <div class="card"><h3>You pay for every try</h3><p>Each time an agent runs, you pay, whether the job got done or not. The bill can't tell you which runs actually worked.</p></div>
+            <div class="card"><h3>Some costs never show up</h3><p>Failed and retried attempts are paid for, then forgotten. So is the time your staff spend checking and fixing AI work. Neither is a line on the bill.</p></div>
+            <div class="card"><h3>The same job, very different prices</h3><p>One run of a job can be cheap and the next can cost many times more. An average hides the expensive ones.</p></div>
           </div>
-          <div class="flow-foot">
-            <p class="flow-caption" id="flowCaption" aria-hidden="true"></p>
-            <div class="flow-ctl">
-              <span class="label" id="flowStep" aria-hidden="true"></span>
-              <button type="button" class="btn btn-outline" id="flowToggle">Play</button>
-            </div>
-          </div>
-          <div class="flow-aside">
-            <div class="aside-item">
-              <span class="mk signal" aria-hidden="true">✕</span>
-              <span><strong style="color: var(--ink)">Nothing goes to us.</strong> Not your key,
-                not the question, not the answer. There is no CostGrid server in the path.</span>
-            </div>
-            <div class="aside-item">
-              <span class="mk" aria-hidden="true">○</span>
-              <span><strong style="color: var(--ink)">Your other tools are untouched.</strong>
-                AI built into tools like HubSpot runs on that company's own account. CostGrid
-                never sees it and never gets in its way.</span>
-            </div>
-          </div>
-          <ol class="sr-only" id="flowSteps">
-            <li>Your support chatbot sends a question to Claude. It goes to CostGrid first.</li>
-            <li>CostGrid prices the request, notes which team it's for, and checks that team's monthly limit.</li>
-            <li>It's under the limit, so CostGrid sends it on to Anthropic with your key, straight from your machine.</li>
-            <li>The answer comes back the same way. CostGrid's checks add about a thousandth of a second, and the request is now on Support's tab in your dashboard.</li>
-            <li>Later that month, Support has used its whole $500 budget, and the chatbot asks again.</li>
-            <li>CostGrid catches it before it's sent. Nothing reaches Anthropic, so nothing is billed.</li>
-            <li>The chatbot gets a clear "over budget" reply, and every other team carries on as normal. You can also have CostGrid switch to a cheaper model instead, so customers still get an answer.</li>
-          </ol>
-        </div>
-
-        <div class="grid g3" style="margin-top: 32px">
-          <div class="card diff">
-            <span class="mono signal" style="font-size: 12px">Before, not after</span>
-            <h3>It stops spend before it happens</h3>
-            <p>
-              A bill or a usage report tells you what you spent last month. CostGrid sits in the
-              path of each request, so it can stop one, or switch it to a cheaper model, before
-              the money is spent.
-            </p>
-          </div>
-          <div class="card diff">
-            <span class="mono signal" style="font-size: 12px">Your machine, not ours</span>
-            <h3>Your keys never leave your machine</h3>
-            <p>
-              CostGrid runs on your own computer. Requests, answers and provider keys go straight
-              from there to the AI provider. We never see them, so there is no copy on our side to
-              leak.
-            </p>
-          </div>
-          <div class="card diff">
-            <span class="mono signal" style="font-size: 12px">Flat price</span>
-            <h3>Never a cut of your bill</h3>
-            <p>
-              A cost tool that charges a share of your AI spend earns more when you spend more.
-              CostGrid costs the same whether you spend $2,000 or $200,000 a month.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid g2" style="margin-top: 24px">
-          <div class="card fit">
-            <h3>Built for</h3>
-            <ul>
-              <li><span class="tick">✓</span><span>Businesses whose own software uses AI: a support
-                chatbot, an internal assistant, AI agents, or a product feature built on Claude or
-                GPT.</span></li>
-              <li><span class="tick">✓</span><span>Paid through your own account with Anthropic,
-                OpenAI, AWS Bedrock or Google Vertex.</span></li>
-              <li><span class="tick">✓</span><span>On day one, anyone with an Anthropic or OpenAI
-                account sees their last 90 days of spend in the app, whatever their setup.</span></li>
-            </ul>
-          </div>
-          <div class="card fit">
-            <h3>Good to know before you start</h3>
-            <ul>
-              <li><span class="no">✕</span><span>AI inside tools you subscribe to, like HubSpot's
-                assistant or ChatGPT seats for your staff, is billed to those companies' accounts.
-                CostGrid can't measure it, and doesn't affect it.</span></li>
-              <li><span class="no">!</span><span>The Mac app covers AI requests made on the Mac it's
-                installed on. If your AI features run on a server, CostGrid runs on that server
-                instead: sign in, tell me about your setup, and I'll set it up with you.</span></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- HOW IT WORKS -->
-    <section class="section deep" id="how-it-works">
-      <div class="wrap">
-        <span class="label">How it works</span>
-        <h2 class="head">Three steps, from download to limits.</h2>
-        <p class="lede">
-          CostGrid doesn't replace anything. Your software keeps the same AI provider and the same
-          account. Its requests just go through CostGrid on the way.
-        </p>
-        <div class="grid g3" style="margin-top: 40px">
-          <div class="card step">
-            <span class="mono signal" style="font-size: 12px">01</span>
-            <h3>See what you've already spent</h3>
-            <p>
-              Sign in here, download the app and open it. Paste an admin key from Anthropic or
-              OpenAI, and CostGrid shows your last 90 days of spend, by day and by model, from the
-              provider's own records. That key is used for this one request and never saved.
-            </p>
-            <span class="who">You · no technical setup</span>
-          </div>
-          <div class="card step">
-            <span class="mono signal" style="font-size: 12px">02</span>
-            <h3>Send your AI requests through it</h3>
-            <p>
-              Save your provider key in CostGrid, and it gives you a CostGrid key and an address.
-              Your software uses those two in place of the provider's: a small change in one place,
-              which the app shows ready to copy for whoever looks after your software. From then on,
-              every request is priced and put on the right team's tab.
-            </p>
-            <span class="who">Whoever runs your software · one change</span>
-          </div>
-          <div class="card step">
-            <span class="mono signal" style="font-size: 12px">03</span>
-            <h3>Choose your limits</h3>
-            <p>
-              Set a limit for a team, an agent or everything on the app's Limits screen, or take one
-              CostGrid suggests from your real traffic. Each starts out only measuring, so you see what
-              it would have stopped before anything changes. Every limit records who owns it and why,
-              and you're told the moment one fires.
-            </p>
-            <span class="who">You · in the app</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- IS MY KEY SAFE -->
-    <section class="section" id="security">
-      <div class="wrap">
-        <span class="label">Is my key safe?</span>
-        <h2 class="head">Your key stays with you. Here's exactly where it goes.</h2>
-        <p class="lede">
-          Leaked API keys are a real risk, so you should know what happens to yours before you
-          paste it anywhere. This is all of it.
-        </p>
-        <div class="grid g2" style="margin-top: 40px">
-          <div class="card safe">
-            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg>Stored encrypted, on your Mac</h3>
-            <p>
-              CostGrid locks your key with a second key kept in your Mac's keychain, the same place
-              macOS keeps your saved passwords. Someone who copies CostGrid's files to another
-              computer still can't read it.
-            </p>
-          </div>
-          <div class="card safe">
-            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h12M11 6l4 4-4 4"/></svg>Sent only to the provider it belongs to</h3>
-            <p>
-              With each request, it goes straight from your Mac to Anthropic or OpenAI over an
-              encrypted connection, the same way your software sends it today. It never goes to
-              CostGrid or to this website. We don't run a server that could receive it.
-            </p>
-          </div>
-          <div class="card safe">
-            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 10s2.8-5 7.5-5 7.5 5 7.5 5-2.8 5-7.5 5-7.5-5-7.5-5z"/><circle cx="10" cy="10" r="2.2"/><path d="M3.5 16.5l13-13"/></svg>Never shown again</h3>
-            <p>
-              Once saved, the app only ever shows the last four characters of your key. Not on
-              screen, not in the activity log. The admin key you use to see past spend isn't saved
-              at all.
-            </p>
-          </div>
-          <div class="card safe">
-            <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.7-6 8-3.3-1.3-6-4-6-8V5z"/><path d="M7.5 10l1.8 1.8L13 8"/></svg>Kept out of your code</h3>
-            <p>
-              Your software uses a CostGrid key instead, which only works on your Mac and which you
-              can revoke in the app at any time. Your real provider key lives in one place, instead
-              of being copied into code and settings files where it could leak.
-            </p>
-          </div>
-        </div>
-        <div class="grid g2" style="margin-top: 8px">
-          <p class="note">
-            <strong style="color: var(--ink)">What we do hold:</strong> the email you sign in to
-            this website with, and the three answers you give us about your setup. Nothing else.
-          </p>
-          <p class="note">
-            <strong style="color: var(--ink)">A good habit:</strong> make a key just for CostGrid at
-            your provider. If you ever want to cut it off, delete that one key and nothing else is
-            affected.
+          <p class="note survey">
+            <strong>You're not alone.</strong> In a Q3 2026 survey of 1,150 decision-makers at businesses with 5 to 499 staff, 49% of those paying for AI got a higher bill than they expected (57% in the US), and 55% spend 3 or more hours a week checking AI output.
+            <span class="small" style="display: block; margin-top: 6px">Source: Pax8 SMB AI Pulse, Q3 2026, a survey commissioned by Pax8, which sells to small businesses. <a href="https://www.globenewswire.com/news-release/2026/10/12/3378898/0/en/pax8-research-finds-small-businesses-are-building-ai-faster-than-they-can-govern-it.html" rel="noopener">Press release, 12 Oct 2026</a> · <a href="https://thenextweb.com/news/shadow-ai-small-businesses-pax8-survey" rel="noopener">TNW report</a></span>
           </p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- DASHBOARD -->
-    <section class="section deep" id="demo">
-      <div class="wrap">
-        <span class="label">Sample dashboard</span>
-        <h2 class="head" style="max-width: 680px">Every call priced, put on someone's tab, and capped.</h2>
-        <p class="lede">
-          Sample data: 526 calls from six AI tools, priced by the same code that will price yours.
-          This is what you see once your software is going through CostGrid.
-          <a href="./demo/" style="color: var(--signal)">Open the full version →</a>
-        </p>
-
-        <div class="dash">
-          <div class="dash-bar">
-            <div><span class="dot"></span>CostGrid on · stops at the cap</div>
-            <span>last 30 days</span>
-          </div>
-          <dl class="metrics">
-            <div><dt class="label">Spend (30 days)</dt><dd>$22.40</dd><p class="delta">526 calls</p></div>
-            <div><dt class="label">Reused work</dt><dd>27.8%</dd><p class="delta">text the provider had already read, billed at a fraction</p></div>
-            <div><dt class="label">Saved by switching</dt><dd>$1.62</dd><p class="delta">18 calls sent to a cheaper model</p></div>
-            <div><dt class="label">Stopped calls</dt><dd>1</dd><p class="delta">refused before it was sent</p></div>
-          </dl>
-          <div class="tabs">
-            <div class="tablist" role="tablist">
-              <button class="tab" role="tab" data-view="team" aria-selected="true">By department</button>
-              <button class="tab" role="tab" data-view="agent" aria-selected="false">By agent</button>
-              <button class="tab" role="tab" data-view="model" aria-selected="false">By model</button>
-            </div>
-            <ul id="rows"></ul>
+      <section class="section" id="how">
+        <div class="wrap">
+          <span class="overline">How it works</span>
+          <h2 class="head">Three steps to the real cost of each job.</h2>
+          <div class="grid g3" style="margin-top: 40px">
+            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add an admin key and CostGrid imports your last 90 days of usage; the key is used once and not stored. Dropping in a usage file, and a link for whoever set up your AI, are coming.</p></div>
+            <div class="card"><span class="step-no">Step 2</span><h3>Tell it which jobs worked</h3><p>Today your software reports whether each job worked, with one small addition your developer makes. Ready-made job types (customer support, sales leads, content, data entry) that need no code are coming.</p></div>
+            <div class="card"><span class="step-no">Step 3</span><h3>See the real cost per job</h3><p>From the results your software reports, failed and retried attempts are charged to the jobs that worked. A plain verdict for every agent is coming.</p></div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- GUARANTEES -->
-    <section class="section deep" id="guarantees" style="background: var(--paper)">
-      <div class="wrap">
-        <span class="label">Proof</span>
-        <h2 class="head">Measured, not marketed.</h2>
-        <p class="lede">
-          Every number on this page comes from a measurement we can repeat. Where we don't have
-          one, the space stays empty.
-        </p>
-        <div class="grid g2" style="margin-top: 40px">
-          <div class="card" style="padding: 20px">
-            <h3 style="font-size: 20px">Each AI tool does only what you allowed</h3>
-            <p class="muted" style="margin-top: 8px; font-size: 14px">
-              CostGrid records which tool each AI assistant reached for, and refuses anything
-              outside the list you approved, before it costs you a token. Below, three assistants
-              and what each may and may not touch.
-            </p>
-            <div id="topology" style="margin-top: 20px; display: grid; gap: 16px"></div>
-          </div>
-          <div class="card" style="padding: 20px">
-            <h3 style="font-size: 20px">Nobody will notice it's there</h3>
-            <p class="muted" style="margin-top: 8px; font-size: 14px">
-              An AI call takes half a second to several seconds. CostGrid adds about a thousandth
-              of a second on top. To make sure that number is CostGrid's own work, the test also
-              runs a do-nothing pass-through and subtracts it. These are the results.
-            </p>
-            <div style="margin-top: 20px; overflow-x: auto">
-              <table>
-                <thead><tr><th>Delay added by CostGrid</th><th class="num">Typical</th><th class="num">Worst 1 in 100</th></tr></thead>
-                <tbody>
-                  <tr><td>One call at a time</td><td class="num">1.2 ms</td><td class="num">2 ms</td></tr>
-                  <tr><td>Until the first word of a streamed answer</td><td class="num">0.8 ms</td><td class="num">1.6 ms</td></tr>
-                  <tr><td>Ten calls at once</td><td class="num">1.3 ms</td><td class="num">4 ms</td></tr>
-                  <tr><td>Fifty calls at once</td><td class="num" colspan="2" style="text-align: left">Not published yet, see below</td></tr>
-                </tbody>
-              </table>
+      <section class="section" id="example">
+        <div class="wrap">
+          <span class="overline">Example result</span>
+          <h2 class="head">One support ticket, all&#8209;in.</h2>
+          <p class="lede">The AI bill is only part of what a finished job costs. Here is one support ticket, with everything added up. <strong style="color: var(--ink)">Illustrative, from the <a href="./research.html#lcso">LCSO method's worked example</a>.</strong></p>
+          <div class="ex-grid">
+            <figure class="card raised chart" style="margin: 0" aria-labelledby="chart-title">
+              <h3 id="chart-title">Cost of one finished support ticket</h3>
+              <div class="bar-row" title="AI bill only: $0.39">
+                <span class="lbl"><b>AI bill only</b></span>
+                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 0.39 / 8)"></span><span class="bar-val">$0.39</span></div>
+              </div>
+              <div class="bar-row" title="All-in cost with AI: $1.52">
+                <span class="lbl"><b>All-in cost with AI</b></span>
+                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 1.52 / 8)"></span><span class="bar-val">$1.52</span></div>
+              </div>
+              <div class="bar-row" title="A person doing the same ticket: about $6.75 (estimate)">
+                <span class="lbl"><b>A person doing it</b> · estimate</span>
+                <div class="track"><span class="bar person" style="width: calc((100% - 64px) * 6.75 / 8)"></span><span class="bar-val">~$6.75</span></div>
+              </div>
+              <div class="axis" style="margin-right: 64px" aria-hidden="true">
+                <span style="left: 0">$0</span><span style="left: 25%">$2</span><span style="left: 50%">$4</span><span style="left: 75%">$6</span><span style="left: 100%">$8</span>
+              </div>
+              <figcaption class="small">One shared scale, $0 to $8. The person figure is an estimate: 9 minutes at $45 an hour, from a time study in the worked example. Illustrative numbers, not a customer's.</figcaption>
+            </figure>
+            <div class="card raised receipt">
+              <h3>Where the $1.52 comes from</h3>
+              <dl>
+                <dt class="sub-i">The attempt that worked</dt><dd>$0.24</dd>
+                <dt class="sub-i">Failed and retried attempts</dt><dd>$0.15</dd>
+                <dt class="sum">AI bill</dt><dd class="sum">$0.39</dd>
+                <dt>Staff checking and fixing · estimate</dt><dd>$0.62</dd>
+                <dt>Fixed costs, shared across the month</dt><dd>$0.51</dd>
+                <dt class="sum">Real cost per finished ticket</dt><dd class="sum gold">$1.52</dd>
+              </dl>
+              <p class="small" style="margin-top: 16px">Illustrative, from the LCSO method's worked example. Staff time is an estimate from a time study. Fixed costs cover tools and upkeep, shared out over the month's finished tickets.</p>
             </div>
-            <p class="note">
-              <strong>Why the last row is empty.</strong> On one computer, the test itself competes
-              with the thing being tested, and the noise is bigger than the result. We'd rather
-              leave it empty than print a number your own test would contradict.
-            </p>
-            <p class="note" style="margin-top: 8px">
-              When a cap is hit, the call is refused before it reaches the provider, and the attempt
-              is recorded either way. That's the default, not an option you have to find.
-            </p>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- PRICING -->
-    <section class="section" id="pricing">
-      <div class="wrap">
-        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: flex-end">
-          <div>
-            <span class="label">Pricing</span>
-            <h2 class="head">Flat rate. 0% of your AI bill.</h2>
-            <p class="lede">
-              Cost tools that take a percentage of spend get paid more when you spend more. Ours
-              doesn't. The price is the price, whether you burn $2k or $200k a month.
-            </p>
+      <section class="section" id="pricing">
+        <div class="wrap">
+          <span class="overline">Pricing</span>
+          <h2 class="head">Start free. Add control when it's ready.</h2>
+          <div class="plans">
+            <div class="plan">
+              <h3>View</h3>
+              <p class="price">Free</p>
+              <p class="muted" style="margin-top: 6px">See where the money goes.</p>
+              <ul>
+                <li>Costs per agent</li>
+                <li>Cost per successful job</li>
+                <li>Share of spend on failed attempts</li>
+                <li>How much the cost of the same job varies</li>
+                <li>Coming: warnings about risky key setups</li>
+              </ul>
+              <p class="small" style="margin-top: 12px">Today's app also includes budgets, limits and a stop button for AI traffic you send through CostGrid, with alerts on your Mac.</p>
+              <a class="btn btn-accent" href="#download">Download for Mac</a>
+            </div>
+            <div class="plan control">
+              <h3>View and control</h3>
+              <p class="price">Pricing on request</p>
+              <p class="muted" style="margin-top: 6px">Everything in View, plus:</p>
+              <ul>
+                <li>Pause an agent's key</li>
+                <li>Spending caps</li>
+                <li>Alerts when an agent is paused or a cap is reached</li>
+                <li>Measured stop time: we time how long a pause takes to work and show you the number</li>
+              </ul>
+              <a class="btn" href="#setup">Contact us for a quote</a>
+            </div>
           </div>
-          <div class="guarantee">
-            <span class="signal" style="font-size: 18px">◈</span>
-            <p style="font-size: 14px">
-              <strong>60-day savings guarantee.</strong> If the savings report doesn't show CostGrid
-              saved you more than it cost, we refund the subscription.
-            </p>
+          <p class="small" style="margin-top: 20px">View and control is coming. Tell us about your setup below and we'll send you a quote.</p>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="wrap">
+          <span class="overline">Privacy and key safety</span>
+          <h2 class="head">Your data stays on your computer.</h2>
+          <div class="facts">
+            <div class="card"><h3>Runs on your computer</h3><p>CostGrid is a Mac app. It works out your costs on your own machine, not on our servers.</p></div>
+            <div class="card"><h3>Never reads prompts or AI answers</h3><p>It works only from usage records: what each request cost, how much it used, when, and which key made it. Never the words going in or coming out.</p></div>
+            <div class="card"><h3>Keys locked with your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them is kept in the Keychain, where macOS keeps your saved passwords. Your keys are only ever sent to OpenAI or Anthropic, never to us. Admin keys used to import usage are not stored at all.</p></div>
+            <div class="card"><h3>Nothing leaves unless you choose</h3><p>Nothing is sent from your computer unless you turn it on. A plain list of exactly what would be sent, shown before you turn anything on, is coming.</p></div>
+            <div class="card"><h3>One key per agent, with an expiry date</h3><p>We recommend it. You see each agent's cost on its own, you can switch one off without touching the others, and a key with an expiry date stops working on its own.</p></div>
+            <div class="card"><h3>What this protects against</h3><p>Your keys aren't sitting readable in plain files, settings or code, and a copied CostGrid folder holds only encrypted keys it can't unlock on another Mac. It can't protect against malware already running on the same Mac; that is out of scope.</p></div>
           </div>
         </div>
+      </section>
 
-        <div class="grid g3" style="margin-top: 40px">
-          <div class="plan">
-            <div style="display: flex; justify-content: space-between; align-items: baseline">
-              <h3 style="font-size: 20px">Free</h3>
-            </div>
-            <div style="margin-top: 16px; display: flex; gap: 8px; align-items: baseline">
-              <span class="price">$0</span><span class="muted" style="font-size: 12px">on your own Mac</span>
-            </div>
-            <p class="muted" style="margin-top: 12px; font-size: 14px">One team, trying it out. The full app and dashboard.</p>
-            <ul>
-              <li><span class="tick">✓</span><span>Unlimited calls</span></li>
-              <li><span class="tick">✓</span><span>Every call priced</span></li>
-              <li><span class="tick">✓</span><span>2 seats</span></li>
-              <li><span class="tick">✓</span><span>Support by email</span></li>
-            </ul>
-            <a class="btn btn-outline" style="margin-top: 24px" href="#start">Get started</a>
-          </div>
-
-          <div class="plan featured">
-            <div style="display: flex; justify-content: space-between; align-items: baseline">
-              <h3 style="font-size: 20px; color: var(--paper)">Team</h3>
-              <span class="tag">Most picked</span>
-            </div>
-            <div style="margin-top: 16px; display: flex; gap: 8px; align-items: baseline">
-              <span class="price">$99</span><span class="muted" style="font-size: 12px">per month, flat</span>
-            </div>
-            <p class="muted" style="margin-top: 12px; font-size: 14px">Split spend across teams and enforce real caps.</p>
-            <ul>
-              <li><span class="tick">✓</span><span>Unlimited teams, agents and calls</span></li>
-              <li><span class="tick">✓</span><span>Caps that actually stop the spending</span></li>
-              <li><span class="tick">✓</span><span>Cheaper-model switching and reuse savings</span></li>
-              <li><span class="tick">✓</span><span>Unlimited seats</span></li>
-            </ul>
-            <a class="btn btn-signal" style="margin-top: 24px" href="#start">Start free trial</a>
-          </div>
-
-          <div class="plan">
-            <div style="display: flex; justify-content: space-between; align-items: baseline">
-              <h3 style="font-size: 20px">Business</h3>
-            </div>
-            <div style="margin-top: 16px; display: flex; gap: 8px; align-items: baseline">
-              <span class="price">$499</span><span class="muted" style="font-size: 12px">per month, flat</span>
-            </div>
-            <p class="muted" style="margin-top: 12px; font-size: 14px">Multiple teams, split billing, across an org.</p>
-            <ul>
-              <li><span class="tick">✓</span><span>Everything in Team</span></li>
-              <li><span class="tick">✓</span><span>Single sign-on and a log that can't be quietly edited</span></li>
-              <li><span class="tick">✓</span><span>Log entries anchored outside your systems, as proof</span></li>
-              <li><span class="tick">✓</span><span>Keep-for and erase controls (GDPR)</span></li>
-            </ul>
-            <a class="btn btn-outline" style="margin-top: 24px" href="#start">Start free trial</a>
+      <section class="section" id="faq">
+        <div class="wrap">
+          <span class="overline">FAQ</span>
+          <h2 class="head">Straight answers.</h2>
+          <div class="faq">
+            <details><summary>Does it read my data?</summary><p>No. CostGrid never reads your prompts, your customers' messages or the AI's answers. It uses only usage metadata: costs, token counts, timestamps and which key made each request.</p></details>
+            <details><summary>Does it stop hallucinations?</summary><p>No. CostGrid does not detect hallucinations or check whether an answer is right. It shows what failed and re-run attempts cost you, so you can see which agents waste the most money and fix those first.</p></details>
+            <details><summary>Do I need to be technical?</summary><p>No. Download the app and connect OpenAI or Claude. If a freelancer or someone else set up your AI, they can connect it for you; a link you can send them is coming.</p></details>
+            <details><summary>What does it work with?</summary><p>OpenAI and Claude today, including agents built in tools like n8n, as long as they run on your own OpenAI or Claude account. To read usage directly, CostGrid needs a key made by someone with an admin or owner role on that account. Importing the usage file that a developer or billing user can download is coming, for when you don't have an admin key.</p></details>
+            <details><summary>Is there a Windows version?</summary><p>It's coming. CostGrid is Mac only today.</p></details>
+            <details><summary>Is it open source?</summary><p>No, it's source-available. You can read the code under the Functional Source License (FSL-1.1-ALv2), and each version becomes available under the Apache 2.0 licence two years after its release. The LCSO method behind the numbers is published under CC BY 4.0, so anyone can use it with credit.</p></details>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- SETUP (signed-in people only) -->
-    <section class="section deep" id="setup">
-      <div class="wrap grid g2">
-        <div>
-          <span class="label">Your setup</span>
-          <h2 class="head" data-auth="out">Sign in to download the app.</h2>
-          <h2 class="head" data-auth="in" hidden>Download the app.</h2>
-          <p class="lede" data-auth="out">
-            The app, the full demo and the free trial are behind a sign-in. It takes one email and
-            no card. <a href="#start" style="color: var(--signal)">Sign in above →</a>
-          </p>
-          <p class="lede" data-auth="in" hidden>
-            CostGrid runs on your own Mac. Open it, paste your provider key, and it walks you
-            through the rest. Your key never leaves the machine. Tell me about your setup on the
-            right and I'll help you get your first team going.
-          </p>
-          <div class="card" style="margin-top: 32px; padding: 20px" data-auth="in" hidden>
-            <h3 style="font-size: 18px">CostGrid for Mac</h3>
-            <p class="muted" style="margin-top: 8px; font-size: 14px">
-              Most Macs made since 2020 have an Apple chip. Not sure? Click the Apple menu, then
-              About This Mac: it says Apple or Intel next to "Chip" or "Processor".
-            </p>
-            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px">
-              <a class="btn btn-ink" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg">Download for Apple chip</a>
-              <a class="btn btn-outline" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg">Download for Intel</a>
+      <section class="section" id="download">
+        <div class="wrap">
+          <span class="overline">Download</span>
+          <h2 class="head">Get CostGrid for Mac.</h2>
+          <p class="lede">Free to use. No sign-in needed.</p>
+          <div class="dl-box">
+            <p class="muted">Most Macs sold since late 2020 have an Apple chip. Not sure? Click the Apple menu, then About This Mac: it says Apple or Intel next to "Chip" or "Processor".</p>
+            <div class="dl-btns">
+              <a class="btn btn-accent btn-lg" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg">Download for Apple chip</a>
+              <a class="btn btn-lg" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg">Download for Intel</a>
+              <span class="small">Windows: coming soon</span>
             </div>
             <div class="note">
-              <strong style="color: var(--ink)">The first time you open it</strong><br /><br />
+              <strong>The first time you open it</strong><br /><br />
               CostGrid isn't registered with Apple yet, so macOS will say it can't check the app
               and stop it from opening. That's expected. To get past it once: open
               <strong>System Settings → Privacy &amp; Security</strong>, scroll down to the message
               about CostGrid, and click <strong>Open Anyway</strong>. After that it opens like any
               other app.
             </div>
-            <p class="muted" style="margin-top: 14px; font-size: 13px">
-              Windows is next. Nothing else to install: the app holds everything, and your
-              provider key is encrypted with a key kept in your Mac's keychain.
-            </p>
-            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
-              <a class="btn btn-outline" href="./demo/">Open the full demo</a>
-              <button type="button" class="link-btn muted" style="font-size: 13px" id="signOut">Sign out</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Optional email sign-in. auth.js + site.js rely on these ids and data-auth hooks. -->
+      <section class="section" id="setup">
+        <div class="wrap grid g2">
+          <div id="start" style="scroll-margin-top: 24px">
+            <span class="overline">Optional</span>
+            <h2 class="head">Get a quote or updates by email.</h2>
+            <p class="lede">Ask for a View and control quote, or hear first when it and the Windows app are ready. Signing in also opens the full demo. You don't need this to use CostGrid.</p>
+            <div class="card raised" style="margin-top: 28px">
+              <form id="signinForm" novalidate>
+                <div class="field" id="f-signin">
+                  <label for="signinEmail">Email</label>
+                  <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" />
+                  <p class="err" id="signinErr">Enter a valid email address.</p>
+                </div>
+                <button type="submit" class="btn btn-accent" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
+                <p class="small" style="text-align: center; margin-top: 12px">No password: we email you a one-time link. The account is for this website only.</p>
+              </form>
+              <div id="signinSent" hidden>
+                <h3 style="font-size: 22px">Check your inbox.</h3>
+                <p class="muted" style="margin-top: 8px">We sent a sign-in link to <strong id="sentEmail" style="color: var(--ink)"></strong>. Open it on this device and you land back here, signed in. Nothing there? Give it a minute and check spam.</p>
+                <button type="button" class="btn btn-sm" style="margin-top: 18px" id="signinAgain">Use a different email</button>
+              </div>
+              <div id="signedIn" hidden>
+                <h3 style="font-size: 22px">You're on the list.</h3>
+                <p class="muted" style="margin-top: 8px">Signed in as <strong style="color: var(--ink)" data-user-email></strong>. We'll email you when View and control and Windows are ready.</p>
+                <div style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+                  <a class="btn btn-sm" href="./demo/">Open the full demo</a>
+                  <button type="button" class="link-btn" id="signOut">Sign out</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card raised" data-auth="in" hidden>
+            <form id="profileForm" novalidate>
+              <h3 style="font-size: 20px">About your setup (optional)</h3>
+              <p class="muted" style="margin: 6px 0 20px; font-size: 15px">Three questions, once. I read every answer myself and usually reply the same day, with a quote if you ask for one.</p>
+              <div class="field" id="f-company">
+                <label for="company">Company or team</label>
+                <input id="company" type="text" maxlength="200" placeholder="Northwind Dental" />
+                <p class="err">Tell us the company or team name.</p>
+              </div>
+              <div class="field" id="f-spend">
+                <label for="spend">Current monthly AI spend</label>
+                <select id="spend">
+                  <option value="">Select a bracket</option>
+                  <option>Under $1k / month</option>
+                  <option>$1k – $10k / month</option>
+                  <option>$10k – $50k / month</option>
+                  <option>$50k – $250k / month</option>
+                  <option>Over $250k / month</option>
+                </select>
+                <p class="err">Pick a monthly spend bracket.</p>
+              </div>
+              <div class="field">
+                <label for="notes">What do your AI agents do, and do you want a View and control quote? (optional)</label>
+                <textarea id="notes" rows="3" maxlength="2000" placeholder="For example: a support agent a freelancer built in n8n"></textarea>
+              </div>
+              <button type="submit" class="btn btn-accent" style="width: 100%" id="profileBtn">Save</button>
+              <p class="err" id="profileErr" style="text-align: center; margin-top: 12px"></p>
+              <p class="small" style="text-align: center; margin-top: 12px">Saved to your account as <span data-user-email></span>.</p>
+            </form>
+            <div id="profileDone" hidden>
+              <h3 style="font-size: 22px">Thanks, saved.</h3>
+              <p class="muted" style="margin-top: 8px"><span data-profile-summary></span> You can change it any time.</p>
+              <button type="button" class="btn btn-sm" style="margin-top: 18px" id="profileEdit">Edit answers</button>
             </div>
           </div>
         </div>
+      </section>
+    </main>
 
-        <div class="card" style="padding: 24px; box-shadow: var(--shadow-paper)" data-auth="in" hidden>
-          <form id="profileForm" novalidate>
-            <h3 style="font-size: 20px">About your setup</h3>
-            <p class="muted" style="margin: 4px 0 20px; font-size: 14px">
-              Three questions, once. I read every one of these myself and usually reply the same day.
-            </p>
-            <div class="field" id="f-company">
-              <label for="company">Company or team</label>
-              <input id="company" type="text" placeholder="Acme Platform" />
-              <p class="err">Tell us the company or team name.</p>
-            </div>
-            <div class="field" id="f-spend">
-              <label for="spend">Current monthly AI spend</label>
-              <select id="spend">
-                <option value="">Select a bracket</option>
-                <option>Under $1k / month</option>
-                <option>$1k – $10k / month</option>
-                <option>$10k – $50k / month</option>
-                <option>$50k – $250k / month</option>
-                <option>Over $250k / month</option>
-              </select>
-              <p class="err">Pick a monthly spend bracket.</p>
-            </div>
-            <div class="field">
-              <label for="notes">What's driving the cost? (optional)</label>
-              <textarea id="notes" rows="3" placeholder="Agent fanout, long contexts, eval runs…"></textarea>
-            </div>
-            <button type="submit" class="btn btn-lg btn-ink" style="width: 100%" id="profileBtn">Save</button>
-            <p class="err" id="profileErr" style="text-align: center; margin-top: 12px"></p>
-            <p class="muted" style="text-align: center; font-size: 12px; margin-top: 12px">
-              Saved to your account as <span class="mono" data-user-email></span>.
-            </p>
-          </form>
-          <div id="profileDone" hidden style="padding: 24px 0">
-            <div style="font-size: 32px; color: var(--positive)">✓</div>
-            <h3 style="font-size: 24px; margin-top: 12px">Thanks, saved.</h3>
-            <p class="muted" style="margin-top: 8px">
-              <span data-profile-summary></span> If anything changes, you can edit it any time.
-            </p>
-            <button class="btn btn-outline" style="margin-top: 24px" id="profileEdit">Edit answers</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="section">
-      <div class="wrap" style="max-width: 760px">
-        <span class="label">FAQ</span>
-        <h2 class="head">Questions people ask before they buy.</h2>
-        <div id="faq" style="margin-top: 32px"></div>
-      </div>
-    </section>
-
-    <!-- WHERE THIS CAME FROM -->
-    <section class="section deep">
+    <footer class="site-foot">
       <div class="wrap">
-        <span class="label">Where this came from</span>
-        <h2 class="head">A cost model first, a product second.</h2>
-        <p class="lede">
-          CostGrid began as research into why AI bills rise while token prices fall, across six
-          modules covering price decay, routing, volume, spend, seat pricing and EBITDA impact,
-          driven from a single assumptions sheet. The routing maths in the product is that model.
-          The difference is that the product measures your real numbers instead of assuming them.
-        </p>
-        <div class="grid g3" style="margin-top: 32px">
-          <a class="card source-card" href="./thesis.html" style="padding: 20px; text-decoration: none; display: block">
-            <span class="label">The thesis</span>
-            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">Why unit price is the wrong thing to watch →</p>
-          </a>
-          <a class="card source-card" href="./dashboard.html" style="padding: 20px; text-decoration: none; display: block">
-            <span class="label">Research dashboard</span>
-            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">The original model, illustrative figures →</p>
-          </a>
-          <a class="card source-card" href="./CostGrid_Token_Cost_Model.xlsx" style="padding: 20px; text-decoration: none; display: block">
-            <span class="label">The workbook</span>
-            <p style="margin-top: 8px; font-size: 15px; color: var(--ink)">2023–2030 forecast model · XLSX →</p>
-          </a>
-        </div>
-        <a class="card source-card" href="./research.html" style="padding: 22px; text-decoration: none; display: block; margin-top: 16px">
-          <span class="label">The research, source by source</span>
-          <p style="margin-top: 8px; font-size: 15px; color: var(--ink); max-width: 760px">
-            Twelve sources from EY, NIST, Stanford HAI, Citadel Securities, Apple, and researchers at
-            Stanford, MIT and Berkeley: what each found, which feature it became, and a NIST AI RMF
-            crosswalk. Sources that only inform the context are labelled as such →
-          </p>
-        </a>
-      </div>
-    </section>
-
-    <footer>
-      <div class="wrap" style="padding-top: 56px; padding-bottom: 56px">
-        <div class="foot-top">
-          <h2 style="font-size: 30px; max-width: 480px; color: var(--paper)">
-            Cap the bill before it surprises you.
-          </h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 12px">
-            <a class="btn btn-lg btn-signal" href="#start">Start free trial</a>
-            <a class="btn btn-lg btn-ghost-dark" href="#demo">See the sample dashboard</a>
-          </div>
+        <div class="foot-facts">
+          <span>Never reads prompts or answers</span>
+          <span>Keys locked with your Mac's Keychain</span>
+          <span>Source-available under FSL-1.1-ALv2</span>
         </div>
         <div class="foot-bot">
-          <span>costgrid.dev — built by Tomas Buica</span>
-          <span>Flat rate · 0% of spend · 60-day guarantee</span>
+          <span>costgrid.dev · built by Tomas Buica</span>
+          <nav aria-label="Footer">
+            <a href="./research.html">Research</a>
+            <a href="./research.html#lcso">The LCSO method</a>
+            <a href="./demo/">Demo (needs a sign-in link)</a>
+            <a href="#download">Download</a>
+          </nav>
         </div>
       </div>
     </footer>
 
     <script src="vendor/supabase-js-2.117.1.js"></script>
     <script src="auth.js"></script>
-    <script src="flow.js"></script>
-    <script>
-      // mobile menu
-      var menuBtn = document.getElementById("menuBtn");
-      var menu = document.getElementById("mobileMenu");
-      menuBtn.addEventListener("click", function () {
-        var open = menu.classList.toggle("open");
-        menuBtn.setAttribute("aria-expanded", String(open));
-      });
-      menu.addEventListener("click", function (e) {
-        if (e.target.tagName === "A") { menu.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }
-      });
-
-      // dashboard views — real numbers from the demo snapshot (packages: spend-by-department,
-      // spend-by-agent, spend-by-model), not invented. Token counts formatted as K/M.
-      var views = {
-        team: [
-          { name: "Support", spend: 10.75, calls: "249", share: 100, note: "2.53M in · 568K out" },
-          { name: "Engineering", spend: 7.60, calls: "171", share: 71, note: "1.75M in · 394K out" },
-          { name: "Marketing", spend: 1.66, calls: "36", share: 15, note: "369K in · 83K out" },
-          { name: "Unassigned", spend: 0.77, calls: "21", share: 7, note: "216K in · 49K out" }
-        ],
-        agent: [
-          { name: "chat-bot", spend: 6.86, calls: "77", share: 100, note: "764K in · 172K out" },
-          { name: "code-review", spend: 4.76, calls: "43", share: 69, note: "440K in · 99K out" },
-          { name: "ticket-triage", spend: 3.89, calls: "172", share: 57, note: "1.76M in · 396K out" },
-          { name: "lint-bot", spend: 2.84, calls: "128", share: 41, note: "1.31M in · 295K out" }
-        ],
-        model: [
-          { name: "claude-opus-5", spend: 11.48, calls: "104", share: 100, note: "1.06M in · 239K out" },
-          { name: "claude-haiku-4-5", spend: 6.97, calls: "317", share: 61, note: "3.23M in · 725K out" },
-          { name: "claude-sonnet-5", spend: 1.56, calls: "35", share: 14, note: "360K in · 81K out" },
-          { name: "gpt-5", spend: 0.77, calls: "21", share: 7, note: "216K in · 49K out" }
-        ]
-      };
-      var rowsEl = document.getElementById("rows");
-      function money(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-      function render(view) {
-        rowsEl.innerHTML = views[view]
-          .map(function (r) {
-            return (
-              '<li class="row"><div class="row-top"><span>' + r.name + "</span><span>" + money(r.spend) +
-              '</span></div><div class="bar"><i style="width:' + r.share + '%"></i></div>' +
-              '<div class="row-bot"><span>' + r.calls + " calls</span><span>" + r.note + "</span></div></li>"
-            );
-          })
-          .join("");
-      }
-      document.querySelectorAll(".tab").forEach(function (tab) {
-        tab.addEventListener("click", function () {
-          document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", "false"); });
-          tab.setAttribute("aria-selected", "true");
-          render(tab.getAttribute("data-view"));
-        });
-      });
-      render("team");
-
-      // policy topology — illustrative, drawn by hand (the real one is data-driven, in the demo)
-      var topology = [
-        { agent: "triage-agent", tools: ["web.search", "db.query"], denied: ["files.write"] },
-        { agent: "research-agent", tools: ["web.search", "vector.lookup"], denied: ["code.exec"] },
-        { agent: "writer-agent", tools: ["vector.lookup"], denied: ["db.query", "files.write"] }
-      ];
-      document.getElementById("topology").innerHTML = topology
-        .map(function (t) {
-          var pills = t.tools
-            .map(function (x) { return '<span class="pill allow">✓ ' + x + "</span>"; })
-            .concat(t.denied.map(function (x) { return '<span class="pill deny">⦸ ' + x + "</span>"; }))
-            .join("");
-          return (
-            '<div style="border:1px solid var(--rule-soft);border-radius:6px;padding:16px">' +
-            '<span class="mono" style="font-size:14px">' + t.agent + "</span>" +
-            '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">' + pills + "</div></div>"
-          );
-        })
-        .join("");
-
-      /*
-       * Sign-in and the signed-in "Your setup" section. Accounts live in Supabase (see
-       * auth.js). The page is static, so everything below runs in the browser: it asks
-       * for a sign-in link, notices when the link brings the person back, and shows or
-       * hides the [data-auth] parts to match.
-       */
-      var currentUser = null;
-
-      function fieldValue(id) { return document.getElementById(id).value.trim(); }
-
-      function show(el, on) { el.hidden = !on; }
-
-      function markInvalid(id, valid) { document.getElementById(id).classList.toggle("invalid", !valid); return valid; }
-
-      function renderAuth(user) {
-        currentUser = user;
-        document.querySelectorAll("[data-auth]").forEach(function (el) {
-          show(el, (el.getAttribute("data-auth") === "in") === !!user);
-        });
-        document.querySelectorAll("[data-user-email]").forEach(function (el) {
-          el.textContent = user ? user.email : "";
-        });
-        show(document.getElementById("signinForm"), !user);
-        show(document.getElementById("signinSent"), false);
-        show(document.getElementById("signedIn"), !!user);
-        if (user) loadProfile(user);
-      }
-
-      var signinForm = document.getElementById("signinForm");
-      var signinBtn = document.getElementById("signinBtn");
-      var signinErr = document.getElementById("signinErr");
-
-      signinForm.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var email = fieldValue("signinEmail");
-        signinErr.textContent = "Enter a valid work email.";
-        if (!markInvalid("f-signin", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return;
-        signinBtn.disabled = true;
-        signinBtn.textContent = "Sending…";
-        CG_AUTH.sendLink(email).then(
-          function () {
-            document.getElementById("sentEmail").textContent = email;
-            show(signinForm, false);
-            show(document.getElementById("signinSent"), true);
-          },
-          function (err) {
-            signinErr.textContent = "Couldn't send the link: " + (err && err.message ? err.message : "please try again.");
-            markInvalid("f-signin", false);
-          }
-        ).then(function () {
-          signinBtn.disabled = false;
-          signinBtn.textContent = "Email me a sign-in link";
-        });
-      });
-
-      document.getElementById("signinAgain").addEventListener("click", function () {
-        show(document.getElementById("signinSent"), false);
-        show(signinForm, true);
-        document.getElementById("signinEmail").focus();
-      });
-
-      document.getElementById("signOut").addEventListener("click", function () {
-        CG_AUTH.signOut().then(function () { renderAuth(null); });
-      });
-
-      // profile: the three questions, asked once and kept on the account
-      var profileForm = document.getElementById("profileForm");
-      var profileDone = document.getElementById("profileDone");
-      var profileErr = document.getElementById("profileErr");
-      var profileBtn = document.getElementById("profileBtn");
-
-      function showProfile(p) {
-        if (p) {
-          document.getElementById("company").value = p.company || "";
-          document.getElementById("spend").value = p.spend || "";
-          document.getElementById("notes").value = p.notes || "";
-          document.querySelector("[data-profile-summary]").textContent =
-            p.company + ", " + p.spend.toLowerCase() + ".";
-        }
-        show(profileForm, !p);
-        show(profileDone, !!p);
-      }
-
-      function loadProfile(user) {
-        CG_AUTH.getProfile(user.id).then(showProfile, function () { showProfile(null); });
-      }
-
-      profileForm.addEventListener("submit", function (e) {
-        e.preventDefault();
-        if (!currentUser) return;
-        var fields = { company: fieldValue("company"), spend: fieldValue("spend"), notes: fieldValue("notes") };
-        var ok = markInvalid("f-company", fields.company.length >= 2);
-        ok = markInvalid("f-spend", !!fields.spend) && ok;
-        if (!ok) return;
-        profileErr.style.display = "none";
-        profileBtn.disabled = true;
-        profileBtn.textContent = "Saving…";
-        CG_AUTH.saveProfile(currentUser, fields).then(
-          function () { showProfile(fields); },
-          function (err) {
-            profileErr.textContent = "Couldn't save: " + (err && err.message ? err.message : "please try again.");
-            profileErr.style.display = "block";
-          }
-        ).then(function () {
-          profileBtn.disabled = false;
-          profileBtn.textContent = "Save";
-        });
-      });
-
-      document.getElementById("profileEdit").addEventListener("click", function () {
-        show(profileDone, false);
-        show(profileForm, true);
-      });
-
-      // Runs once now (a returning visitor, or a sign-in link that just landed) and again
-      // whenever the session changes. A fresh sign-in scrolls to the setup section.
-      CG_AUTH.client.auth.onAuthStateChange(function (event, s) {
-        var user = s ? s.user : null;
-        if (!!user === !!currentUser && event !== "INITIAL_SESSION") return;
-        renderAuth(user);
-        if (event === "SIGNED_IN" && user) document.getElementById("setup").scrollIntoView({ behavior: "smooth" });
-      });
-
-      // faq
-      var faqs = [
-        ["Do I need to be technical to use this?", "Not to see your spend: download the app, open it and paste a key. Sending your software's AI requests through CostGrid is a small change in one place, made by whoever looks after that software. The app shows them exactly what to change."],
-        ["How does CostGrid actually stop the spending?", "Your software sends each AI request to CostGrid, and CostGrid passes it on to the provider. When a request would go over a limit, CostGrid doesn't pass it on. It answers your software with a clear \u201cover budget\u201d message instead, so nothing reaches the provider and nothing is billed. If you'd rather keep things running, a limit can switch the request to a cheaper model instead of stopping it. You can also stop any one agent or team with a single click, and you're told the moment a limit fires, on your Mac or in a Slack channel. Either way, the attempt is recorded."],
-        ["Will this break my other tools, like HubSpot?", "No. CostGrid only sees the requests your own software sends to it. It never switches off a key, never touches your provider account, and doesn't sit in front of any other tool. HubSpot's AI runs on HubSpot's own account, so it carries on exactly as before. When a team hits its limit, only that team's requests through CostGrid are affected."],
-        ["Do my prompts or keys ever reach your servers?", "No. CostGrid runs on your own machine, and your requests go straight from there to the AI provider. Prompts, answers and provider keys stay with you. The only things we hold are the email you sign in to this website with, and the answers you give us about your setup. The full detail is in the \u201cIs my key safe?\u201d section above."],
-        ["Will it slow anything down?", "By about a thousandth of a second per request. An AI request takes half a second or more, so nobody notices. The measurements are in the Proof section above, including the one we don't publish yet and why."],
-        ["How accurate is the cost number?", "Costs come from the provider's own record of what each request used, priced with a table of 58 models. Before every release that table is checked against the providers' live published prices, and a mismatch stops the release until it's fixed. Last checked 3 October 2026."],
-        ["Which AI providers does it work with?", "Anthropic, OpenAI, AWS Bedrock and Google Vertex, with nothing changed in how your software talks to them. Bedrock and Vertex haven't yet been run against a live production account, so the app includes a one-minute check that confirms yours works before you rely on it. Seeing your past 90 days of spend works with Anthropic and OpenAI."],
-        ["My AI runs on a server, not a Mac. Can I still use it?", "Yes. The Mac app covers AI requests made on the Mac it's installed on. For software on a server, CostGrid runs on that server instead, with the same app screens and the same rules. Sign in, tell me about your setup, and I'll set it up with you."],
-        ["Is there a Windows version?", "Mac today. Windows is next."]
-      ];
-      document.getElementById("faq").innerHTML = faqs
-        .map(function (f, i) {
-          return (
-            '<div class="faq-item"><button class="faq-q" aria-expanded="false" data-i="' + i + '">' +
-            f[0] + '<span class="chev">⌄</span></button><div class="faq-a" id="a' + i + '">' + f[1] + "</div></div>"
-          );
-        })
-        .join("");
-      document.querySelectorAll(".faq-q").forEach(function (q) {
-        q.addEventListener("click", function () {
-          var i = q.getAttribute("data-i");
-          var a = document.getElementById("a" + i);
-          var open = a.classList.contains("open");
-          document.querySelectorAll(".faq-a").forEach(function (x) { x.classList.remove("open"); });
-          document.querySelectorAll(".faq-q").forEach(function (x) { x.setAttribute("aria-expanded", "false"); });
-          if (!open) { a.classList.add("open"); q.setAttribute("aria-expanded", "true"); }
-        });
-      });
-    </script>
+    <script src="site.js"></script>
   </body>
 </html>

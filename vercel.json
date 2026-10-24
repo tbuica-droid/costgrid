@@ -3,6 +3,12 @@
   "buildCommand": "echo 'static site - nothing to build'",
   "installCommand": "echo 'no dependencies to install'",
   "outputDirectory": ".",
+  "redirects": [
+    { "source": "/thesis.html", "destination": "/research.html", "permanent": true },
+    { "source": "/thesis", "destination": "/research.html", "permanent": true },
+    { "source": "/dashboard.html", "destination": "/research.html", "permanent": true },
+    { "source": "/dashboard", "destination": "/research.html", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/demo/api/(.*)",
@@ -23,6 +29,10 @@
         {
           "key": "referrer-policy",
           "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "content-security-policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://wuxrdpsuykzsfdfpbnmi.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]
     }
