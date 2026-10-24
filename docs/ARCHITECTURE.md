@@ -26,6 +26,35 @@ proxy path is deliberately thin — parse nothing that does not need parsing,
 stream bytes through untouched, and never let a metering failure break a
 caller's response.
 
+## Version 2: cost per successful outcome, added to the app
+
+Recorded in [ADR-0001](adr/0001-v2-view-and-control-additive.md). Version 2 is
+built on top of everything below, not instead of it: the desktop app keeps
+running the embedded gateway, and the proxy stays as the advanced, per-run
+control path.
+
+- **The LCSO engine is pure.** `packages/core/src/lcso.ts` (types in
+  `lcso-types.ts`) takes tasks, their runs and their outcome states and returns
+  LCSO-1/2/3, Failure Cost Share, cost spread (p50/p90/p99, spread ratio, tail
+  share), success, clawback and autonomy rates, and HER. It does no I/O, so
+  step 5 (results screen) and step 9 (statement) call it with whatever the
+  repositories hold. The method's §14 worked example is a golden test
+  (`packages/core/test/lcso.test.ts`), and seven invariants run over seeded
+  random inputs (`lcso-properties.test.ts`).
+- **Counted per task, not per run.** A retry never improves the success rate.
+  UNKNOWN outcomes count as failures. A success inside its maturation window is
+  pending: excluded from both sides, its cost carried forward.
+- **Quotients are exact.** `ratio.ts` carries numerator and denominator as the
+  bigint sums that produced them and rounds once, at display, half away from
+  zero. `toUsdString` truncates, so per-outcome figures go through
+  `formatUsdPerOutcome` instead.
+- **A missing figure is never zero.** Every metric is `Reported<T>`: a value,
+  or the reason it is withheld (no successes, aggregate mode, no human
+  baseline…). Owners who only connect provider usage reports get the aggregate
+  mode, where failure share and spread are "not reported".
+- **Percentiles are nearest-rank in integers** (`stats.ts`), shared with the
+  insights reports, so a reported p90 is the cost of a real task.
+
 ## Package layout
 
 ```
@@ -580,9 +609,11 @@ billing history is unrecoverable without a backup.
   have not been run against a live account (see above).
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
-- The website (Vercel, costgrid.dev) is static. `index.html` is the product page,
-  `thesis.html` and `dashboard.html` the original research write-up and its
-  seeded dashboard, and `demo/` runs the
+- The website (Vercel, costgrid.dev) is static. `index.html` is the product page
+  and `research.html` the sources and the LCSO method (the old thesis and
+  research-dashboard pages redirect there). Both load only first-party files
+  under a strict Content-Security-Policy in `vercel.json`, with Manrope
+  self-hosted in `fonts/`. `demo/` runs the
   *real* dashboard bundle against captured API snapshots — a transport swap in
   `demo/demo-data.js` and nothing else, so the demo cannot drift from the
   product by reimplementing any of its numbers. Refreshing it means re-capturing

@@ -122,6 +122,11 @@ breakdowns), Statement (a calendar month, with CSV export), Agents (one row per
 cost line), Routing (your measured substitution share against the modelled
 optimum), Policies (rules and the enforcement feed), and Pricing (the catalog).
 
+The views are in the left sidebar, with the time range below them. The
+dashboard and the console are dark by default; to change that, open the
+console's **Settings → Appearance** and pick Light or Match system. The choice
+is kept in this browser only.
+
 Everything on it is read from metered calls. There is no sample data. An empty
 database shows you an empty state, not a plausible chart.
 

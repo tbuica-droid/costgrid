@@ -97,9 +97,10 @@ packages/
   cli/      Operator surface: keys, policies, reports, statements, backups.
   desktop/  The app: the gateway and its console in a window, for one computer.
 docs/       QUICKSTART (self-hosted), TRIAL (what a trial involves),
-            HOSTING (as a service), ARCHITECTURE (decisions and their reasons).
-index.html  The product site. thesis.html and dashboard.html are the
-            original research write-up and its illustrative dashboard.
+            HOSTING (as a service), ARCHITECTURE (decisions and their reasons),
+            adr/ (architecture decision records).
+index.html  The product site. research.html lists the sources and the LCSO
+            method. site.css and site.js are shared by both pages.
 demo/       The real dashboard against a captured snapshot, for GitHub Pages.
 scripts/    Pricing verification and an end-to-end smoke test.
 CostGrid_Token_Cost_Model.xlsx   The forecast model, 2023 to 2030.
@@ -111,8 +112,7 @@ npm install && npm run build && npm test
 
 **Site:** <https://costgrid.dev> ·
 **Dashboard demo:** <https://costgrid.dev/demo/> ·
-**Thesis:** <https://costgrid.dev/thesis.html> ·
-**Research dashboard:** <https://costgrid.dev/dashboard.html>
+**Research and the LCSO method:** <https://costgrid.dev/research.html>
 
 ---
 
@@ -120,9 +120,15 @@ npm install && npm run build && npm test
 
 CostGrid started from an observation: per-token prices are collapsing and
 enterprise AI bills are rising anyway. Unit price is the wrong thing to watch.
-Spend is price multiplied by volume, and volume usually wins. `thesis.html`,
-`dashboard.html` and the spreadsheet are that research, and the routing
-economics in `packages/core/src/routing.ts` come straight from it.
+Spend is price multiplied by volume, and volume usually wins. The research
+page and the spreadsheet are that research, and the routing economics in
+`packages/core/src/routing.ts` come straight from it.
+
+Version 2 measures what a business actually buys: the cost per *successful*
+outcome (LCSO), with failed and retried attempts charged to the successes they
+pursued. The engine is `packages/core/src/lcso.ts`; the method is summarised on
+`research.html#lcso` and the decision is recorded in
+[docs/adr/0001-v2-view-and-control-additive.md](docs/adr/0001-v2-view-and-control-additive.md).
 
 **Cost taxonomy.** Tokens are the visible line, not the whole bill. The model
 separates the token line from governance, deployment, observability and
@@ -149,7 +155,7 @@ text marking cells meant to be changed and a source note beside each hardcoded
 number. `Model` is entirely formulas driven by those assumptions. Six modules:
 price decay, routing, volume, spend, seat pricing, and EBITDA impact.
 
-The figures in `dashboard.html` describe an illustrative organisation, not a
+The spreadsheet's figures describe an illustrative organisation, not a
 real one. Every figure in the *product* dashboard is measured from traffic, and an
 empty database shows an empty state rather than a plausible chart.
 

@@ -1,6 +1,6 @@
 # CostGrid: where we are, and what changed after the first outside feedback
 
-Updated 3 October 2026.
+Updated 24 October 2026.
 
 ## The road so far
 
@@ -14,6 +14,8 @@ Updated 3 October 2026.
 | 27 September | Plain-language website. Self-hosting, terminal commands and jargon removed. |
 | 2 October | First outside feedback on the website, from a professional contact, below. |
 | 3 October | Closing the gap between the twelve research sources and the product, at the end of this file. |
+| 15 October | Licence switched to FSL-1.1-ALv2. A gap report compared the code with the version 2 direction (cost per successful job, desktop first, View and View and control) and checked what the OpenAI and Anthropic admin APIs allow. |
+| 23 to 24 October | Version 2, round 1: the LCSO engine, a new look for the app and the website, and a rebuilt website. Details below. |
 
 ## What the feedback said
 
@@ -165,3 +167,18 @@ An audit of the twelve sources the project was meant to be built on found the pr
   - runaway-run warnings.
 - The Limits and Results screens were tried in a browser against a gateway seeded with realistic traffic. The research page was checked at desktop and phone widths, with no sideways scrolling.
 
+
+
+## Version 2, round 1 (24 October 2026)
+
+**What changed**
+- **Cost per successful job.** A new engine in the app's core works out LCSO: what one successful job really costs, with failed and retried attempts charged to the jobs that worked, plus the share of spend on failures and how much the cost of a job varies. It reproduces the method's worked example exactly ($0.390, $1.008 and $1.521 per success; 38.2% on failures). It is not on a screen yet; the results screen (step 5) will use it.
+- **A new look.** After three proposals, the "Midnight" direction: dark navy, a champagne accent, and Manrope, a plain readable typeface. The app has a left sidebar, pill buttons and a Dark / Light / Match system setting. Fonts are bundled, so nothing loads from the internet.
+- **The website, rebuilt.** New headline, "Optimize your AI costs by what actually gets done.", a preview of the results screen, an illustrative example, Free View and View and control (pricing on request), privacy and key safety, an honest FAQ, and public Mac downloads. Features that aren't built yet are marked "coming". The research page gained the LCSO method (CC BY 4.0). The old thesis and research-dashboard pages were removed and redirect to the research page. Google Fonts is gone and a Content-Security-Policy was added.
+
+**How it was checked**
+- 796 tests pass, up from 717 (79 new for the LCSO engine).
+- Code review, security review (no findings) and a separate check of every line of website copy against the claims rules; everything they found was fixed or noted.
+- The website and the app were looked at in a browser at desktop and phone widths; the app in dark and light.
+
+**Still to do in version 2:** the three-step setup for owners, one key per agent, automatic outcome detection, the results screen, Windows, the key-safety checker, View and control, and the monthly PDF statement.
