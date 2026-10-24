@@ -1,315 +1,113 @@
 /**
- * Setup, as five steps: a provider key, a test of it, a gateway key, the one
- * change to make in your software, and the first call arriving.
+ * Setup, as three steps an owner can finish without touching code: sign in,
+ * connect the AI accounts, and say what each workflow is for.
+ *
+ * This file is the shell: it loads what each step needs, decides which step
+ * is next, and lays them out. The steps render themselves (console-connect.js,
+ * console-purpose.js) and handle their own forms. The developer route, traffic
+ * through CostGrid, stays below them under "Advanced" (console-proxy.js).
  *
  * Every step reads its state from the server, so the page is right after a
- * reload and after doing the same thing on the settings screen. The only
- * things kept here are a test result and a freshly created key, both of which
- * exist only for the moment they are shown.
+ * reload and after doing the same thing elsewhere.
  */
 
-import { call, flashBanner, formValues, state } from "./console-api.js";
-import { button, count, escapeHtml, money, pageHead } from "./ui.js";
+import { call, flashBanner, state } from "./console-api.js";
+import { connectDone, renderConnect } from "./console-connect.js";
+import { proxyNeedsSetup, renderSteps } from "./console-proxy.js";
+import { purposeDone, renderPurposes } from "./console-purpose.js";
+import { escapeHtml, pageHead } from "./ui.js";
 
-const held = { preflight: {}, newKey: null, newKeyName: null };
-let poll = null;
-
-/** True until the organisation has a provider key and a gateway key. */
-export async function needsSetup(tenantId) {
-  const [credentials, keys] = await Promise.all([
-    call("GET", `/console/${tenantId}/credentials`),
-    call("GET", `/console/${tenantId}/keys`),
-  ]);
-  return !credentials.providers.some((p) => p.configured) || !keys.keys.some((k) => !k.revokedAt);
-}
-
-function step(n, title, status, body) {
-  const tag =
-    status === "done"
-      ? '<span class="tag on">done</span>'
-      : status === "next"
-        ? '<span class="tag warn">next</span>'
-        : '<span class="tag off">later</span>';
-  return `<div class="card" style="margin-bottom:12px">
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <span class="step-label">Step ${n}</span>
-      <h3 style="margin:0">${escapeHtml(title)}</h3>${tag}
-    </div>
-    <div style="margin-top:12px">${body}</div>
-  </div>`;
-}
-
-const input = (name, placeholder, type = "text") =>
-  `<input name="${name}" type="${type}" placeholder="${escapeHtml(placeholder)}" autocomplete="off"
-     aria-label="${escapeHtml(placeholder)}" class="w-key" />`;
-
-function providerKeys(providers) {
-  return providers
-    .map(
-      (p) => `<form class="wizard-cred-form form-row" data-provider="${escapeHtml(p.provider)}">
-        <span class="provider">${escapeHtml(p.provider)}</span>
-        ${
-          p.configured
-            ? `<span class="tag on">saved</span> <code>${escapeHtml(p.hint)}</code>`
-            : '<span class="tag off">not set</span>'
-        }
-        ${input("apiKey", p.configured ? "Replace key" : "Paste key", "password")}
-        ${button("Save", 'type="submit"')}
-      </form>`,
-    )
-    .join("");
-}
-
-function preflightResult(provider) {
-  const result = held.preflight[provider];
-  if (!result) return "";
-  const rows = result.steps
-    .map(
-      (s) => `<tr>
-        <td><span class="tag ${s.ok ? "on" : "block"}">${s.ok ? "pass" : "fail"}</span></td>
-        <td><code>${escapeHtml(s.name)}</code></td>
-        <td style="white-space:normal">${escapeHtml(s.detail)}</td>
-      </tr>`,
-    )
-    .join("");
-  return `<div class="scroll-x" style="margin:8px 0 14px"><table><tbody>${rows}</tbody></table></div>
-    <p class="kpi-sub">${
-      result.ok
-        ? "Everything this channel needs is working against your account."
-        : "Something is wrong. If the failing stage is usage or route, that is a bug in CostGrid rather than in your setup."
-    }</p>`;
-}
-
-function snippets(providers, key) {
-  const origin = location.origin;
-  const k = escapeHtml(key);
-  const pre = (text) => `<pre class="code-block">${text}</pre>`;
-  const out = [];
-  if (providers.includes("anthropic")) {
-    out.push(
-      `<p><strong>Anthropic</strong>. Two settings, in code or as environment variables.</p>`,
-      pre(`# Python\nclient = Anthropic(base_url="${origin}", api_key="${k}")\n\n# TypeScript\nconst client = new Anthropic({ baseURL: "${origin}", apiKey: "${k}" });\n\n# or in the environment\nANTHROPIC_BASE_URL=${origin}\nANTHROPIC_API_KEY=${k}`),
-    );
-  }
-  if (providers.includes("openai")) {
-    out.push(
-      `<p><strong>OpenAI</strong>. The address ends in <code>/v1</code>, the way the SDK expects.</p>`,
-      pre(`# Python\nclient = OpenAI(base_url="${origin}/v1", api_key="${k}")\n\n# or in the environment\nOPENAI_BASE_URL=${origin}/v1\nOPENAI_API_KEY=${k}`),
-    );
-  }
-  if (providers.includes("bedrock") || providers.includes("vertex")) {
-    out.push(
-      `<p><strong>Bedrock and Vertex</strong>. Point the client at <code>${escapeHtml(origin)}</code>
-        and send the key as the <code>x-costgrid-key</code> header on every request.</p>`,
-    );
-  }
-  return out.join("");
-}
+/** Whether "Advanced" was left open, so a redraw does not fold it away. */
+let advancedOpen = false;
 
 /**
- * The trial path: real spend today, before any software is changed.
- *
- * An admin key reads the provider's own usage report for the last 90 days.
- * It is used for that one request and never stored. What comes back is the
- * provider's daily totals, not calls we watched, so it is shown apart from
- * metered spend and nothing can be enforced on it.
+ * True until there is usage to show: nothing imported, no sources, and the
+ * proxy route not set up either. A server too old for /connect falls back to
+ * the proxy rule alone.
  */
-function trialSection(importState, history, tenant) {
-  const forms = importState.providers
-    .map(
-      (p) => `<form class="wizard-import-form form-row" data-provider="${escapeHtml(p.provider)}">
-        <span class="provider">${escapeHtml(p.provider)}</span>
-        ${input("adminKey", "Admin key", "password")}
-        <select name="days" aria-label="How far back">
-          <option value="30">30 days</option>
-          <option value="90" selected>90 days</option>
-          <option value="365">1 year</option>
-        </select>
-        ${button("Show my spend", 'type="submit"')}
-        <span class="kpi-sub note">${escapeHtml(p.keyHint)}</span>
-      </form>`,
-    )
-    .join("");
-
-  const seen = history.present
-    ? `<p style="margin:0 0 12px"><strong>Your last ${history.days} days: ${money(history.effectiveCostUsd)}</strong>${
-        history.requests ? ` across ${count(history.requests)} requests` : ""
-      }, as reported by the provider.
-       <a href="/?tenant=${encodeURIComponent(tenant)}">Open the dashboard</a> to see it by day and by model.</p>`
-    : "";
-
-  return `<div class="card sunk" style="margin-bottom:20px">
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <span class="step-label">Before you change anything</span>
-      <h3 style="margin:0">See your real spend now</h3>
-      ${history.present ? '<span class="tag on">imported</span>' : ""}
-    </div>
-    <p class="kpi-sub" style="margin:10px 0 12px">Paste an <strong>admin</strong> key and CostGrid reads
-      your organisation's usage report straight from the provider: what you spent, by day and by
-      model, for the last 90 days. The key is used for this one request and never stored. Nothing in
-      your software changes.</p>
-    ${seen}
-    ${forms}
-  </div>`;
+export async function needsSetup(tenantId) {
+  const connect = await call("GET", `/console/${tenantId}/connect`).catch(() => null);
+  if (connectDone(connect)) return false;
+  return proxyNeedsSetup(tenantId);
 }
+
+const settle = (promise) =>
+  promise.then(
+    (value) => ({ value }),
+    (error) => ({ error }),
+  );
+
+const TAGS = {
+  done: '<span class="tag on">Done</span>',
+  next: '<span class="tag warn">Next</span>',
+  later: '<span class="tag">Later</span>',
+};
+
+function step(n, title, status, body) {
+  return `<li class="stepper-step is-${status}">
+    <span class="stepper-marker" aria-hidden="true">${n}</span>
+    <section class="card stepper-card" aria-labelledby="setup-step-${n}">
+      <div class="stepper-head">
+        <h2 id="setup-step-${n}">${escapeHtml(title)}</h2>${TAGS[status]}
+      </div>
+      ${body}
+    </section>
+  </li>`;
+}
+
+const failed = (what, error) =>
+  `<div class="banner bad"><strong>${escapeHtml(`${what} could not be loaded: ${error.message}`)}</strong></div>`;
 
 export async function render() {
   const t = state.tenantId;
-  const overviewUrl = `/api/overview?days=1&tenant=${encodeURIComponent(t)}`;
-  const [credentials, keys, overview, importState, history] = await Promise.all([
-    call("GET", `/console/${t}/credentials`),
-    call("GET", `/console/${t}/keys`),
-    call("GET", overviewUrl),
-    call("GET", `/console/${t}/import`),
-    call("GET", `/api/history?days=90&tenant=${encodeURIComponent(t)}`),
+  const [connect, sourceList, presetList, proxy] = await Promise.all([
+    settle(call("GET", `/console/${t}/connect`)),
+    settle(call("GET", `/console/${t}/sources?days=90`)),
+    settle(call("GET", "/console/presets")),
+    settle(renderSteps()),
   ]);
 
-  const configured = credentials.providers.filter((p) => p.configured).map((p) => p.provider);
-  const activeKeys = keys.keys.filter((k) => !k.revokedAt);
-  const seen = overview.calls > 0;
-  const tested = configured.some((p) => held.preflight[p]?.ok);
+  const sources = sourceList.value?.sources ?? [];
+  const presets = presetList.value?.presets ?? [];
+  const connected = connectDone(connect.value) || sources.length > 0;
+  const named = purposeDone(sources);
+  const status2 = connected ? "done" : "next";
+  const status3 = named ? "done" : connected ? "next" : "later";
 
-  const done = [configured.length > 0, tested || seen, activeKeys.length > 0, seen, seen];
-  const next = done.indexOf(false);
-  const status = (i) => (done[i] ? "done" : i === next ? "next" : "later");
+  // Only a desktop install keeps the account on this computer; a hosted one does not.
+  const signedIn = `<p>Signed in as <strong>${escapeHtml(state.user.email)}</strong>.${
+    state.setup?.singleAccount === true ? " This account stays on this computer." : ""
+  }</p>`;
+  const connectBody = connect.value ? renderConnect(connect.value) : failed("Your connections", connect.error);
+  const purposeBody = sourceList.error
+    ? failed("Your keys and projects", sourceList.error)
+    : renderPurposes(sources, presets, connected);
 
-  if (!seen) watchForFirstCall(overviewUrl);
-
-  const keyValue = held.newKey ?? "cg_live_…";
   return `
-    ${pageHead(
-      "Set up CostGrid",
-      `Five steps from nothing to a real number. Each one is checked against
-      what is actually saved, so you can leave and come back.`,
-    )}
+    ${pageHead("Set up CostGrid", "Three steps to see what each successful AI job costs you.")}
     ${flashBanner()}
-    ${trialSection(importState, history, t)}
+    <ol class="stepper">
+      ${step(1, "Sign in", "done", signedIn)}
+      ${step(2, "Connect your AI accounts", status2, connectBody)}
+      ${step(3, "Say what each workflow is for", status3, purposeBody)}
+    </ol>
 
-    ${step(1, "Add your provider key", status(0), `
-      <p class="kpi-sub" style="margin-bottom:12px">The key you already use with the provider. It is
-        encrypted before it is stored and is never shown again, not even to you.</p>
-      ${providerKeys(credentials.providers)}`)}
-
-    ${step(2, "Test it", status(1), configured.length === 0
-      ? '<p class="kpi-sub">Add a provider key first.</p>'
-      : `<p class="kpi-sub" style="margin-bottom:12px">One real call on the cheapest model, a
-           fraction of a cent, reporting exactly which stage failed if one does.</p>
-         ${configured
-           .map(
-             (p) => `<div style="margin-bottom:8px">${button(`Test ${p}`, `type="button" data-action="preflight" data-provider="${escapeHtml(p)}"`)}</div>
-               ${preflightResult(p)}`,
-           )
-           .join("")}`)}
-
-    ${step(3, "Create a gateway key", status(2), `
-      <p class="kpi-sub" style="margin-bottom:12px">What your software presents to CostGrid. One per
-        service or bot, so spend is attributed to the right one. Shown once, at creation.</p>
-      ${
-        activeKeys.length
-          ? `<p style="margin-bottom:10px">${activeKeys
-              .map((k) => `<span class="tag on">${escapeHtml(k.name)}</span> <code>${escapeHtml(k.prefix)}…</code>`)
-              .join(" &nbsp; ")}</p>`
-          : ""
-      }
-      ${
-        held.newKey
-          ? `<div class="banner good"><strong>
-               Key "${escapeHtml(held.newKeyName)}" created. Copy it now, it is not shown again:</strong>
-               <code class="key">${escapeHtml(held.newKey)}</code></div>`
-          : ""
-      }
-      <form id="wizard-key-form" class="form-row">
-        ${input("name", "Key name, e.g. my-app")}
-        ${button("Create key", 'type="submit"')}
-      </form>`)}
-
-    ${step(4, "Point your software at CostGrid", status(3), configured.length === 0
-      ? '<p class="kpi-sub">Add a provider key first.</p>'
-      : `<p class="kpi-sub" style="margin-bottom:12px">One change: the address the client sends to,
-           plus your gateway key in place of the provider key. Nothing else in your code moves.
-           ${held.newKey ? "" : "Use the key you copied in step 3."}</p>
-         ${snippets(configured, keyValue)}`)}
-
-    ${step(5, "See the first call arrive", status(4), seen
-      ? `<p>Metered <strong>${count(overview.calls)}</strong> call${overview.calls === 1 ? "" : "s"} in the
-           last 24 hours, <strong>${money(overview.totalCostUsd)}</strong>.
-           <a href="/">Open the dashboard</a>.</p>`
-      : `<p class="kpi-sub">Waiting for the first call. This page checks every few seconds; make a
-           request from your software and it will show up here.</p>`)}`;
+    <details class="advanced"${advancedOpen ? " open" : ""}>
+      <summary>Advanced: send traffic through CostGrid</summary>
+      <p class="section-note">For developers. Point your software at CostGrid instead of the
+        provider, and every call is measured as it happens and can be held to a limit. It takes a
+        change in your code, so the three steps above are the place to start.</p>
+      ${proxy.value ?? failed("These steps", proxy.error)}
+    </details>`;
 }
 
-/** Re-render the moment the first call lands, while this screen is open. */
-function watchForFirstCall(overviewUrl) {
-  if (poll) clearInterval(poll);
-  poll = setInterval(async () => {
-    if (state.page !== "setup" || !state.user) {
-      clearInterval(poll);
-      poll = null;
-      return;
+// <details> fires "toggle" without bubbling, so listen while it passes down.
+document.addEventListener(
+  "toggle",
+  (event) => {
+    if (event.target instanceof Element && event.target.matches("details.advanced")) {
+      advancedOpen = event.target.open;
     }
-    const overview = await call("GET", overviewUrl).catch(() => null);
-    if (overview && overview.calls > 0) {
-      clearInterval(poll);
-      poll = null;
-      document.dispatchEvent(new CustomEvent("costgrid:render"));
-    }
-  }, 5000);
-}
-
-export async function submit(form) {
-  const t = state.tenantId;
-  if (form.classList.contains("wizard-cred-form")) {
-    const { apiKey } = formValues(form);
-    if (!apiKey) return true;
-    await call("PUT", `/console/${t}/credentials/${form.dataset.provider}`, { apiKey });
-    delete held.preflight[form.dataset.provider];
-    state.flash = { kind: "ok", text: `${form.dataset.provider} key saved. Now test it.` };
-    return true;
-  }
-  if (form.id === "wizard-key-form") {
-    const name = String(formValues(form).name || "").trim();
-    if (!name) return true;
-    const created = await call("POST", `/console/${t}/keys`, { name });
-    held.newKey = created.key;
-    held.newKeyName = name;
-    return true;
-  }
-  if (form.classList.contains("wizard-import-form")) {
-    const { adminKey, days } = formValues(form);
-    if (!adminKey) return true;
-    let result;
-    try {
-      result = await call("POST", `/console/${t}/import/${form.dataset.provider}`, {
-        adminKey,
-        days: Number(days),
-      });
-    } catch (error) {
-      // The provider accepted the key but it cannot read the usage report.
-      // Say what kind of key can, rather than repeating "missing permissions".
-      if (/\b403\b/.test(error.message)) {
-        throw new Error(
-          "The provider accepted that key, but it cannot read the usage report. It needs a key not " +
-            "tied to one workspace, and an individual account needs an organisation set up first. " +
-            "Or skip this and follow the steps below.",
-        );
-      }
-      throw error;
-    }
-    const unpriced = result.unpricedModels.length
-      ? ` ${result.unpricedModels.length} model(s) could not be priced: ${result.unpricedModels.join(", ")}.`
-      : "";
-    state.flash = {
-      kind: "ok",
-      text: `Imported ${result.rowsWritten} day/model rows from ${result.provider}. The admin key was not kept.${unpriced}`,
-    };
-    return true;
-  }
-  return false;
-}
-
-export async function click(target) {
-  if (target.dataset.action !== "preflight") return false;
-  const provider = target.dataset.provider;
-  held.preflight[provider] = await call("POST", `/console/${state.tenantId}/preflight/${provider}`, {});
-  return true;
-}
+  },
+  true,
+);

@@ -8,6 +8,34 @@ This is the shortest path from a clean checkout to a real spend report from
 your own traffic. It costs whatever your own calls cost and nothing more:
 CostGrid adds one local network hop and no charges of its own.
 
+## No code: the desktop app's three-step setup
+
+If you only want to see what your AI costs and what it is for, the desktop app
+needs no code and no proxy:
+
+1. **Sign in.** The account is created on this computer and stays there.
+2. **Connect** OpenAI, Claude or both, in one of three ways:
+   - **Admin key.** Create a read-only admin key with an expiry in the
+     provider's console and paste it. CostGrid imports the last 90 days, then
+     keeps the key in your Mac's Keychain, and syncs every 6 hours until it
+     expires. Reminders arrive 14 days and 3 days before then, and once it
+     has expired. A file with no usage in it changes nothing.
+     Claude admin keys can also make changes, so give them a short expiry.
+     macOS may ask whether CostGrid can use its Keychain entry; an unsigned or
+     ad-hoc-signed build can ask again after an update.
+   - **Usage file.** Export the usage report (`claude_api_tokens_*.csv` from
+     the Claude Console, `completions_usage_*.csv` from OpenAI's usage page)
+     and drop it on the window. It replaces that provider's usage for the days
+     the file covers. No admin role needed.
+   - **Ask my developer.** A ready-written message asking whoever set up your
+     AI to export the file or create a key for you.
+3. **Say what each workflow is for.** Name each key, workspace or project and
+   pick what counts as a finished job for it: customer support, sales leads,
+   content, data entry or other.
+
+Sending traffic through CostGrid, below, is still there in the app under
+"Advanced".
+
 ## 1. Install and build
 
 ```bash

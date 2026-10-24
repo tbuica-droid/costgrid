@@ -1,0 +1,131 @@
+/*
+ * The setup page: the three-step stepper, the connect cards, the file drop
+ * zone and the purpose rows.
+ *
+ * Its own file to keep styles.css under its size limit. Loaded after it, and
+ * uses only the --cg-* tokens defined there, so light mode follows for free.
+ */
+
+/* ---------------------------------------------------------------- stepper */
+
+.stepper { list-style: none; margin: 0; padding: 0; }
+.stepper-step {
+  position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr);
+  gap: 0 var(--cg-space-4); padding-bottom: var(--cg-space-4);
+}
+/* The line joining one number to the next. */
+.stepper-step:not(:last-child)::before {
+  content: ""; position: absolute; left: 17px; top: 40px; bottom: 4px;
+  width: 2px; background: var(--cg-line);
+}
+.stepper-marker {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--cg-radius-pill);
+  border: 2px solid var(--cg-control); background: var(--cg-surface);
+  font-size: var(--cg-text-sm); font-weight: var(--cg-weight-bold); color: var(--cg-ink-2);
+}
+.stepper-step.is-done .stepper-marker { border-color: var(--cg-good); color: var(--cg-good); background: var(--cg-good-bg); }
+.stepper-step.is-next .stepper-marker { border-color: var(--cg-accent); color: var(--cg-accent); background: var(--cg-accent-wash); }
+.stepper-card { min-width: 0; }
+.stepper-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); margin-bottom: var(--cg-space-3); }
+.stepper-head h2 { margin: 0; font-size: var(--cg-text-lg); }
+.stepper-card > p:last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------- connect cards */
+
+.provider-cards {
+  display: grid; gap: var(--cg-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+}
+.provider-card { background: var(--cg-surface-2); }
+.provider-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); }
+.provider-card-head h3 { margin: 0; }
+.connection-state { margin: var(--cg-space-2) 0 var(--cg-space-4); color: var(--cg-ink-2); }
+.connection-state .btn { margin-left: var(--cg-space-1); }
+
+.connect-tabs { flex-wrap: wrap; margin-bottom: var(--cg-space-4); }
+.tab-panel { min-width: 0; }
+.tab-panel .field input, .tab-panel .field select { max-width: 100%; }
+
+.howto { margin: 0 0 var(--cg-space-2); padding-left: 1.4em; color: var(--cg-ink); }
+.howto li + li { margin-top: var(--cg-space-1); }
+
+.shot-placeholder { margin: 0 0 var(--cg-space-4); }
+.shot-frame {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 7;
+  border: 1px dashed var(--cg-control); border-radius: var(--cg-radius-field);
+  background: var(--cg-surface); color: var(--cg-ink-3); font-size: var(--cg-text-sm);
+}
+.shot-placeholder figcaption { margin-top: var(--cg-space-2); font-size: var(--cg-text-xs); color: var(--cg-ink-2); }
+
+.connect-result:empty { display: none; }
+.connect-result { margin-top: var(--cg-space-4); }
+.connect-banner { margin-bottom: 0; }
+.connect-banner p { margin: var(--cg-space-1) 0 0; }
+.connect-banner ul { margin: var(--cg-space-2) 0 0; padding-left: 1.2em; }
+
+/* ------------------------------------------------------------- drop zone */
+
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; gap: var(--cg-space-2);
+  margin-bottom: var(--cg-space-4); padding: var(--cg-space-5) var(--cg-space-4); text-align: center;
+  border: 2px dashed var(--cg-control); border-radius: var(--cg-radius-md); background: var(--cg-surface);
+}
+.dropzone.is-over { border-color: var(--cg-accent); background: var(--cg-accent-wash); }
+.dropzone:focus-visible { outline: 2px solid var(--cg-accent); outline-offset: 2px; }
+.dropzone-title { margin: 0; font-weight: var(--cg-weight-semibold); }
+.dropzone-note { margin: 0; font-size: var(--cg-text-sm); color: var(--cg-ink-2); }
+.dropzone label.btn { cursor: pointer; }
+
+/* Hidden from sight, still there for the label and assistive tech. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ------------------------------------------------------- developer message */
+
+.field textarea { display: block; width: 100%; resize: vertical; }
+.dev-message { font-family: var(--cg-font-sans); line-height: var(--cg-leading-normal); }
+[data-dev-message] + .banner { margin: var(--cg-space-4) 0 0; }
+
+/* ------------------------------------------------------------ purpose rows */
+
+.source-list { display: flex; flex-direction: column; gap: var(--cg-space-4); }
+.source-form {
+  padding: var(--cg-space-4); border: 1px solid var(--cg-line);
+  border-radius: var(--cg-radius-md); background: var(--cg-surface-2);
+}
+.source-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-2); margin-bottom: var(--cg-space-3); }
+.source-label { font-weight: var(--cg-weight-semibold); overflow-wrap: anywhere; }
+.source-cost { margin-left: auto; color: var(--cg-ink-2); white-space: nowrap; }
+
+.preset-group { margin: 0 0 var(--cg-space-4); padding: 0; border: 0; min-width: 0; }
+.preset-group legend { margin-bottom: var(--cg-space-2); padding: 0; font-size: var(--cg-text-xs); font-weight: var(--cg-weight-medium); color: var(--cg-ink-2); }
+.preset-option {
+  display: flex; align-items: flex-start; gap: var(--cg-space-1); padding: var(--cg-space-2) var(--cg-space-3);
+  border: 1px solid var(--cg-line); border-radius: var(--cg-radius-field); background: var(--cg-surface); cursor: pointer;
+}
+.preset-option + .preset-option { margin-top: var(--cg-space-2); }
+.preset-option:has(input:checked) { border-color: var(--cg-accent); background: var(--cg-accent-wash); }
+.preset-option input { margin-top: 3px; flex: none; }
+.preset-label { display: block; font-weight: var(--cg-weight-semibold); }
+.preset-job { display: block; font-size: var(--cg-text-sm); color: var(--cg-ink-2); }
+
+.purpose-finish { margin: var(--cg-space-5) 0 0; }
+
+/* ---------------------------------------------------------------- advanced */
+
+.advanced { margin-top: var(--cg-space-6); padding-top: var(--cg-space-4); border-top: 1px solid var(--cg-line); }
+.advanced summary { font-weight: var(--cg-weight-semibold); padding: var(--cg-space-2) 0; }
+.advanced[open] summary { margin-bottom: var(--cg-space-3); }
+
+/* ---------------------------------------------------------- narrow window */
+
+@media (max-width: 600px) {
+  .stepper-step { grid-template-columns: 28px minmax(0, 1fr); gap: 0 var(--cg-space-2); }
+  .stepper-step:not(:last-child)::before { left: 13px; top: 32px; }
+  .stepper-marker { width: 28px; height: 28px; }
+  .provider-card, .source-form { padding: var(--cg-space-3); }
+  .source-cost { margin-left: 0; flex-basis: 100%; }
+}

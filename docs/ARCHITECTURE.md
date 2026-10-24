@@ -55,6 +55,39 @@ control path.
 - **Percentiles are nearest-rank in integers** (`stats.ts`), shared with the
   insights reports, so a reported p90 is the cost of a real task.
 
+### Owner setup: sign in, connect, say what each workflow is for
+
+Step 2 gets a non-technical owner from install to their real costs without
+code. The old proxy steps are still there, folded under "Advanced".
+
+- **Two ways in, no admin role needed for the second.** A read-only admin key
+  (imports 90 days, then syncs every 6 hours) or the provider's usage export
+  dropped onto the window. "Ask my developer" writes a message the owner can
+  copy; it never contains a key or a link to their computer.
+- **Usage is broken down by source.** `imported_usage` rows carry a source:
+  a Claude API key or workspace, an OpenAI project or API key, or `account`
+  when the report has no breakdown. `usage_sources` holds the owner's name for
+  each source and its purpose preset (`packages/core/src/presets.ts`: support,
+  sales leads, content, data entry, other, each with what counts as a finished
+  job). Step 3 (one key per agent) builds on this table.
+- **An import replaces its window.** `ImportsRepository.putRows` deletes the
+  provider's rows for the days it covers and inserts the new ones in one
+  transaction, so an old account-level total and a new per-source breakdown
+  of the same day can never be added together.
+- **CSV columns are matched by name, never position.** Both providers add
+  columns over time. `importers/csv.ts` reads Claude's
+  `claude_api_tokens_*.csv` and OpenAI's `completions_usage_*.csv`, folds
+  hourly and per-minute buckets to days, recognises cost exports and asks for
+  the usage export instead, and reports problems in plain words. A Claude
+  export names keys rather than identifying them, so its source is
+  `<workspace> / <key name>`; the admin API uses ids. Matching the two is left
+  to step 3.
+- **The gateway never loads native code.** The secure store is an interface
+  (`packages/gateway/src/secret-store.ts`). The desktop app supplies a
+  Keychain-backed one (`packages/desktop/src/secret-store.ts`, using
+  `@napi-rs/keyring`), probed at start; without it the key is used once, as on
+  a server.
+
 ## Package layout
 
 ```
@@ -66,7 +99,7 @@ packages/
   gateway/              The proxy: auth, enforcement, metering, passthrough.
     providers/          One adapter per upstream; the handler is generic.
     console.ts          Hosted control plane: accounts, credentials, billing.
-    importers/          Historical backfill from each provider's admin API.
+    importers/          Usage from each provider's admin API or usage export.
     ratelimit.ts        Per-tenant fixed-window cap.
   cli/                  Operator surface: keys, policies, reports, statements,
                         backups.
@@ -121,10 +154,15 @@ Where the provider reports a charged amount, that beats our list price — it
 already includes whatever rate the customer negotiated. Comparing the two is
 how an effective discount becomes observable rather than guessed at.
 
-**The admin key is used and discarded.** A one-off backfill does not justify
-holding a credential that can read an entire organisation's usage, and "we do
-not keep it" is an easier sentence in a security review than any amount of
-encryption. A test sweeps every column of the database to prove it.
+**The admin key never touches the database.** On a server, it is used once
+and discarded: a one-off backfill does not justify holding a credential that
+can read an entire organisation's usage. The desktop app keeps it, because an
+owner wants their numbers to stay current without pasting a key every week,
+but only in the operating system's secure store (Keychain on a Mac, Credential
+Manager on Windows), only after the first import has worked, and only with the
+expiry the owner chose. The database holds the last four characters, the
+expiry and the sync status. A test sweeps every column of the database to
+prove the key itself is not there.
 
 ### The console is not the dashboard
 

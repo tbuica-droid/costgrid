@@ -182,3 +182,18 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - The website and the app were looked at in a browser at desktop and phone widths; the app in dark and light.
 
 **Still to do in version 2:** the three-step setup for owners, one key per agent, automatic outcome detection, the results screen, Windows, the key-safety checker, View and control, and the monthly PDF statement.
+
+## Version 2, step 2: three-step setup for owners (24 October 2026)
+
+**What changed**
+- **Setup is three steps, with no code.** Sign in (the account stays on this computer), connect Claude, OpenAI or both, then say what each workflow is for. The old proxy steps are still there under "Advanced".
+- **Three ways to connect.** A read-only admin key with an expiry date (CostGrid imports 90 days, keeps the key in the Mac's Keychain, checks for new usage every 6 hours, and reminds the owner before it expires); the provider's usage file dropped on the window (no admin access needed); or a ready-written message asking whoever set up the AI to do it. The message never contains a key.
+- **Costs per key, workspace or project.** Usage is now broken down by where it came from, and each source can be given a name and a purpose: customer support, sales leads, content, data entry or other, each with what counts as a finished job.
+- **Keys never touch the database.** Only the last four characters, the expiry and whether the last check worked are kept there. Deleting the organisation also removes its keys from the Keychain.
+
+**How it was checked**
+- 882 tests pass, up from 796. They include the real column layout of both providers' usage files (from the owner's own exports, which had no usage in that month) and checks that a key is in no table, no byte of the database file and no log.
+- Code review and a security review (no findings at high confidence). Fixes from the review: a file with no usage no longer wipes days already imported; a new key is not re-imported at the first background check; deleting an organisation removes its admin keys from the Keychain.
+- The three steps were tried in a browser on a throwaway database: sample usage files from both providers, two workflows named, at desktop and phone width, in dark and light.
+
+**Still to check with real accounts:** a usage file with real usage in it from each provider, a real Claude admin key in the Mac app (Keychain prompt, key names), OpenAI admin key permissions.

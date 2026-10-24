@@ -144,8 +144,8 @@ function importedSection(history) {
     <h2 style="margin-top:30px">Imported history
       <span class="tag" style="vertical-align:middle;margin-left:8px">provider report</span></h2>
     <p class="section-note">Pulled from your provider's usage report, not metered by CostGrid.
-      Daily totals only. No per-agent attribution, and no enforcement, because these calls did
-      not pass through the gateway. ${rateNote}</p>
+      ${history.sourceCount > 0 ? "Daily totals, broken down by key or project. No" : "Daily totals only. No per-agent attribution, and no"}
+      enforcement, because these calls did not pass through the gateway. ${rateNote}</p>
 
     <div class="grid cols-4">
       ${card("Historical spend", money(history.effectiveCostUsd), `over the last ${history.days} days`)}
