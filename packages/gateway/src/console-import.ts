@@ -64,7 +64,8 @@ export function registerImport(app: FastifyInstance, deps: ImportDeps): void {
 
     const to = new Date();
     const from = new Date(to.getTime() - days * 86_400_000);
-    const runId = imports.startRun(tenantId, importer.provider, toUtcDay(from), toUtcDay(to));
+    const window = { fromDay: toUtcDay(from), toDay: toUtcDay(to) };
+    const runId = imports.startRun(tenantId, importer.provider, window.fromDay, window.toDay, "admin-api");
 
     try {
       const result = await importer.run({
@@ -73,7 +74,7 @@ export function registerImport(app: FastifyInstance, deps: ImportDeps): void {
         to,
         ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       });
-      const written = imports.putRows(tenantId, result.rows);
+      const written = imports.putRows(tenantId, importer.provider, window, result.rows, "admin-api");
       imports.finishRun(runId, written);
 
       // Recorded because someone used an admin credential against the

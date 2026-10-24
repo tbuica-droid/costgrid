@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { Nanodollars, Provider, TokenUsage } from "@costgrid/core";
 import type { Db } from "./database.js";
 import type { TimeRange } from "./analytics.js";
+import type { SourceKind } from "./sources.js";
 
 /**
- * Historical usage pulled from a provider's admin API.
+ * Historical usage pulled from a provider's admin API or a usage file.
  *
  * Kept strictly apart from metered calls. A provider report is a daily
  * aggregate assembled by someone else; a metered call is a request we watched
@@ -24,7 +25,22 @@ export interface ImportedRow {
   readonly priced: boolean;
   /** The provider's own figure, where it reported one. */
   readonly costReported?: Nanodollars | undefined;
+  /** Where the usage came from. The whole account when omitted. */
+  readonly sourceKind?: SourceKind | undefined;
+  /** The key, workspace or project id; '' for the account. */
+  readonly sourceId?: string | undefined;
 }
+
+/** How a run's rows arrived: pulled with an admin key, or read from a file. */
+export type ImportOrigin = "admin-api" | "csv";
+
+/** An inclusive range of UTC days, YYYY-MM-DD, that an import covers. */
+export interface ImportWindow {
+  readonly fromDay: string;
+  readonly toDay: string;
+}
+
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ImportSummary {
   readonly provider: Provider;
@@ -57,14 +73,20 @@ export class ImportsRepository {
     this.#db = db;
   }
 
-  startRun(tenantId: string, provider: Provider, fromDay: string, toDay: string): string {
+  startRun(
+    tenantId: string,
+    provider: Provider,
+    fromDay: string,
+    toDay: string,
+    origin: ImportOrigin,
+  ): string {
     const id = randomUUID();
     this.#db
       .prepare(
-        `INSERT INTO import_runs (id, tenant_id, provider, started_at, from_day, to_day, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'running')`,
+        `INSERT INTO import_runs (id, tenant_id, provider, started_at, from_day, to_day, status, origin)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', ?)`,
       )
-      .run(id, tenantId, provider, Date.now(), fromDay, toDay);
+      .run(id, tenantId, provider, Date.now(), fromDay, toDay, origin);
     return id;
   }
 
@@ -83,27 +105,56 @@ export class ImportsRepository {
   }
 
   /**
-   * Write imported rows, replacing anything already held for the same
-   * (provider, day, model).
+   * Replace what is held for one provider over a window of days.
    *
-   * Upsert rather than append so re-importing an overlapping window is safe
-   * and idempotent — a provider can restate a recent day, and the customer
-   * should end up with their number, not the sum of two attempts.
+   * Everything already stored for that provider with a day inside the window
+   * goes, then the new rows go in, in one transaction. Replacing rather than
+   * upserting is what keeps two shapes of the same usage from adding up: rows
+   * imported before sources existed were summed across every key, and the
+   * same days re-imported per key would otherwise be counted twice. It also
+   * means a key or model that vanished from a restated day really vanishes.
+   *
+   * A row dated outside the window widens it: the provider answered for that
+   * day, so its answer replaces what was held rather than adding to it. A row
+   * for another provider is a caller's mistake, and nothing is written.
    */
-  putRows(tenantId: string, rows: readonly ImportedRow[]): number {
-    if (rows.length === 0) return 0;
+  putRows(
+    tenantId: string,
+    provider: Provider,
+    window: ImportWindow,
+    rows: readonly ImportedRow[],
+    origin: ImportOrigin,
+  ): number {
+    let { fromDay, toDay } = window;
+    if (!DAY_PATTERN.test(fromDay) || !DAY_PATTERN.test(toDay) || fromDay > toDay) {
+      throw new RangeError(`not a window of days: ${fromDay} to ${toDay}`);
+    }
+    for (const row of rows) {
+      if (row.provider !== provider) {
+        throw new RangeError(`a ${row.provider} row cannot be written as ${provider} usage`);
+      }
+      if (!DAY_PATTERN.test(row.day)) throw new RangeError(`not a day: ${row.day}`);
+      if (row.day < fromDay) fromDay = row.day;
+      if (row.day > toDay) toDay = row.day;
+    }
 
+    const clear = this.#db.prepare(
+      "DELETE FROM imported_usage WHERE tenant_id = ? AND provider = ? AND day >= ? AND day <= ?",
+    );
+    // The window was just emptied, so a conflict means the caller passed the
+    // same key twice; the last one wins rather than failing the whole import.
     const insert = this.#db.prepare(
       `INSERT INTO imported_usage (
-         id, tenant_id, provider, day, model,
+         id, tenant_id, provider, day, model, source_kind, source_id, origin,
          input_tokens, output_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
          cache_read_tokens, requests, cost_catalog, priced, cost_reported, imported_at
        ) VALUES (
-         @id, @tenantId, @provider, @day, @model,
+         @id, @tenantId, @provider, @day, @model, @sourceKind, @sourceId, @origin,
          @inputTokens, @outputTokens, @cacheWrite5m, @cacheWrite1h,
          @cacheRead, @requests, @costCatalog, @priced, @costReported, @importedAt
        )
-       ON CONFLICT (tenant_id, provider, day, model) DO UPDATE SET
+       ON CONFLICT (tenant_id, provider, day, model, source_kind, source_id) DO UPDATE SET
+         origin                = excluded.origin,
          input_tokens          = excluded.input_tokens,
          output_tokens         = excluded.output_tokens,
          cache_write_5m_tokens = excluded.cache_write_5m_tokens,
@@ -118,13 +169,18 @@ export class ImportsRepository {
 
     const now = Date.now();
     this.#db.transaction(() => {
+      clear.run(tenantId, provider, fromDay, toDay);
       for (const row of rows) {
+        const sourceKind = row.sourceKind ?? "account";
         insert.run({
           id: randomUUID(),
           tenantId,
-          provider: row.provider,
+          provider,
           day: row.day,
           model: row.model,
+          sourceKind,
+          sourceId: sourceKind === "account" ? "" : (row.sourceId ?? ""),
+          origin,
           inputTokens: row.usage.inputTokens,
           outputTokens: row.usage.outputTokens,
           cacheWrite5m: row.usage.cacheWrite5mTokens,
@@ -233,7 +289,7 @@ export class ImportsRepository {
   recentRuns(tenantId: string, limit = 10) {
     return this.#db
       .prepare(
-        `SELECT id, provider, started_at AS startedAt, finished_at AS finishedAt,
+        `SELECT id, provider, origin, started_at AS startedAt, finished_at AS finishedAt,
                 from_day AS fromDay, to_day AS toDay, rows_written AS rowsWritten,
                 status, error_message AS errorMessage
          FROM import_runs WHERE tenant_id = ? ORDER BY started_at DESC LIMIT ?`,
@@ -241,6 +297,7 @@ export class ImportsRepository {
       .all(tenantId, limit) as {
       id: string;
       provider: string;
+      origin: ImportOrigin;
       startedAt: number;
       finishedAt: number | null;
       fromDay: string;

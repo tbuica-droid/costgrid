@@ -191,6 +191,72 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("keeps imported history as the account's when usage gains sources", () => {
+    const db = buildAtVersion(13);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    const insert = db.prepare(
+      `INSERT INTO imported_usage (id, tenant_id, provider, day, model, input_tokens, cost_catalog,
+                                   cost_reported, imported_at)
+       VALUES (?, 't1', ?, ?, ?, ?, ?, ?, 5000)`,
+    );
+    insert.run("u1", "anthropic", "2026-06-01", "claude-opus-5", 1000, 30_000_000_000, null);
+    insert.run("u2", "anthropic", "2026-06-02", "claude-opus-5", 2000, 60_000_000_000, 50_000_000_000);
+    insert.run("u3", "openai", "2026-06-03", "gpt-5", 3000, 1_000_000_000, null);
+    db.prepare(
+      `INSERT INTO import_runs (id, tenant_id, provider, started_at, from_day, to_day, status)
+       VALUES ('r1', 't1', 'anthropic', 1, '2026-06-01', '2026-06-02', 'ok')`,
+    ).run();
+
+    migrate(db);
+
+    const rows = db
+      .prepare(
+        `SELECT id, source_kind, source_id, origin, input_tokens, cost_catalog, cost_reported
+         FROM imported_usage ORDER BY id`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { id: "u1", source_kind: "account", source_id: "", origin: "admin-api", input_tokens: 1000, cost_catalog: 30_000_000_000, cost_reported: null },
+      { id: "u2", source_kind: "account", source_id: "", origin: "admin-api", input_tokens: 2000, cost_catalog: 60_000_000_000, cost_reported: 50_000_000_000 },
+      { id: "u3", source_kind: "account", source_id: "", origin: "admin-api", input_tokens: 3000, cost_catalog: 1_000_000_000, cost_reported: null },
+    ]);
+    expect(db.prepare("SELECT origin FROM import_runs WHERE id = 'r1'").get()).toEqual({ origin: "admin-api" });
+
+    // The history shows up as the whole account in each provider's sources.
+    expect(
+      db
+        .prepare(
+          `SELECT provider, source_kind, source_id, first_day, last_day, created_at
+           FROM usage_sources ORDER BY provider`,
+        )
+        .all(),
+    ).toEqual([
+      { provider: "anthropic", source_kind: "account", source_id: "", first_day: "2026-06-01", last_day: "2026-06-02", created_at: 5000 },
+      { provider: "openai", source_kind: "account", source_id: "", first_day: "2026-06-03", last_day: "2026-06-03", created_at: 5000 },
+    ]);
+
+    // The new unique key lets two sources share a day and model...
+    db.prepare(
+      `INSERT INTO imported_usage (id, tenant_id, provider, day, model, source_kind, source_id, imported_at)
+       VALUES ('u4', 't1', 'anthropic', '2026-06-01', 'claude-opus-5', 'key', 'apikey_a', 1)`,
+    ).run();
+    // ...but not one source twice.
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO imported_usage (id, tenant_id, provider, day, model, source_kind, source_id, imported_at)
+           VALUES ('u5', 't1', 'anthropic', '2026-06-01', 'claude-opus-5', 'key', 'apikey_a', 1)`,
+        )
+        .run(),
+    ).toThrow(/UNIQUE/);
+    // And the index the day-range reads rely on came back.
+    expect(
+      db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_imported_tenant_day'").get(),
+    ).toBeDefined();
+
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

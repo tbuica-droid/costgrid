@@ -49,6 +49,7 @@ const TITLES: Record<StoredAlert["kind"], string> = {
   downgraded: "Switched to a cheaper model",
   "runaway-run": "A run is costing far more than usual",
   stopped: "Agent stopped",
+  "key-expiring": "An admin key expires soon",
   test: "CostGrid test alert",
 };
 

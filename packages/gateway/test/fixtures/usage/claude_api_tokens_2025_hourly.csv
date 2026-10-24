@@ -1,0 +1,4 @@
+﻿usage_date_utc,model_version,api_key,workspace,usage_type,context_window,usage_input_tokens_no_cache,usage_input_tokens_cache_write_5m,usage_input_tokens_cache_write_1h,usage_input_tokens_cache_read,usage_output_tokens,web_search_count
+2025-11-03 09:00,claude-sonnet-4-5,"Support, EU","Main ""prod""",standard,≤ 200k,500000,100000,0,0,50000,--
+2025-11-03 10:00,claude-sonnet-4-5,"Support, EU","Main ""prod""",standard,≤ 200k,500000,0,100000,0,50000,0
+2025-11-03 11:00,claude-sonnet-4-5,--,--,standard,--,1000,--,--,--,--,--

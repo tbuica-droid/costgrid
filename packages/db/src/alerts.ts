@@ -35,6 +35,8 @@ export type AlertKind =
   | "runaway-run"
   /** Someone stopped or resumed an agent, a team or everything. */
   | "stopped"
+  /** A stored admin key stops working soon, so imports will stop with it. */
+  | "key-expiring"
   /** Sent from the settings screen to prove the channel works. */
   | "test";
 

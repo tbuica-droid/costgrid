@@ -107,6 +107,8 @@ const TENANT_TABLES = [
   "alert_settings",
   "alerts",
   "fixed_costs",
+  "admin_keys",
+  "usage_sources",
   // The local copies only. Anchors already delivered live at the receiver,
   // which is the point of them, and are outside anything this can reach.
   "anchors",

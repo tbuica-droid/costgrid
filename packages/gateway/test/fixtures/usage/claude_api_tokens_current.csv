@@ -1,0 +1,6 @@
+usage_date_utc,model_version,api_key,workspace,usage_type,context_window,usage_input_tokens_no_cache,usage_input_tokens_cache_write_5m,usage_input_tokens_cache_write_1h,usage_input_tokens_cache_read,usage_output_tokens,web_search_count,inference_geo,speed
+2026-09-01,claude-sonnet-4-6,support-bot,Support,standard,≤ 200k,1000000,0,0,0,100000,0,global,
+2026-09-01,claude-sonnet-4-6,support-bot,Support,standard,200k - 1M,200000,0,0,0,0,0,global,
+2026-09-01,claude-opus-5,lead-scorer,Sales,standard,≤ 200k,100000,0,0,1000000,10000,0,us,fast
+2026-09-02,claude-haiku-4-5,,Ops,batch,≤ 200k,2000000,0,0,0,0,0,not_available,
+2026-09-02,claude-sonnet-4-6,,,standard,≤ 200k,0,0,0,0,0,3,global,

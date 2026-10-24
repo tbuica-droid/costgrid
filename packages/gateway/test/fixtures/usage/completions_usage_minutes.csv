@@ -1,0 +1,4 @@
+start_time,end_time,start_time_iso,end_time_iso,input_tokens,output_tokens,num_model_requests,project_id,user_id,api_key_id,model,batch,service_tier,input_cached_tokens,input_uncached_tokens,input_audio_tokens,output_audio_tokens
+1788998400,1788998460,2026-09-10T00:00:00+00:00,2026-09-10T00:01:00+00:00,500000.0,0.0,1.0,proj_delta,,key_delta1,gpt-5,False,default,0.0,500000.0,0.0,0.0
+1788998460,1788998520,2026-09-10T00:01:00+00:00,2026-09-10T00:02:00+00:00,,,,,,,,,,,,,
+1789084740,1789084800,2026-09-10T23:59:00+00:00,2026-09-11T00:00:00+00:00,500000.0,0.0,1.0,proj_delta,,key_delta1,gpt-5,False,default,0.0,500000.0,0.0,0.0

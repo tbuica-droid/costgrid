@@ -768,6 +768,120 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_fixed_costs_tenant ON fixed_costs(tenant_id);
     `,
   },
+  {
+    version: 14,
+    name: "owner-setup",
+    // What an owner needs to get from install to their own costs without
+    // writing code: a connected admin key, the workflows found in its usage,
+    // and what each of those workflows is for.
+    sql: `
+      -- A stored admin key, described but never held. The secret lives in the
+      -- operating system's keychain; this row is what the console shows and
+      -- what the sync job schedules from, and a leak of it hands nobody a
+      -- credential.
+      CREATE TABLE admin_keys (
+        tenant_id         TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider          TEXT NOT NULL,
+        -- The masked form, so the owner can tell which key it was.
+        key_hint          TEXT NOT NULL,
+        -- When the owner said it stops working. NULL means never.
+        expires_at        INTEGER,
+        created_at        INTEGER NOT NULL,
+        last_sync_at      INTEGER,
+        last_sync_status  TEXT CHECK (last_sync_status IN ('ok', 'error')),
+        last_sync_error   TEXT,
+        PRIMARY KEY (tenant_id, provider)
+      ) STRICT;
+
+      -- Each place usage came from: an API key, a Claude workspace, an OpenAI
+      -- project, or the whole account when the provider did not say. This is
+      -- the row an owner names and gives a purpose to.
+      --
+      -- 'source_id' is whatever the provider identifies it by: an id from the
+      -- admin API, or a name from a usage file, which is all the file holds.
+      -- '' for the account, so the primary key never contains a NULL.
+      CREATE TABLE usage_sources (
+        tenant_id        TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider         TEXT NOT NULL,
+        source_kind      TEXT NOT NULL CHECK (source_kind IN ('key', 'workspace', 'project', 'account')),
+        source_id        TEXT NOT NULL,
+        -- The workspace or project a key belongs to, where known.
+        parent_id        TEXT,
+        -- The provider's own name for it, looked up rather than typed.
+        provider_label   TEXT,
+        -- The owner's name for it.
+        display_name     TEXT,
+        -- Which preset it is for, and the preset version that was chosen, so a
+        -- later change to a preset's definition does not rewrite history.
+        purpose_id       TEXT,
+        purpose_version  TEXT,
+        named_at         INTEGER,
+        -- First and last UTC day it was seen with usage, as YYYY-MM-DD.
+        first_day        TEXT,
+        last_day         TEXT,
+        created_at       INTEGER NOT NULL,
+        PRIMARY KEY (tenant_id, provider, source_kind, source_id)
+      ) STRICT;
+
+      -- Imported usage, now kept per source and labelled with how it arrived.
+      --
+      -- A rebuild rather than ALTER TABLE because the unique key changes, and
+      -- SQLite cannot alter a constraint in place. Existing rows were summed
+      -- across every key and workspace, so they become the account's: true,
+      -- and the next import over the same days replaces them outright.
+      CREATE TABLE imported_usage_v14 (
+        id                    TEXT PRIMARY KEY,
+        tenant_id             TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        provider              TEXT NOT NULL,
+        day                   TEXT NOT NULL,
+        model                 TEXT NOT NULL,
+        source_kind           TEXT NOT NULL DEFAULT 'account'
+                                CHECK (source_kind IN ('key', 'workspace', 'project', 'account')),
+        source_id             TEXT NOT NULL DEFAULT '',
+        -- An admin API pull, or a usage file the owner uploaded.
+        origin                TEXT NOT NULL DEFAULT 'admin-api' CHECK (origin IN ('admin-api', 'csv')),
+
+        input_tokens          INTEGER NOT NULL DEFAULT 0,
+        output_tokens         INTEGER NOT NULL DEFAULT 0,
+        cache_write_5m_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_write_1h_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens     INTEGER NOT NULL DEFAULT 0,
+        requests              INTEGER NOT NULL DEFAULT 0,
+
+        cost_catalog          INTEGER NOT NULL DEFAULT 0,
+        priced                INTEGER NOT NULL DEFAULT 1 CHECK (priced IN (0, 1)),
+        cost_reported         INTEGER,
+
+        imported_at           INTEGER NOT NULL,
+        UNIQUE (tenant_id, provider, day, model, source_kind, source_id)
+      ) STRICT;
+
+      INSERT INTO imported_usage_v14 (
+        id, tenant_id, provider, day, model,
+        input_tokens, output_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
+        cache_read_tokens, requests, cost_catalog, priced, cost_reported, imported_at
+      )
+      SELECT
+        id, tenant_id, provider, day, model,
+        input_tokens, output_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
+        cache_read_tokens, requests, cost_catalog, priced, cost_reported, imported_at
+      FROM imported_usage;
+
+      DROP TABLE imported_usage;
+      ALTER TABLE imported_usage_v14 RENAME TO imported_usage;
+      CREATE INDEX idx_imported_tenant_day ON imported_usage(tenant_id, day);
+
+      -- So history imported before this version still appears in the list of
+      -- sources, as the whole account, rather than as cost with no owner.
+      INSERT INTO usage_sources (tenant_id, provider, source_kind, source_id, first_day, last_day, created_at)
+      SELECT tenant_id, provider, 'account', '', MIN(day), MAX(day), MAX(imported_at)
+      FROM imported_usage
+      GROUP BY tenant_id, provider;
+
+      -- How each run's rows arrived. Every run before this one used a key.
+      ALTER TABLE import_runs ADD COLUMN origin TEXT NOT NULL DEFAULT 'admin-api';
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

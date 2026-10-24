@@ -260,6 +260,110 @@ describe("openai importer", () => {
   });
 });
 
+describe("usage by source", () => {
+  const DAY = Date.parse("2026-06-01T00:00:00Z") / 1000;
+
+  it("asks Claude to group by model, key and workspace, one group_by[] each", async () => {
+    const calls: URL[] = [];
+    await anthropicImporter.run({
+      apiKey: "k",
+      from: FROM,
+      to: TO,
+      fetchImpl: stubFetch([{ data: [], has_more: false }], calls),
+    });
+    expect(calls[0]?.searchParams.getAll("group_by[]")).toEqual(["model", "api_key_id", "workspace_id"]);
+  });
+
+  it("asks OpenAI to group by model, project and key, one group_by each", async () => {
+    const calls: URL[] = [];
+    await openaiImporter.run({
+      apiKey: "k",
+      from: FROM,
+      to: TO,
+      fetchImpl: stubFetch([{ data: [], has_more: false }], calls),
+    });
+    expect(calls[0]?.searchParams.getAll("group_by")).toEqual(["model", "project_id", "api_key_id"]);
+  });
+
+  it("keeps two Claude keys apart on the same day and model, and falls back to workspace, then account", async () => {
+    const doFetch = stubFetch([
+      {
+        data: [
+          {
+            starting_at: "2026-06-01T00:00:00Z",
+            results: [
+              { model: "claude-opus-5", api_key_id: "apikey_a", workspace_id: "wrkspc_1", uncached_input_tokens: 100 },
+              { model: "claude-opus-5", api_key_id: "apikey_b", workspace_id: "wrkspc_1", uncached_input_tokens: 200 },
+              // A key in the default workspace reports no workspace.
+              { model: "claude-opus-5", api_key_id: "apikey_c", workspace_id: null, uncached_input_tokens: 300 },
+              // Console usage, say: no key.
+              { model: "claude-opus-5", api_key_id: null, workspace_id: "wrkspc_2", uncached_input_tokens: 400 },
+              { model: "claude-opus-5", api_key_id: null, workspace_id: null, uncached_input_tokens: 500 },
+            ],
+          },
+        ],
+        has_more: false,
+      },
+    ]);
+
+    const { rows, sources } = await anthropicImporter.run({ apiKey: "k", from: FROM, to: TO, fetchImpl: doFetch });
+
+    expect(rows.map((r) => [r.sourceKind, r.sourceId, r.usage.inputTokens])).toEqual([
+      ["account", "", 500],
+      ["key", "apikey_a", 100],
+      ["key", "apikey_b", 200],
+      ["key", "apikey_c", 300],
+      ["workspace", "wrkspc_2", 400],
+    ]);
+    expect(sources).toEqual([
+      { provider: "anthropic", kind: "account", id: "" },
+      { provider: "anthropic", kind: "key", id: "apikey_a", parentId: "wrkspc_1" },
+      { provider: "anthropic", kind: "key", id: "apikey_b", parentId: "wrkspc_1" },
+      { provider: "anthropic", kind: "key", id: "apikey_c" },
+      { provider: "anthropic", kind: "workspace", id: "wrkspc_2" },
+    ]);
+  });
+
+  it("splits OpenAI usage by key, else project, else account", async () => {
+    const doFetch = stubFetch([
+      {
+        data: [
+          {
+            start_time: DAY,
+            results: [
+              { model: "gpt-5", project_id: "proj_1", api_key_id: "key_1", input_tokens: 10 },
+              { model: "gpt-5", project_id: "proj_1", api_key_id: null, input_tokens: 20 },
+              { model: "gpt-5", project_id: null, api_key_id: null, input_tokens: 30 },
+            ],
+          },
+        ],
+        has_more: false,
+      },
+    ]);
+
+    const { rows, sources } = await openaiImporter.run({ apiKey: "k", from: FROM, to: TO, fetchImpl: doFetch });
+
+    expect(rows.map((r) => [r.sourceKind, r.sourceId, r.usage.inputTokens])).toEqual([
+      ["account", "", 30],
+      ["key", "key_1", 10],
+      ["project", "proj_1", 20],
+    ]);
+    expect(sources).toContainEqual({ provider: "openai", kind: "key", id: "key_1", parentId: "proj_1" });
+  });
+
+  it("prices a day's total at the standard tier, not the long-context one", async () => {
+    // 1M tokens in a day passes the 272K threshold, which applies per request.
+    const doFetch = stubFetch([
+      {
+        data: [{ start_time: DAY, results: [{ model: "gpt-6.1-sol", input_tokens: 1_000_000 }] }],
+        has_more: false,
+      },
+    ]);
+    const { rows } = await openaiImporter.run({ apiKey: "k", from: FROM, to: TO, fetchImpl: doFetch });
+    expect(rows[0]?.costCatalog).toBe(usd("2.00"));
+  });
+});
+
 describe("importer registry", () => {
   it("resolves both providers and nothing else", () => {
     expect(importerFor("anthropic")?.provider).toBe("anthropic");

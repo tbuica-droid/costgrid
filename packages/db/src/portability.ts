@@ -178,6 +178,8 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   evidence_from: "BIGINT",
   evidence_to: "BIGINT",
   live_since: "BIGINT",
+  last_sync_at: "BIGINT",
+  named_at: "BIGINT",
 
   // Token counts. A single call never approaches int4, but these are summed
   // across windows constantly and a rate override multiplies them, so the

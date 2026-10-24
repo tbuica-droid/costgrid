@@ -1,0 +1,2 @@
+start_time,end_time,start_time_iso,end_time_iso,amount_value,amount_currency,line_item,project_id,project_name
+1788220800,1788307200,2026-09-01T00:00:00+00:00,2026-09-02T00:00:00+00:00,1.23,usd,"gpt-5, input",proj_alpha,Example project

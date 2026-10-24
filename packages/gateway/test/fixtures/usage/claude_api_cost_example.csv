@@ -1,0 +1,2 @@
+usage_date_utc,model,workspace,api_key,usage_type,context_window,token_type,cost_usd,inference_geo,speed
+2026-09-01,Claude Sonnet 4.6,Support,support-bot,standard,≤ 200k,input_no_cache,3.00,global,
