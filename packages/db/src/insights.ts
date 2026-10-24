@@ -1,4 +1,4 @@
-import type { Nanodollars } from "@costgrid/core";
+import { compareBigint, nearestRank, sumNano, type Nanodollars } from "@costgrid/core";
 import type { Db } from "./database.js";
 import type { TimeRange } from "./analytics.js";
 
@@ -80,14 +80,6 @@ export interface ReasoningReport {
   readonly overthinking: readonly OverthinkingSignal[];
 }
 
-/** Nearest-rank percentile of an ascending list. */
-function percentile<T>(sorted: readonly T[], p: number): T {
-  const rank = Math.max(1, Math.ceil(p * sorted.length));
-  return sorted[Math.min(rank, sorted.length) - 1]!;
-}
-
-const byBigint = (a: bigint, b: bigint): number => (a < b ? -1 : a > b ? 1 : 0);
-
 export class Insights {
   readonly #db: Db;
 
@@ -130,21 +122,21 @@ export class Insights {
 
     const out: RunSpread[] = [];
     for (const [agent, { costs, steps }] of perAgent) {
-      costs.sort(byBigint);
+      costs.sort(compareBigint);
       steps.sort((a, b) => a - b);
-      const total = costs.reduce((sum, c) => sum + c, 0n);
+      const total = sumNano(costs);
       out.push({
         agentId: agent,
         runs: costs.length,
-        median: percentile(costs, 0.5),
-        p95: percentile(costs, 0.95),
+        median: nearestRank(costs, 50, 100),
+        p95: nearestRank(costs, 95, 100),
         max: costs[costs.length - 1]!,
         mean: total / BigInt(costs.length),
-        medianSteps: percentile(steps, 0.5),
-        p95Steps: percentile(steps, 0.95),
+        medianSteps: nearestRank(steps, 50, 100),
+        p95Steps: nearestRank(steps, 95, 100),
       });
     }
-    return out.sort((a, b) => byBigint(b.p95, a.p95));
+    return out.sort((a, b) => compareBigint(b.p95, a.p95));
   }
 
   reasoning(tenantId: string, range: TimeRange): ReasoningReport {
