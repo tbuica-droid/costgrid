@@ -1,16 +1,9 @@
-import { maskSecret, PURPOSE_PRESETS, presetFor, type Provider, toUsdString } from "@costgrid/core";
-import {
-  type AccountsRepository,
-  type AuditActor,
-  type ImportsRepository,
-  isSourceKind,
-  type SourcesRepository,
-  toUtcDay,
-  type User,
-} from "@costgrid/db";
+import { maskSecret, PURPOSE_PRESETS, type Provider } from "@costgrid/core";
+import { type AccountsRepository, type ImportsRepository, type SourcesRepository, toUtcDay } from "@costgrid/db";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { developerMessage, explainImportError, isMessageAudience, notAnAdminKey } from "./connect-copy.js";
 import { type ConsoleRequest, createGuards } from "./console.js";
+import { bodyOf, by, CONTROL, rangeOf, sourceView } from "./console-fields.js";
 import { ImportRunError, runImport } from "./import-run.js";
 import { MAX_FILE_CHARS, parseUsageFile, UsageFileError } from "./importers/csv.js";
 import { importerFor, IMPORTERS } from "./importers/index.js";
@@ -18,7 +11,8 @@ import { fetchSourceLabels } from "./importers/names.js";
 import { adminKeyAccount, type SecretStore } from "./secret-store.js";
 
 /**
- * Step 2 and 3 of setup: connect a provider, then say what each workflow is for.
+ * Step 2 of setup: connect a provider. Matching what it found to agents is
+ * step 3, in `console-agents.ts`.
  *
  * Connecting is either an admin key or a usage file. An admin key is used
  * straight away for 90 days of history, and kept only if that worked and this
@@ -48,18 +42,6 @@ const MAX_KEY_CHARS = 512;
 /** Further ahead than this is "never" in disguise, and should say so. */
 const MAX_EXPIRY_MS = 2 * 365 * DAY_MS;
 const MAX_FILE_NAME = 120;
-const MAX_NAME = 80;
-const MAX_SOURCE_ID = 256;
-const CONTROL = /[\u0000-\u001f\u007f]/;
-
-const by = (user: User): AuditActor => ({ kind: "user", id: user.id, label: user.email });
-
-function bodyOf(request: ConsoleRequest): Record<string, unknown> {
-  const body = request.body;
-  return typeof body === "object" && body !== null && !Array.isArray(body)
-    ? (body as Record<string, unknown>)
-    : {};
-}
 
 /** The admin key, or why it is not one. Never echoes the value. */
 function readAdminKey(raw: unknown): string | { error: string } {
@@ -88,13 +70,6 @@ function readFileName(raw: unknown): string | undefined {
     return undefined;
   }
   return name;
-}
-
-/** The id from the URL: `_` stands for the account's empty id, and only for the account. */
-function readSourceId(kind: string, raw: string): string | undefined {
-  if (kind === "account") return raw === "_" ? "" : undefined;
-  if (raw === "" || raw === "_" || raw.length > MAX_SOURCE_ID || CONTROL.test(raw)) return undefined;
-  return raw;
 }
 
 export function registerConnect(app: FastifyInstance, deps: ConnectDeps): void {
@@ -334,82 +309,9 @@ export function registerConnect(app: FastifyInstance, deps: ConnectDeps): void {
   app.get("/console/:tenantId/sources", async (request: ConsoleRequest, reply) => {
     const { tenantId } = request.params as { tenantId: string };
     if (!requireRole(request, reply, tenantId, "owner")) return;
-
-    const raw = (request.query as Record<string, unknown> | undefined)?.["days"];
-    const days = raw === undefined ? CONNECT_DAYS : Number(raw);
-    if (!Number.isInteger(days) || days < 1 || days > 365) {
-      return reply.code(400).send({ error: "days must be an integer between 1 and 365" });
-    }
-    const now = Date.now();
-    const range = { from: toUtcDay(now - days * DAY_MS), to: toUtcDay(now) };
-
-    return {
-      sources: sources.list(tenantId, range).map((s) => ({
-        provider: s.provider,
-        kind: s.kind,
-        id: s.id,
-        parentId: s.parentId,
-        label: s.label,
-        name: s.name,
-        purposeId: s.purposeId,
-        purposeVersion: s.purposeVersion,
-        costUsd: toUsdString(s.costNano, 6),
-        firstDay: s.firstDay,
-        lastDay: s.lastDay,
-      })),
-    };
-  });
-
-  app.put("/console/:tenantId/sources/:provider/:kind/:sourceId", async (request: ConsoleRequest, reply) => {
-    const params = request.params as { tenantId: string; provider: string; kind: string; sourceId: string };
-    const actor = requireRole(request, reply, params.tenantId, "owner");
-    if (!actor) return;
-    const provider = providerOf(params.provider, reply);
-    if (!provider) return;
-    if (!isSourceKind(params.kind)) return reply.code(400).send({ error: "unknown source kind" });
-    const id = readSourceId(params.kind, params.sourceId);
-    if (id === undefined) return reply.code(400).send({ error: "not a valid source id for this kind" });
-
-    const body = bodyOf(request);
-    const change: { name?: string; purposeId?: string; purposeVersion?: string } = {};
-    if (body["name"] !== undefined) {
-      if (typeof body["name"] !== "string") return reply.code(400).send({ error: "name must be text" });
-      const name = body["name"].trim();
-      if (name.length > MAX_NAME || CONTROL.test(name)) {
-        return reply.code(400).send({ error: `name must be at most ${MAX_NAME} characters on one line` });
-      }
-      change.name = name;
-    }
-    if (body["purposeId"] !== undefined) {
-      if (typeof body["purposeId"] !== "string") {
-        return reply.code(400).send({ error: "purposeId must be text" });
-      }
-      if (body["purposeId"] === "") change.purposeId = "";
-      else {
-        // The version is the catalog's, so a client cannot claim a definition it was not shown.
-        const preset = presetFor(body["purposeId"]);
-        if (!preset) return reply.code(400).send({ error: "unknown purpose" });
-        change.purposeId = preset.id;
-        change.purposeVersion = preset.version;
-      }
-    }
-    if (change.name === undefined && change.purposeId === undefined) {
-      return reply.code(400).send({ error: "give a name or a purpose" });
-    }
-
-    if (!sources.setNameAndPurpose(params.tenantId, provider, params.kind, id, change)) {
-      return reply.code(404).send({ error: "source not found" });
-    }
-    audit.record(params.tenantId, {
-      actor: by(actor.user),
-      action: "source.named",
-      subject: `${provider}:${params.kind}:${id}`,
-      detail: {
-        ...(change.name !== undefined ? { name: change.name } : {}),
-        ...(change.purposeId !== undefined ? { purposeId: change.purposeId } : {}),
-      },
-    });
-    return { ok: true };
+    const range = rangeOf(request);
+    if ("error" in range) return reply.code(400).send(range);
+    return { sources: sources.list(tenantId, range).map(sourceView) };
   });
 
   // ------------------------------------------------------ presets, copy

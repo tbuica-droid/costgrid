@@ -2,13 +2,12 @@ import type { Nanodollars, Provider } from "@costgrid/core";
 import type { Db } from "./database.js";
 
 /**
- * Where usage came from, and what the owner says each source is for.
+ * Where usage came from, and which agent uses each source.
  *
  * A provider reports usage per API key, per Claude workspace or per OpenAI
- * project. Each of those is usually one workflow, so it is the unit an owner
- * can name ("the support bot") and give a purpose to without knowing anything
- * about how the software was built. When the provider does not say, the usage
- * belongs to the whole account.
+ * project. When the provider does not say, the usage belongs to the whole
+ * account. Each source is used by one agent (`agents.ts`), which the owner
+ * names and gives a purpose, or is shared by several and belongs to none.
  *
  * Also the metadata of a stored admin key. The key itself is never here: it
  * lives in the operating system's keychain, and this table only knows that one
@@ -33,6 +32,8 @@ export interface SourceRef {
   readonly parentId?: string;
   /** The provider's own name for it, when it could be looked up. */
   readonly label?: string;
+  /** The provider's own name for its workspace or project, when it could be looked up. */
+  readonly parentLabel?: string;
 }
 
 export interface AdminKeyMeta {
@@ -52,13 +53,19 @@ export interface SourceRow {
   readonly id: string;
   readonly parentId: string | null;
   readonly label: string | null;
-  readonly name: string | null;
-  readonly purposeId: string | null;
-  readonly purposeVersion: string | null;
+  readonly parentLabel: string | null;
+  /** The agent that uses it; null when unassigned or shared. */
+  readonly agentId: string | null;
+  /** Used by several agents, so its cost belongs to none of them. */
+  readonly shared: boolean;
+  /** Who put it on its agent (or took it off): the owner, or a name match. */
+  readonly assignedBy: "owner" | "match" | null;
   readonly firstDay: string | null;
   readonly lastDay: string | null;
   /** Imported cost in the requested range: the provider's figure where given, else the catalog's. */
   readonly costNano: Nanodollars;
+  /** The part of `costNano` that is the catalog's list-price estimate, for want of a provider figure. */
+  readonly estimatedNano: Nanodollars;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,12 +74,6 @@ function checkDays(from: string, to: string): void {
   if (!DAY.test(from) || !DAY.test(to) || from > to) {
     throw new RangeError(`not a range of days: ${from} to ${to}`);
   }
-}
-
-/** Empty means "clear it", so a name can be removed as well as changed. */
-function orNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
 }
 
 const ADMIN_KEY_COLUMNS = `provider, key_hint AS hint, expires_at AS expiresAt, created_at AS createdAt,
@@ -100,12 +101,13 @@ export class SourcesRepository {
     // when either side is NULL, and Postgres spells it LEAST anyway.
     const upsert = this.#db.prepare(
       `INSERT INTO usage_sources (
-         tenant_id, provider, source_kind, source_id, parent_id, provider_label,
+         tenant_id, provider, source_kind, source_id, parent_id, provider_label, parent_label,
          first_day, last_day, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (tenant_id, provider, source_kind, source_id) DO UPDATE SET
          parent_id      = COALESCE(excluded.parent_id, usage_sources.parent_id),
          provider_label = COALESCE(excluded.provider_label, usage_sources.provider_label),
+         parent_label   = COALESCE(excluded.parent_label, usage_sources.parent_label),
          first_day      = CASE WHEN usage_sources.first_day IS NULL
                                  OR excluded.first_day < usage_sources.first_day
                                THEN excluded.first_day ELSE usage_sources.first_day END,
@@ -128,6 +130,7 @@ export class SourcesRepository {
           id,
           ref.parentId ?? null,
           ref.label ?? null,
+          ref.parentLabel ?? null,
           days.first,
           days.last,
           now,
@@ -142,14 +145,15 @@ export class SourcesRepository {
     const rows = this.#db
       .prepare(
         `SELECT s.provider, s.source_kind AS kind, s.source_id AS id, s.parent_id AS parentId,
-                s.provider_label AS label, s.display_name AS name,
-                s.purpose_id AS purposeId, s.purpose_version AS purposeVersion,
+                s.provider_label AS label, s.parent_label AS parentLabel,
+                s.agent_id AS agentId, s.shared, s.assigned_by AS assignedBy,
                 s.first_day AS firstDay, s.last_day AS lastDay,
-                COALESCE(u.cost, 0) AS costNano
+                COALESCE(u.cost, 0) AS costNano, COALESCE(u.estimated, 0) AS estimatedNano
          FROM usage_sources s
          LEFT JOIN (
            SELECT provider, source_kind, source_id,
-                  SUM(COALESCE(cost_reported, cost_catalog)) AS cost
+                  SUM(COALESCE(cost_reported, cost_catalog)) AS cost,
+                  SUM(CASE WHEN cost_reported IS NULL THEN cost_catalog ELSE 0 END) AS estimated
            FROM imported_usage
            WHERE tenant_id = ? AND day >= ? AND day <= ?
            GROUP BY provider, source_kind, source_id
@@ -158,10 +162,12 @@ export class SourcesRepository {
          ORDER BY costNano DESC, s.provider, s.source_kind, s.source_id`,
       )
       .safeIntegers(true)
-      .all(tenantId, range.from, range.to, tenantId) as (Omit<SourceRow, "costNano"> & {
+      .all(tenantId, range.from, range.to, tenantId) as (Omit<SourceRow, "costNano" | "estimatedNano" | "shared"> & {
       costNano: bigint;
+      estimatedNano: bigint;
+      shared: bigint;
     })[];
-    return rows;
+    return rows.map((row) => ({ ...row, shared: row.shared === 1n }));
   }
 
   count(tenantId: string): number {
@@ -169,40 +175,6 @@ export class SourcesRepository {
       .prepare("SELECT COUNT(*) AS n FROM usage_sources WHERE tenant_id = ?")
       .get(tenantId) as { n: number };
     return row.n;
-  }
-
-  /**
-   * Name a source and say what it is for. Only the fields given change; an
-   * empty string clears one. False when there is no such source.
-   */
-  setNameAndPurpose(
-    tenantId: string,
-    provider: Provider,
-    kind: SourceKind,
-    id: string,
-    p: { name?: string; purposeId?: string; purposeVersion?: string },
-  ): boolean {
-    const sets: string[] = [];
-    const values: (string | number | null)[] = [];
-    if (p.name !== undefined) {
-      sets.push("display_name = ?", "named_at = ?");
-      values.push(orNull(p.name), Date.now());
-    }
-    if (p.purposeId !== undefined) {
-      const purposeId = orNull(p.purposeId);
-      sets.push("purpose_id = ?", "purpose_version = ?");
-      values.push(purposeId, purposeId === null ? null : (p.purposeVersion ?? null));
-    }
-
-    const where = "tenant_id = ? AND provider = ? AND source_kind = ? AND source_id = ?";
-    const key = [tenantId, provider, kind, kind === "account" ? "" : id];
-    if (sets.length === 0) {
-      return this.#db.prepare(`SELECT 1 FROM usage_sources WHERE ${where}`).get(...key) !== undefined;
-    }
-    const result = this.#db
-      .prepare(`UPDATE usage_sources SET ${sets.join(", ")} WHERE ${where}`)
-      .run(...values, ...key);
-    return result.changes > 0;
   }
 
   /** Record that a key is stored. Replacing a key starts its sync history afresh. */

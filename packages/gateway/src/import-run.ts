@@ -108,11 +108,18 @@ function recordSources(
   const days = daysBySource(rows);
   for (const ref of refs) {
     const label = ref.label ?? labels.get(ref.id);
+    // The workspace's or project's name, so this key can be matched to the
+    // same key named in a usage file.
+    const parentLabel = ref.parentLabel ?? (ref.parentId === undefined ? undefined : labels.get(ref.parentId));
     const range = days.get(`${ref.kind}\u0000${ref.kind === "account" ? "" : ref.id}`) ?? {
       first: window.fromDay,
       last: window.toDay,
     };
-    sources.upsertSources(tenantId, [label === undefined ? ref : { ...ref, label }], range);
+    sources.upsertSources(
+      tenantId,
+      [{ ...ref, ...(label !== undefined ? { label } : {}), ...(parentLabel !== undefined ? { parentLabel } : {}) }],
+      range,
+    );
   }
 }
 

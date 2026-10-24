@@ -20,4 +20,5 @@ export * from "./register.js";
 export * from "./insights.js";
 export * from "./measured.js";
 export * from "./fixed-costs.js";
+export * from "./agents.js";
 export * from "./sources.js";

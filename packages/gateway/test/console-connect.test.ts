@@ -300,7 +300,6 @@ describe("connecting a provider", () => {
       await call("DELETE", `/console/${tenantId}/connect/anthropic/admin-key`, undefined, member.cookie),
       await call("POST", `/console/${tenantId}/connect/openai/usage-file`, { fileName: "a.csv", text: "x" }, member.cookie),
       await call("GET", `/console/${tenantId}/sources`, undefined, member.cookie),
-      await call("PUT", `/console/${tenantId}/sources/openai/account/_`, { name: "x" }, member.cookie),
       await call("GET", `/console/${tenantId}/connect/developer-message`, undefined, member.cookie),
     ]) {
       expect(res.statusCode).toBe(403);
@@ -370,59 +369,16 @@ describe("connecting a provider", () => {
 
   // ------------------------------------------------------------ sources
 
-  it("lists sources with their cost and saves a name and a purpose", async () => {
+  it("lists sources with their cost, and whether an agent uses them", async () => {
     await upload("completions_usage.csv", fixture("completions_usage_ungrouped.csv"));
     await upload("completions_usage.csv", fixture("completions_usage_2026_order.csv"));
     const listed = (await call("GET", `/console/${tenantId}/sources?days=365`)).json().sources;
     expect(listed.map((s: { kind: string }) => s.kind).sort()).toEqual(["account", "key"]);
     expect(typeof listed[0].costUsd).toBe("string");
+    expect(listed[0]).toMatchObject({ agentId: null, shared: false, assignedBy: null });
 
-    // The whole account travels as "_".
-    const account = await call("PUT", `/console/${tenantId}/sources/openai/account/_`, {
-      name: "  Everything else  ",
-      purposeId: "support",
-      purposeVersion: "99",
-    });
-    expect(account.json()).toEqual({ ok: true });
-    const key = await call("PUT", `/console/${tenantId}/sources/openai/key/key_beta1`, { purposeId: "content" });
-    expect(key.statusCode).toBe(200);
-
-    const after = (await call("GET", `/console/${tenantId}/sources?days=365`)).json().sources;
-    const byKind = Object.fromEntries(after.map((s: { kind: string }) => [s.kind, s]));
-    // The version is the catalog's, whatever the client claimed.
-    expect(byKind.account).toMatchObject({ id: "", name: "Everything else", purposeId: "support", purposeVersion: "1" });
-    expect(byKind.key).toMatchObject({ purposeId: "content", purposeVersion: "1", name: null });
-
-    // Clearing works too.
-    await call("PUT", `/console/${tenantId}/sources/openai/key/key_beta1`, { name: "", purposeId: "" });
-    const cleared = (await call("GET", `/console/${tenantId}/sources?days=365`)).json().sources;
-    expect(cleared.find((s: { kind: string }) => s.kind === "key")).toMatchObject({ name: null, purposeId: null });
-    expect(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'source.named'").get()).toEqual({ n: 3 });
-  });
-
-  it("refuses a source path or body it cannot trust", async () => {
-    await upload("completions_usage.csv", fixture("completions_usage_2026_order.csv"));
-    const put = (path: string, body: object) => call("PUT", `/console/${tenantId}/sources/${path}`, body);
-
-    expect((await put("openai/key/_", { name: "x" })).statusCode).toBe(400);
-    expect((await put("openai/account/acct", { name: "x" })).statusCode).toBe(400);
-    expect((await put("openai/team/key_beta1", { name: "x" })).statusCode).toBe(400);
-    expect((await put("nobody/key/key_beta1", { name: "x" })).statusCode).toBe(400);
-    expect((await put("openai/key/key_beta1", { purposeId: "world-domination" })).statusCode).toBe(400);
-    expect((await put("openai/key/key_beta1", { name: "x".repeat(81) })).statusCode).toBe(400);
-    expect((await put("openai/key/key_beta1", { name: 7 })).statusCode).toBe(400);
-    expect((await put("openai/key/key_beta1", {})).statusCode).toBe(400);
-    expect((await put("openai/key/key_nobody", { name: "x" })).statusCode).toBe(404);
     expect((await call("GET", `/console/${tenantId}/sources?days=0`)).statusCode).toBe(400);
     expect((await call("GET", `/console/${tenantId}/sources?days=366`)).statusCode).toBe(400);
-  });
-
-  it("accepts a source id with a slash in it, sent encoded", async () => {
-    const id = "Support / support-bot";
-    sources.upsertSources(tenantId, [{ provider: "anthropic", kind: "key", id }], { first: today, last: today });
-    const res = await call("PUT", `/console/${tenantId}/sources/anthropic/key/${encodeURIComponent(id)}`, { name: "Bot" });
-    expect(res.statusCode).toBe(200);
-    expect(sources.list(tenantId, { from: today, to: today })[0]).toMatchObject({ id, name: "Bot" });
   });
 
   // ------------------------------------------------------ presets, copy

@@ -113,7 +113,8 @@ const UNPORTABLE: readonly { pattern: RegExp; construct: string; detail: string 
 export function portabilityFindings(): PortabilityFinding[] {
   const findings: PortabilityFinding[] = [];
   for (const migration of MIGRATIONS) {
-    const sql = stripComments(migration.sql);
+    // String literals are data: a CHECK allowing 'match' is not the MATCH operator.
+    const sql = stripComments(migration.sql).replace(/'(?:[^']|'')*'/g, "''");
     for (const { pattern, construct, detail } of UNPORTABLE) {
       if (pattern.test(sql)) {
         findings.push({ migration: migration.version, construct, detail });
@@ -229,6 +230,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   audit_days: "INTEGER",
   version: "INTEGER",
   applied_at: "BIGINT",
+  // Agents and the sources they use.
+  shared: "SMALLINT",
+  assigned_at: "BIGINT",
 };
 
 /** An integer column in the migrations that nobody has decided a width for. */

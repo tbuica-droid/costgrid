@@ -257,6 +257,61 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("turns sources the owner named into agents, and keeps the agents the proxy saw", () => {
+    const db = buildAtVersion(14);
+    for (const t of ["t1", "t2"]) db.prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, 0)").run(t, t);
+    db.prepare(
+      "INSERT INTO agents (id, tenant_id, department, first_seen_at, last_seen_at) VALUES ('classifier', 't1', 'Ops', 100, 900)",
+    ).run();
+    const source = db.prepare(
+      `INSERT INTO usage_sources (tenant_id, provider, source_kind, source_id, provider_label, display_name,
+                                  purpose_id, purpose_version, named_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    source.run("t1", "anthropic", "key", "apikey_a", "support-bot", "Support bot", "support", "1", 50, 10);
+    source.run("t1", "openai", "project", "proj_1", "Leads", null, "sales-leads", "1", null, 20);
+    source.run("t1", "openai", "account", "", null, null, null, null, null, 30);
+    source.run("t2", "anthropic", "key", "Ops / writer", null, "Writer", null, null, 40, 5);
+
+    migrate(db);
+
+    const agents = db
+      .prepare(
+        `SELECT tenant_id, id, name, purpose_id, purpose_version, origin, created_at, first_seen_at, last_seen_at
+         FROM agents ORDER BY tenant_id, id`,
+      )
+      .all();
+    expect(agents).toEqual([
+      { tenant_id: "t1", id: "agent-1", name: "Support bot", purpose_id: "support", purpose_version: "1", origin: "owner", created_at: 50, first_seen_at: null, last_seen_at: null },
+      // No name was typed, so the provider's label stands in.
+      { tenant_id: "t1", id: "agent-2", name: "Leads", purpose_id: "sales-leads", purpose_version: "1", origin: "owner", created_at: 20, first_seen_at: null, last_seen_at: null },
+      { tenant_id: "t1", id: "classifier", name: null, purpose_id: null, purpose_version: null, origin: "proxy", created_at: 100, first_seen_at: 100, last_seen_at: 900 },
+      { tenant_id: "t2", id: "agent-1", name: "Writer", purpose_id: null, purpose_version: null, origin: "owner", created_at: 40, first_seen_at: null, last_seen_at: null },
+    ]);
+
+    const links = db
+      .prepare(
+        `SELECT tenant_id, source_id, agent_id, shared, assigned_by, assigned_at FROM usage_sources
+         ORDER BY tenant_id, created_at`,
+      )
+      .all();
+    expect(links).toEqual([
+      { tenant_id: "t1", source_id: "apikey_a", agent_id: "agent-1", shared: 0, assigned_by: "owner", assigned_at: 50 },
+      { tenant_id: "t1", source_id: "proj_1", agent_id: "agent-2", shared: 0, assigned_by: "owner", assigned_at: 20 },
+      { tenant_id: "t1", source_id: "", agent_id: null, shared: 0, assigned_by: null, assigned_at: null },
+      { tenant_id: "t2", source_id: "Ops / writer", agent_id: "agent-1", shared: 0, assigned_by: "owner", assigned_at: 40 },
+    ]);
+    // What the owner typed in step 2 is still there.
+    expect(db.prepare("SELECT display_name FROM usage_sources WHERE source_id = 'apikey_a'").get()).toEqual({
+      display_name: "Support bot",
+    });
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'agent_moves'").get()).toBeUndefined();
+    // A shared source cannot be anything but 0 or 1.
+    expect(() => db.prepare("UPDATE usage_sources SET shared = 2").run()).toThrow(/CHECK/);
+
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

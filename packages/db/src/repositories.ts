@@ -230,13 +230,14 @@ export class CostGridRepository {
     const now = Date.now();
     this.#db
       .prepare(
-        `INSERT INTO agents (id, tenant_id, department, first_seen_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO agents (id, tenant_id, department, created_at, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT (tenant_id, id) DO UPDATE SET
-           last_seen_at = excluded.last_seen_at,
-           department   = excluded.department`,
+           first_seen_at = COALESCE(agents.first_seen_at, excluded.first_seen_at),
+           last_seen_at  = excluded.last_seen_at,
+           department    = excluded.department`,
       )
-      .run(agentId, tenantId, department, now, now);
+      .run(agentId, tenantId, department, now, now, now);
   }
 
   // ------------------------------------------------------------------ calls

@@ -27,6 +27,8 @@
  * an outage, so the column exists from the start.
  */
 
+import { AGENTS_MIGRATION } from "./schema-agents.js";
+
 export interface Migration {
   readonly version: number;
   readonly name: string;
@@ -882,6 +884,7 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE import_runs ADD COLUMN origin TEXT NOT NULL DEFAULT 'admin-api';
     `,
   },
+  AGENTS_MIGRATION,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

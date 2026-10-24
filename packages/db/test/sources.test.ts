@@ -142,7 +142,14 @@ describe("SourcesRepository", () => {
     sources.upsertSources(
       T,
       [
-        { provider: "anthropic", kind: "key", id: "apikey_a", parentId: "wrkspc_1", label: "support-bot" },
+        {
+          provider: "anthropic",
+          kind: "key",
+          id: "apikey_a",
+          parentId: "wrkspc_1",
+          label: "support-bot",
+          parentLabel: "Support",
+        },
         { provider: "anthropic", kind: "account", id: "ignored" },
       ],
       { first: "2026-06-02", last: "2026-06-03" },
@@ -161,12 +168,14 @@ describe("SourcesRepository", () => {
       id: "apikey_a",
       parentId: "wrkspc_1",
       label: "support-bot",
-      name: null,
-      purposeId: null,
-      purposeVersion: null,
+      parentLabel: "Support",
+      agentId: null,
+      shared: false,
+      assignedBy: null,
       firstDay: "2026-06-01",
       lastDay: "2026-06-03",
       costNano: 0n,
+      estimatedNano: 0n,
     });
     // The account's id is always ''.
     expect(list.find((s) => s.kind === "account")?.id).toBe("");
@@ -206,12 +215,6 @@ describe("SourcesRepository", () => {
     expect(firstDay.find((s) => s.id === "apikey_a")?.costNano).toBe(usd("1.00"));
     expect(() => sources.list(T, { from: "2026-06-03", to: "2026-06-01" })).toThrow();
   });
-
-  it("names a source and records its purpose, changing only what is given", () => {
-    sources.upsertSources(T, [{ provider: "openai", kind: "project", id: "proj_1" }], {
-      first: "2026-06-01",
-      last: "2026-06-01",
-    });
 
     expect(sources.setNameAndPurpose(T, "openai", "project", "proj_1", { name: "  Support bot " })).toBe(true);
     expect(
