@@ -626,13 +626,15 @@ export function effectiveRates(
   // its rates are carried through as catalogued.
   let rates: EffectiveRates;
   if (price.provider === "anthropic") {
-    const isReducedCacheRead = price.cacheRead * 10n !== price.input;
     rates = {
       input,
       output,
       cacheWrite5m: mulDiv(input, 5n, 4n),
       cacheWrite1h: input * 2n,
-      cacheRead: isReducedCacheRead ? mulDiv(input, 1n, 40n) : mulDiv(input, 1n, 10n),
+      // The read multiple varies by model (0.1x, 0.05x on Opus 5.5, 0.025x on
+      // the 5.1 generation), so take it from the catalogued ratio rather than
+      // assuming one exception.
+      cacheRead: mulDiv(input, price.cacheRead, price.input),
     };
   } else {
     rates = {

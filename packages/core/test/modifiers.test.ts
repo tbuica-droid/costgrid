@@ -9,14 +9,18 @@ import {
   isCatalogStale,
   listModelPrices,
 } from "../src/pricing.js";
-import { parseAnthropicModifiers, priceUsage, ZERO_USAGE } from "../src/usage.js";
+import { costOf, parseAnthropicModifiers, priceUsage, ZERO_USAGE } from "../src/usage.js";
 
 const opus = findModelPrice("claude-opus-5")!;
 const sonnet = findModelPrice("claude-sonnet-5")!;
 const fable = findModelPrice("claude-fable-5-1")!;
+const opus55 = findModelPrice("claude-opus-5-5")!;
 
 /** 1M input + 1M output tokens, so a rate reads directly as dollars. */
 const ONE_M_EACH = { ...ZERO_USAGE, inputTokens: 1_000_000, outputTokens: 1_000_000 };
+
+/** 1M cache-read tokens, so the cache-read cost reads directly as dollars. */
+const ONE_M_CACHED = { ...ZERO_USAGE, cacheReadTokens: 1_000_000 };
 
 describe("mulDiv", () => {
   it("rounds half away from zero rather than truncating", () => {
@@ -156,6 +160,39 @@ describe("fast mode", () => {
     // The API bills these at standard rates, so we must too.
     expect(sonnet.fastInput).toBeUndefined();
     expect(effectiveRates(sonnet, { speed: "fast" })).toEqual(effectiveRates(sonnet));
+  });
+});
+
+describe("cache-read rate", () => {
+  // The catalog field is not what gets billed: effectiveRates re-derives the
+  // read rate from the input rate in effect. These check what is billed.
+
+  it("bills every Anthropic model's cache reads at its catalogued rate", () => {
+    for (const model of listModelPrices("anthropic")) {
+      expect(effectiveRates(model).cacheRead, model.id).toBe(model.cacheRead);
+    }
+  });
+
+  it("bills a standard model at 0.1x input", () => {
+    expect(effectiveRates(sonnet).cacheRead).toBe(200n); // $0.20 on $2.00
+    expect(costOf(ONE_M_CACHED, sonnet).cacheRead).toBe(usd("0.20"));
+  });
+
+  it("bills Opus 5.5 at 0.05x input", () => {
+    expect(effectiveRates(opus55).cacheRead).toBe(200n); // $0.20 on $4.00
+    expect(costOf(ONE_M_CACHED, opus55).cacheRead).toBe(usd("0.20"));
+  });
+
+  it("keeps Opus 5.5's 0.05x multiple in fast mode", () => {
+    const rates = effectiveRates(opus55, { speed: "fast" });
+    expect(rates.input).toBe(8_000n);
+    expect(rates.cacheRead).toBe(400n); // 0.05 x $8.00 fast input
+    expect(costOf(ONE_M_CACHED, opus55, { speed: "fast" }).cacheRead).toBe(usd("0.40"));
+  });
+
+  it("bills the 5.1 generation at 0.025x input", () => {
+    expect(effectiveRates(fable).cacheRead).toBe(250n); // $0.25 on $10.00
+    expect(costOf(ONE_M_CACHED, fable).cacheRead).toBe(usd("0.25"));
   });
 });
 
