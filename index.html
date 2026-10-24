@@ -33,8 +33,8 @@
     </script>
   </head>
   <body>
-    <header class="site-head">
-      <div class="wrap head-in">
+    <header class="site-head floating">
+      <div class="wrap"><div class="glass head-in">
         <a class="brand" href="./" aria-label="CostGrid home">
           <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
           CostGrid
@@ -45,20 +45,28 @@
           <a href="#privacy">Privacy</a>
           <a href="./research.html">Research</a>
         </nav>
-        <a class="btn btn-sm" href="#download">Download for Mac</a>
-      </div>
+        <a class="btn btn-accent btn-sm" href="#download">Download for Mac</a>
+      </div></div>
     </header>
 
     <main>
-      <section class="wrap hero" id="top">
-        <span class="overline">For businesses that run their own AI agents</span>
-        <h1>Optimize your AI costs by what actually gets done.</h1>
-        <p class="sub">See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer. Never sees your data.</p>
-        <div class="cta-row">
-          <a class="btn btn-accent btn-lg" href="#download">Download for Mac</a>
-          <a class="btn btn-lg" href="#how">See how it works</a>
+      <!-- Full-screen hero. The moving background is CSS only: no video, nothing third-party. -->
+      <section class="hero" id="top">
+        <div class="hero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span></div>
+        <div class="wrap hero-in">
+          <span class="overline fade" style="--delay: 100ms">For businesses that run their own AI agents</span>
+          <h1 id="heroTitle" data-lines="Optimize your AI costs|by what actually gets done.">Optimize your AI costs by what actually gets done.</h1>
+          <script src="hero.js"></script>
+          <p class="sub fade" style="--delay: 800ms">See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer. Never sees your data.</p>
+          <div class="cta-row fade" style="--delay: 1200ms">
+            <a class="btn btn-accent btn-lg" href="#download">Download for Mac</a>
+            <a class="btn btn-lg glass" href="#how">See how it works</a>
+          </div>
+          <p class="small fade" style="--delay: 1200ms">Free to use · Windows coming soon</p>
         </div>
-        <p class="small">Free to use · Windows coming soon</p>
+        <div class="hero-tag fade" style="--delay: 1400ms">
+          <p class="glass">See the cost. Spot the waste. Fix it first.</p>
+        </div>
       </section>
 
       <!-- Product shot: a preview of the Results screen being built, in HTML. Example data. -->

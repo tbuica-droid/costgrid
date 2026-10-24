@@ -147,14 +147,86 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .foot-bot a { color: var(--ink-2); }
 
 /* ---------- home page ---------- */
-.hero { padding: 56px 0 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-.hero h1 { max-width: 1000px; font-size: 40px; line-height: 1.08; letter-spacing: -0.03em; }
+
+/* Liquid glass: a dark, blurred pane with a light edge that fades out mid-height. */
+.glass {
+  position: relative; background: rgba(11, 13, 18, 0.45);
+  -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+.glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.4px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.08) 80%, rgba(255, 255, 255, 0.22) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.btn.glass { border-color: transparent; }
+.btn.glass:hover { background: var(--ink); color: var(--bg); }
+
+/* The header floats over the hero as a glass bar. */
+.site-head.floating { position: absolute; top: 0; left: 0; right: 0; z-index: 10; border-bottom: 0; padding-top: 16px; }
+.site-head.floating .head-in { border-radius: 12px; padding: 10px 10px 10px 16px; flex-wrap: nowrap; }
+.site-head.floating .site-nav { display: none; }
+@media (min-width: 860px) {
+  .site-head.floating { padding-top: 24px; }
+  .site-head.floating .site-nav { display: flex; flex-basis: auto; order: 0; }
+}
+
+/* Full-screen hero */
+.hero { position: relative; isolation: isolate; overflow: hidden; min-height: 100vh; min-height: 100svh;
+  display: flex; flex-direction: column; }
+.hero-in { position: relative; flex: 1; width: 100%; padding-top: 112px; padding-bottom: 120px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.hero h1 { max-width: 1000px; font-size: 38px; line-height: 1.08; letter-spacing: -0.04em; }
 @media (min-width: 640px) { .hero h1 { font-size: 52px; } }
-@media (min-width: 1000px) { .hero { padding: 80px 0 48px; gap: 22px; } .hero h1 { font-size: 66px; line-height: 1.06; } }
+@media (min-width: 1000px) { .hero-in { gap: 22px; } .hero h1 { font-size: 66px; line-height: 1.06; } }
+@media (min-width: 1280px) { .hero h1 { font-size: 72px; } }
+.hero h1 { text-wrap: balance; }
+/* The two-line break is for wide screens; on a phone the sentence wraps where it fits. */
+.hero h1 .line + .line::before { content: " "; }
+@media (min-width: 640px) { .hero h1 .line { display: block; } .hero h1 .line + .line::before { content: none; } }
+.hero h1 .word { display: inline-block; white-space: nowrap; }
+.hero h1 .ch { display: inline-block; }
 .hero .sub { max-width: 700px; font-size: 18px; color: var(--ink-2); }
 @media (min-width: 900px) { .hero .sub { font-size: 20px; } }
 .cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; margin-top: 8px; }
 .hero .small { font-size: 14px; }
+.hero-tag { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 16px 40px; }
+.hero-tag p { border-radius: 12px; padding: 12px 22px; font-size: 15.5px; font-weight: 500; color: var(--ink);
+  text-align: center; text-wrap: balance; }
+@media (min-width: 640px) { .hero-tag p { font-size: 17px; } }
+@media (min-width: 900px) { .hero-tag { padding-bottom: 56px; } .hero-tag p { font-size: 20px; } }
+@media (max-height: 640px) { .hero-tag { position: static; padding-top: 0; } .hero-in { padding-bottom: 32px; } }
+
+/* The moving background: two slow glows and the grid the product is named after. */
+.hero-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(120% 80% at 50% 0%, #121826 0%, var(--bg) 60%); }
+.hero-bg::before { content: ""; position: absolute; inset: -56px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 75%);
+  animation: grid-drift 32s linear infinite; }
+.hero-bg::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+  background: linear-gradient(transparent, var(--bg)); }
+.glow { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; will-change: transform; }
+.glow-a { left: -20vmax; top: -30vmax; background: radial-gradient(closest-side, rgba(217, 180, 108, 0.20), transparent);
+  animation: glow-a 26s ease-in-out infinite alternate; }
+.glow-b { right: -25vmax; bottom: -35vmax; background: radial-gradient(closest-side, rgba(88, 112, 170, 0.24), transparent);
+  animation: glow-b 30s ease-in-out infinite alternate; }
+@keyframes grid-drift { to { transform: translate3d(56px, 56px, 0); } }
+@keyframes glow-a { to { transform: translate3d(28vmax, 18vmax, 0) scale(1.15); } }
+@keyframes glow-b { to { transform: translate3d(-24vmax, -14vmax, 0) scale(0.9); } }
+
+/* Entrance, only once hero.js has set it up (no script: everything shows at once). */
+.hero.animate .fade { opacity: 0; transition: opacity 1000ms ease; transition-delay: var(--delay, 0ms); }
+.hero.animate .ch { opacity: 0; transform: translateX(-18px); transition: opacity 500ms ease, transform 500ms ease; }
+.hero.animate.in .fade { opacity: 1; }
+.hero.animate.in .ch { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg::before, .glow { animation: none; }
+}
 
 /* product shot: the app's Results screen */
 .shot { padding-bottom: 72px; }

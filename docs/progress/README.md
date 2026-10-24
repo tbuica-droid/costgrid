@@ -197,3 +197,5 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - The three steps were tried in a browser on a throwaway database: sample usage files from both providers, two workflows named, at desktop and phone width, in dark and light.
 
 **Still to check with real accounts:** a usage file with real usage in it from each provider, a real Claude admin key in the Mac app (Keychain prompt, key names), OpenAI admin key permissions.
+
+**Website hero (24 October 2026).** The home page opens with a full-screen hero: a floating glass navigation bar, the headline arriving letter by letter, and a glass tagline pill ("See the cost. Spot the waste. Fix it first."). The moving background is CSS (two slow glows and a drifting grid). The reference design used a video hosted by a third party with an unknown licence, so it was left out: loading it would have sent every visitor's IP address to that host. Visitors who ask for less motion get a still page, and without JavaScript everything shows at once.
