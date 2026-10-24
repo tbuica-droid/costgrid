@@ -12,6 +12,7 @@ import {
 } from "electron";
 import { appDataDir, loadConfig, readMasterKey, type RunningGateway, startGateway } from "@costgrid/gateway";
 import { loadMasterKey } from "./master-key.js";
+import { keyringSecretStore } from "./secret-store.js";
 
 /**
  * CostGrid as an app: the gateway running inside this process, and its
@@ -102,7 +103,12 @@ async function boot(): Promise<void> {
     };
     for (const [name, value] of Object.entries(defaults)) process.env[name] ??= value;
 
+    // Where connected admin keys are kept. Without one the app still works;
+    // a key is then used once and not kept.
+    const secretStore = await keyringSecretStore();
+
     gateway = await startGateway(loadConfig({ readKeychain: () => master.key }), {
+      secretStore,
       // A limit firing is worth interrupting someone for, so it is shown by
       // the operating system rather than waiting in a window they may have
       // closed. Clicking it opens the Limits screen.
@@ -113,6 +119,8 @@ async function boot(): Promise<void> {
         note.show();
       },
     });
+    // Whether there is one, and nothing else about it.
+    gateway.app.log.info({ secretStore: secretStore !== undefined }, "keychain for admin keys checked");
     origin = gateway.url;
     createWindow();
   } catch (error) {

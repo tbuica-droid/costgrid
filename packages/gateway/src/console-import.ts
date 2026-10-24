@@ -1,6 +1,7 @@
-import { type AccountsRepository, type ImportsRepository, toUtcDay } from "@costgrid/db";
+import { type AccountsRepository, type ImportsRepository, type SourcesRepository, toUtcDay } from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
 import { type ConsoleRequest, createGuards } from "./console.js";
+import { ImportRunError, runImport } from "./import-run.js";
 import { importerFor, IMPORTERS } from "./importers/index.js";
 
 /**
@@ -15,6 +16,7 @@ import { importerFor, IMPORTERS } from "./importers/index.js";
 export interface ImportDeps {
   readonly accounts: AccountsRepository;
   readonly imports: ImportsRepository;
+  readonly sources: SourcesRepository;
   /** Overridable so tests never reach a real provider. */
   readonly fetchImpl?: typeof fetch | undefined;
 }
@@ -64,41 +66,41 @@ export function registerImport(app: FastifyInstance, deps: ImportDeps): void {
 
     const to = new Date();
     const from = new Date(to.getTime() - days * 86_400_000);
-    const window = { fromDay: toUtcDay(from), toDay: toUtcDay(to) };
-    const runId = imports.startRun(tenantId, importer.provider, window.fromDay, window.toDay, "admin-api");
-
     try {
-      const result = await importer.run({
-        apiKey: adminKey,
-        from,
-        to,
-        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-      });
-      const written = imports.putRows(tenantId, importer.provider, window, result.rows, "admin-api");
-      imports.finishRun(runId, written);
-
-      // Recorded because someone used an admin credential against the
-      // customer's provider account. Which credential is not recorded, because
-      // it was never stored.
-      audit.record(tenantId, {
-        actor: { kind: "user", id: actor.user.id, label: actor.user.email },
-        action: "import.ran",
-        subject: importer.provider,
-        detail: { fromDay: toUtcDay(from), toDay: toUtcDay(to), rowsWritten: written },
+      const outcome = await runImport(deps, {
+        tenantId,
+        provider: importer.provider,
+        origin: "admin-api",
+        window: { fromDay: toUtcDay(from), toDay: toUtcDay(to) },
+        secret: adminKey,
+        load: () =>
+          importer.run({
+            apiKey: adminKey,
+            from,
+            to,
+            ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+          }),
+        // Recorded because someone used an admin credential against the
+        // customer's provider account. Which credential is not recorded,
+        // because it was never stored.
+        audit: {
+          log: audit,
+          actor: { kind: "user", id: actor.user.id, label: actor.user.email },
+          action: "import.ran",
+        },
       });
 
       return {
         provider: importer.provider,
-        fromDay: toUtcDay(from),
-        toDay: toUtcDay(to),
-        rowsWritten: written,
+        fromDay: outcome.fromDay,
+        toDay: outcome.toDay,
+        rowsWritten: outcome.rowsWritten,
         // Named so nobody mistakes an unpriced model for free traffic.
-        unpricedModels: result.unpricedModels,
+        unpricedModels: outcome.unpricedModels,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      imports.failRun(runId, message);
-      return reply.code(502).send({ error: `import failed: ${message}` });
+      if (!(error instanceof ImportRunError)) throw error;
+      return reply.code(502).send({ error: `import failed: ${error.message}` });
     }
   });
 

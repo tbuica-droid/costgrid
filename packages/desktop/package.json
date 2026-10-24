@@ -12,7 +12,8 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
-    "@costgrid/gateway": "1.0.0"
+    "@costgrid/gateway": "1.0.0",
+    "@napi-rs/keyring": "2.1.0"
   },
   "devDependencies": {
     "electron": "44.4.5",

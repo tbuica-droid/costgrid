@@ -11,6 +11,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GatewayConfig } from "../src/config.js";
+import { adminKeyAccount, MemorySecretStore } from "../src/secret-store.js";
 import { createServer } from "../src/server.js";
 
 /**
@@ -67,10 +68,11 @@ describe("console operations", () => {
   let cookie: string;
   let userId: string;
 
-  const build = (config: GatewayConfig) => {
+  const build = (config: GatewayConfig, secretStore?: MemorySecretStore) => {
     upstream = [];
     return createServer({
       config,
+      secretStore,
       db,
       repository,
       analytics: new Analytics(db),
@@ -107,13 +109,13 @@ describe("console operations", () => {
   const actions = () => accounts.audit.list(tenantId, {}).map((e) => e.action);
 
   /** A desktop install allows one account, so it needs a database of its own. */
-  const desktop = async () => {
+  const desktop = async (secretStore?: MemorySecretStore) => {
     await app.close();
     db.close();
     db = openDatabase({ path: ":memory:" });
     accounts = new AccountsRepository(db, deriveMasterKey(MASTER_SECRET));
     repository = new CostGridRepository(db);
-    app = build({ ...HOSTED, desktop: true });
+    app = build({ ...HOSTED, desktop: true }, secretStore);
     await signup("me@laptop.test");
   };
 
@@ -361,12 +363,18 @@ describe("console operations", () => {
   });
 
   it("erasing a desktop install removes the account too, so setup starts again", async () => {
-    await desktop();
+    const keychain = new MemorySecretStore();
+    await desktop(keychain);
+    await keychain.set(adminKeyAccount(tenantId, "anthropic"), "sk-ant-admin-kept");
+    await keychain.set(adminKeyAccount("someone-else", "anthropic"), "sk-ant-admin-other");
 
     const res = await send("DELETE", `/console/${tenantId}`, { confirm: "Acme" });
     expect(res.statusCode).toBe(200);
     expect(res.json().accountRemoved).toBe(true);
     expect(String(res.headers["set-cookie"])).toMatch(/costgrid_session=;/);
+    // The organisation's admin key went with it; nobody else's did.
+    expect(await keychain.get(adminKeyAccount(tenantId, "anthropic"))).toBeUndefined();
+    expect(keychain.size).toBe(1);
 
     expect((await get("/console/me")).statusCode).toBe(401);
     expect(accounts.findUserByEmail("me@laptop.test")).toBeUndefined();

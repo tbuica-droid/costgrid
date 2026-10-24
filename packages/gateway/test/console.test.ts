@@ -69,6 +69,7 @@ describe("hosted control plane", () => {
 
     app = createServer({
       config: HOSTED,
+      db,
       repository,
       analytics: new Analytics(db),
       accounts,
@@ -445,6 +446,7 @@ describe("hosted control plane", () => {
     await app.close();
     app = createServer({
       config: HOSTED,
+      db,
       repository,
       analytics: new Analytics(db),
       accounts,
@@ -515,6 +517,7 @@ describe("hosted control plane", () => {
     await app.close();
     app = createServer({
       config: HOSTED,
+      db,
       repository,
       analytics: new Analytics(db),
       accounts,
@@ -548,6 +551,7 @@ describe("hosted control plane", () => {
     await app.close();
     app = createServer({
       config: HOSTED,
+      db,
       repository,
       analytics: new Analytics(db),
       accounts,

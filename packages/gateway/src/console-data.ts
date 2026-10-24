@@ -13,8 +13,10 @@ import {
 import type { FastifyInstance } from "fastify";
 import type { GatewayConfig } from "./config.js";
 import { clearSessionCookie, type ConsoleRequest, createGuards } from "./console.js";
+import { IMPORTERS } from "./importers/index.js";
 import { defaultPreflightModel, preflight } from "./preflight.js";
 import { ADAPTERS } from "./providers/index.js";
+import { adminKeyAccount, type SecretStore } from "./secret-store.js";
 
 /**
  * The console routes that touch the whole of what CostGrid holds: a copy of
@@ -32,6 +34,8 @@ export interface DataDeps {
   readonly db: Db;
   readonly accounts: AccountsRepository;
   readonly repository: CostGridRepository;
+  /** The desktop app's keychain, so erasing an organisation removes its admin keys too. */
+  readonly secretStore?: SecretStore | undefined;
   /** Overridable so tests never reach a real provider. */
   readonly fetchImpl?: typeof fetch | undefined;
 }
@@ -190,6 +194,15 @@ export function registerData(app: FastifyInstance, deps: DataDeps): void {
       });
     }
 
+    // The keychain first: an admin key must not outlive the organisation it
+    // was connected for. A failure is logged and does not stop the erasure.
+    if (deps.secretStore !== undefined) {
+      for (const { provider } of IMPORTERS) {
+        await deps.secretStore.delete(adminKeyAccount(tenantId, provider)).catch(() => {
+          request.log.warn({ provider }, "an admin key could not be removed from the keychain");
+        });
+      }
+    }
     const result = accounts.retention.eraseTenant(tenantId);
     if (config.desktop) {
       accounts.deleteUser(actor.user.id);

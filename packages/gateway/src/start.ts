@@ -13,6 +13,7 @@ import {
   ImportsRepository,
   openDatabase,
   Retention,
+  SourcesRepository,
 } from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
 import { mkdirSync } from "node:fs";
@@ -20,7 +21,12 @@ import { dirname } from "node:path";
 import type { AlertNotice } from "./alerts.js";
 import { AnchorSender } from "./anchor-sender.js";
 import type { GatewayConfig } from "./config.js";
-import { assertToolPoliciesEnforceable, createServer } from "./server.js";
+import { AdminKeySync } from "./connect-sync.js";
+import type { SecretStore } from "./secret-store.js";
+import { alerterOf, assertToolPoliciesEnforceable, createServer } from "./server.js";
+
+/** How often stored admin keys are used to bring imported usage up to date. */
+const ADMIN_KEY_SYNC_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Bring the gateway up from a resolved configuration.
@@ -45,6 +51,12 @@ export interface RunningGateway {
 export interface StartOptions {
   /** Called for each new alert, so the desktop app can show a notification. */
   readonly onAlert?: (notice: AlertNotice) => void;
+  /**
+   * The operating system's keychain, from the desktop app. With one, admin
+   * keys can be kept and are synced in the background; without (the command
+   * line, a server), a key is used once and dropped.
+   */
+  readonly secretStore?: SecretStore | undefined;
 }
 
 export async function startGateway(
@@ -83,6 +95,7 @@ export async function startGateway(
     imports,
     alerts,
     onAlert: options.onAlert,
+    secretStore: options.secretStore,
   });
   const timers: NodeJS.Timeout[] = [];
 
@@ -113,6 +126,34 @@ export async function startGateway(
   const purge = setInterval(applyRetention, 24 * 60 * 60 * 1000);
   purge.unref();
   timers.push(purge);
+
+  // Stored admin keys exist only where there is a keychain to keep them in.
+  // Each run reminds owners of keys about to expire, then syncs the rest. A
+  // failure is recorded against the key and logged without it.
+  if (options.secretStore !== undefined) {
+    const keySync = new AdminKeySync({
+      imports,
+      sources: new SourcesRepository(db),
+      secretStore: options.secretStore,
+      alerter: alerterOf(app),
+      audit: accounts?.audit,
+      log: app.log,
+    });
+    const syncKeys = (): void => {
+      try {
+        keySync.remindExpiring();
+      } catch (error) {
+        app.log.error({ err: error }, "admin key expiry reminders could not be checked");
+      }
+      void keySync.syncAll().catch((error: unknown) => {
+        app.log.error({ err: error }, "the admin key sync failed");
+      });
+    };
+    syncKeys();
+    const syncing = setInterval(syncKeys, ADMIN_KEY_SYNC_MS);
+    syncing.unref();
+    timers.push(syncing);
+  }
 
   /*
    * Anchoring, when the operator has somewhere to send to.

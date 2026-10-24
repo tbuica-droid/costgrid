@@ -21,6 +21,7 @@ import {
   type CostGridRepository,
   type ImportsRepository,
   monthOf,
+  type SourcesRepository,
   type StatementLine,
   statementToCsv,
   type TimeRange,
@@ -43,6 +44,7 @@ export interface ApiDeps {
   readonly repository: CostGridRepository;
   readonly analytics: Analytics;
   readonly imports: ImportsRepository;
+  readonly sources: SourcesRepository;
   /** Resolves the caller's tenant, or undefined when unauthenticated. */
   readonly tenantOf: (request: FastifyRequest) => string | undefined;
 }
@@ -69,7 +71,7 @@ function rangeFor(days: number): TimeRange {
 }
 
 export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
-  const { analytics, imports, repository, tenantOf } = deps;
+  const { analytics, imports, repository, sources, tenantOf } = deps;
 
   // Every /api route is tenant-scoped; resolving it once here means no
   // individual handler can forget to filter by tenant.
@@ -167,6 +169,8 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
       reportedCostUsd: summary.reportedCost === undefined ? null : money(summary.reportedCost),
       effectiveCostUsd: money(effective),
       unpricedRows: summary.unpricedRows,
+      // How many keys, workspaces, projects or whole accounts the imported usage came from.
+      sourceCount: sources.count(tenantId),
       daily: imports.dailyCost(tenantId, range).map((d) => ({
         day: d.day,
         costUsd: money(d.cost),

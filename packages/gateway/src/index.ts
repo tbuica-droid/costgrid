@@ -4,4 +4,5 @@ export { appDataDir, type GatewayConfig, loadConfig } from "./config.js";
 export * from "./keychain.js";
 export * from "./preflight.js";
 export * from "./providers/index.js";
+export { adminKeyAccount, MemorySecretStore, type SecretStore } from "./secret-store.js";
 export { type RunningGateway, type StartOptions, startGateway } from "./start.js";

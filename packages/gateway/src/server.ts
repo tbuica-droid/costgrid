@@ -26,6 +26,7 @@ import {
   CostGridRepository,
   type Db,
   type ImportsRepository,
+  SourcesRepository,
   trailingWindow,
 } from "@costgrid/db";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -33,6 +34,7 @@ import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alert
 import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
+import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
 import { registerLimits } from "./console-limits.js";
@@ -43,6 +45,7 @@ import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
+import type { SecretStore } from "./secret-store.js";
 
 const AGENT_HEADER = "x-costgrid-agent";
 const DEPARTMENT_HEADER = "x-costgrid-department";
@@ -83,6 +86,16 @@ export interface ServerDeps {
   readonly alerts?: AlertsRepository | undefined;
   /** The desktop app's hook for showing a notification on this computer. */
   readonly onAlert?: ((notice: AlertNotice) => void) | undefined;
+  /** Where admin keys are kept: the desktop app's keychain. Absent, a key is used once. */
+  readonly secretStore?: SecretStore | undefined;
+}
+
+/** Each server's alerter, for the jobs `start.ts` runs beside it. */
+const ALERTERS = new WeakMap<FastifyInstance, Alerter>();
+
+/** The alerter a server raises alerts through; undefined when it was built without an alert store. */
+export function alerterOf(app: FastifyInstance): Alerter | undefined {
+  return ALERTERS.get(app);
 }
 
 interface Caller {
@@ -294,7 +307,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           envWebhookUrl: config.alertWebhookUrl,
           onAlert: deps.onAlert,
         });
+  if (alerter !== undefined) ALERTERS.set(app, alerter);
   const runaway = new RunawayWatch(deps.db);
+  const sources = new SourcesRepository(deps.db);
 
   /*
    * Metering that can fail without taking the request with it.
@@ -362,6 +377,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     repository,
     analytics,
     imports,
+    sources,
     // Read-only: a session cookie is accepted here and nowhere else.
     tenantOf: (request) => identify(request, deps, true)?.tenantId,
   });
@@ -373,7 +389,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       analytics,
       fetchImpl: deps.fetchImpl,
     });
-    registerImport(app, { accounts: accounts!, imports, fetchImpl: deps.fetchImpl });
+    registerImport(app, { accounts: accounts!, imports, sources, fetchImpl: deps.fetchImpl });
+    registerConnect(app, {
+      accounts: accounts!,
+      imports,
+      sources,
+      secretStore: deps.secretStore,
+      fetchImpl: deps.fetchImpl,
+    });
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
@@ -382,6 +405,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       db: deps.db,
       accounts: accounts!,
       repository,
+      secretStore: deps.secretStore,
       fetchImpl: deps.fetchImpl,
     });
     // Without a store passed in (tests), alerts are still recorded and
