@@ -25,6 +25,7 @@ import {
   type CallRecord,
   CostGridRepository,
   type Db,
+  AgentsRepository,
   type ImportsRepository,
   SourcesRepository,
   trailingWindow,
@@ -34,6 +35,7 @@ import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alert
 import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
+import { registerAgents } from "./console-agents.js";
 import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
@@ -397,6 +399,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       secretStore: deps.secretStore,
       fetchImpl: deps.fetchImpl,
     });
+    registerAgents(app, { accounts: accounts!, agents: new AgentsRepository(deps.db) });
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });

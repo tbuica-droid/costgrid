@@ -192,8 +192,11 @@ export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
     const agents = db
       .prepare(
         `SELECT id, department, last_seen_at AS lastSeenAt
-         FROM agents WHERE tenant_id = ? ORDER BY last_seen_at DESC LIMIT 500`,
+         FROM agents WHERE tenant_id = ? AND last_seen_at IS NOT NULL
+         ORDER BY last_seen_at DESC LIMIT 500`,
       )
+      // Limits act on proxied traffic, so an agent named in setup that has
+      // never sent any is not offered here.
       .all(tenantId) as { id: string; department: string; lastSeenAt: number }[];
 
     return {
