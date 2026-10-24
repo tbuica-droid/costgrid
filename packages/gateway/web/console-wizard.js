@@ -1,10 +1,10 @@
 /**
  * Setup, as three steps an owner can finish without touching code: sign in,
- * connect the AI accounts, and say what each workflow is for.
+ * connect the AI accounts, and match each key to the agent that uses it.
  *
  * This file is the shell: it loads what each step needs, decides which step
  * is next, and lays them out. The steps render themselves (console-connect.js,
- * console-purpose.js) and handle their own forms. The developer route, traffic
+ * console-agents.js) and handle their own forms. The developer route, traffic
  * through CostGrid, stays below them under "Advanced" (console-proxy.js).
  *
  * Every step reads its state from the server, so the page is right after a
@@ -14,7 +14,7 @@
 import { call, flashBanner, state } from "./console-api.js";
 import { connectDone, renderConnect } from "./console-connect.js";
 import { proxyNeedsSetup, renderSteps } from "./console-proxy.js";
-import { purposeDone, renderPurposes } from "./console-purpose.js";
+import { agentsDone, allSources, renderAgents } from "./console-agents.js";
 import { escapeHtml, pageHead } from "./ui.js";
 
 /** Whether "Advanced" was left open, so a redraw does not fold it away. */
@@ -60,28 +60,27 @@ const failed = (what, error) =>
 
 export async function render() {
   const t = state.tenantId;
-  const [connect, sourceList, presetList, proxy] = await Promise.all([
+  const [connect, agentList, presetList, proxy] = await Promise.all([
     settle(call("GET", `/console/${t}/connect`)),
-    settle(call("GET", `/console/${t}/sources?days=90`)),
+    settle(call("GET", `/console/${t}/agents?days=90`)),
     settle(call("GET", "/console/presets")),
     settle(renderSteps()),
   ]);
 
-  const sources = sourceList.value?.sources ?? [];
   const presets = presetList.value?.presets ?? [];
-  const connected = connectDone(connect.value) || sources.length > 0;
-  const named = purposeDone(sources);
+  const connected = connectDone(connect.value) || allSources(agentList.value).length > 0;
+  const matched = agentsDone(agentList.value);
   const status2 = connected ? "done" : "next";
-  const status3 = named ? "done" : connected ? "next" : "later";
+  const status3 = matched ? "done" : connected ? "next" : "later";
 
   // Only a desktop install keeps the account on this computer; a hosted one does not.
   const signedIn = `<p>Signed in as <strong>${escapeHtml(state.user.email)}</strong>.${
     state.setup?.singleAccount === true ? " This account stays on this computer." : ""
   }</p>`;
   const connectBody = connect.value ? renderConnect(connect.value) : failed("Your connections", connect.error);
-  const purposeBody = sourceList.error
-    ? failed("Your keys and projects", sourceList.error)
-    : renderPurposes(sources, presets, connected);
+  const agentsBody = agentList.error
+    ? failed("Your keys and agents", agentList.error)
+    : renderAgents(agentList.value, presets, connected);
 
   return `
     ${pageHead("Set up CostGrid", "Three steps to see what each successful AI job costs you.")}
@@ -89,7 +88,7 @@ export async function render() {
     <ol class="stepper">
       ${step(1, "Sign in", "done", signedIn)}
       ${step(2, "Connect your AI accounts", status2, connectBody)}
-      ${step(3, "Say what each workflow is for", status3, purposeBody)}
+      ${step(3, "Match each key to an agent", status3, agentsBody)}
     </ol>
 
     <details class="advanced"${advancedOpen ? " open" : ""}>

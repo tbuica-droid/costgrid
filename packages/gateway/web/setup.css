@@ -1,6 +1,6 @@
 /*
  * The setup page: the three-step stepper, the connect cards, the file drop
- * zone and the purpose rows.
+ * zone, the key rows and the agent cards.
  *
  * Its own file to keep styles.css under its size limit. Loaded after it, and
  * uses only the --cg-* tokens defined there, so light mode follows for free.
@@ -89,7 +89,7 @@
 .dev-message { font-family: var(--cg-font-sans); line-height: var(--cg-leading-normal); }
 [data-dev-message] + .banner { margin: var(--cg-space-4) 0 0; }
 
-/* ------------------------------------------------------------ purpose rows */
+/* ------------------------------------------------- key rows and purposes */
 
 .source-list { display: flex; flex-direction: column; gap: var(--cg-space-4); }
 .source-form {
@@ -114,6 +114,42 @@
 
 .purpose-finish { margin: var(--cg-space-5) 0 0; }
 
+/* ------------------------------------------------------------ agent cards */
+
+.agents-section { margin-top: var(--cg-space-5); }
+.agents-section > h3 { margin-bottom: var(--cg-space-2); }
+.agent-list { display: flex; flex-direction: column; gap: var(--cg-space-4); }
+.agent-card {
+  min-width: 0; padding: var(--cg-space-4); border: 1px solid var(--cg-line);
+  border-radius: var(--cg-radius-md); background: var(--cg-surface-2);
+}
+.agent-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-2); }
+.agent-card-head h4 { margin: 0; font-size: var(--cg-text-base); overflow-wrap: anywhere; }
+.agent-costs { margin: var(--cg-space-2) 0 var(--cg-space-3); color: var(--cg-ink-2); font-size: var(--cg-text-sm); }
+.agent-costs p { margin: 0; }
+.agent-costs p + p { margin-top: var(--cg-space-1); }
+.agent-sources { list-style: none; margin: 0 0 var(--cg-space-4); padding: 0; }
+.agent-source { padding: var(--cg-space-3) 0; border-top: 1px solid var(--cg-line-soft); }
+.agent-source:last-child { border-bottom: 1px solid var(--cg-line-soft); }
+.agent-source .source-head { margin-bottom: var(--cg-space-2); }
+.agents-meta { margin: calc(-1 * var(--cg-space-1)) 0 var(--cg-space-2); overflow-wrap: anywhere; }
+.agents-matched { margin: 0 0 var(--cg-space-2); font-size: var(--cg-text-sm); color: var(--cg-warn); }
+.agents-status { min-width: 0; overflow-wrap: anywhere; }
+
+.agent-fold { margin: 0 0 var(--cg-space-4); }
+.agent-fold > summary { padding: var(--cg-space-1) 0; color: var(--cg-ink-2); font-size: var(--cg-text-sm); }
+.agent-fold > summary .preset-job { margin-left: 1.2em; }
+.agent-fold[open] > summary { margin-bottom: var(--cg-space-2); }
+.agent-advanced { margin: var(--cg-space-4) 0 0; padding-top: var(--cg-space-3); border-top: 1px solid var(--cg-line-soft); }
+.split-guide { margin: var(--cg-space-4) 0 0; }
+.split-guide > summary { color: var(--cg-accent); font-weight: var(--cg-weight-semibold); }
+
+.agents-new {
+  margin: 0 0 var(--cg-space-4); padding: 0 0 0 var(--cg-space-3); min-width: 0;
+  border: 0; border-left: 2px solid var(--cg-accent-line);
+}
+.agents-finish { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); }
+
 /* ---------------------------------------------------------------- advanced */
 
 .advanced { margin-top: var(--cg-space-6); padding-top: var(--cg-space-4); border-top: 1px solid var(--cg-line); }
@@ -126,6 +162,7 @@
   .stepper-step { grid-template-columns: 28px minmax(0, 1fr); gap: 0 var(--cg-space-2); }
   .stepper-step:not(:last-child)::before { left: 13px; top: 32px; }
   .stepper-marker { width: 28px; height: 28px; }
-  .provider-card, .source-form { padding: var(--cg-space-3); }
+  .provider-card, .source-form, .agent-card { padding: var(--cg-space-3); }
+  .agent-fold > summary .preset-job { margin-left: 0; }
   .source-cost { margin-left: 0; flex-basis: 100%; }
 }

@@ -25,7 +25,7 @@ import * as data from "./console-data.js";
 import * as drift from "./console-drift.js";
 import * as limits from "./console-limits.js";
 import * as proxy from "./console-proxy.js";
-import * as purpose from "./console-purpose.js";
+import * as agents from "./console-agents.js";
 import * as results from "./console-results.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
@@ -40,7 +40,7 @@ const PAGES = [
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
-const SCREENS = [connect, purpose, proxy, limits, results, advice, drift, data];
+const SCREENS = [connect, agents, proxy, limits, results, advice, drift, data];
 
 // ------------------------------------------------------------- signed out
 
