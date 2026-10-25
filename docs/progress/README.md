@@ -230,3 +230,17 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - In a browser against a fake provider: a finished job, a job asked twice, a hand-off, a cut-off answer, a too-short opening and a labelled job all landed where they should; Results and the Settings switch at desktop and phone width, dark and light.
 
 **Not yet:** agents known only from provider usage reports have no outcomes until a helpdesk connection exists (later in the plan).
+
+## Version 2, step 5: the plain-language results screen (25 October 2026)
+
+**What changed**
+- **One sentence per agent.** Each agent on Results now opens with a verdict, picked by fixed rules from the cost-per-job figures: money spent and no job finished (flagged in amber), too early to say, a finished job costs more than a person would, most of the money goes on jobs that don't finish, a bad job costs 3× or more a typical one, or steady. Beside it: cost per finished job, share of spending on jobs that didn't finish, and a typical job against a bad one. Everything is labelled indicative.
+- **Compared with a person.** An owner can enter how many minutes a person takes per job and what their hour costs. The card then says what share of that the AI's model cost is, as the owner's estimate.
+- **Agents seen only in provider reports.** An owner can enter last month's count of finished jobs (and optionally those that didn't finish). The card then shows a cost per finished job for that month, from the provider's usage report and that count, and says why failure share and cost spread can't be shown.
+- **Website:** "How it works" step 3 describes the verdicts instead of calling them "coming".
+
+**How it was checked**
+- 943 tests pass. New: every verdict rule at its boundary; the owner's estimates stored, refused when nonsense, and removed with their agent; the totals-only price for a counted month; and the new routes (owner only, other organisations, future months refused).
+- Found and fixed along the way: one database test file had silently stopped running since step 3 (a leftover fragment broke it); it runs again.
+- Code review: fixed a misleading verdict when a month's report hadn't been imported yet, future months being accepted, estimates outliving a removed agent, repeated form ids, and a slow lookup.
+- In a browser with five sample agents: each verdict kind, saving a person estimate and a job count, dark and light, desktop and phone width with no sideways scrolling.

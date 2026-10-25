@@ -665,6 +665,22 @@ is deleted with the call records. An owner can turn this off in Settings, which
 also deletes the codes already saved; jobs without a header then show as
 "can't tell".
 
+### What the Results screen says about each agent
+
+Each agent opens with one sentence, chosen by fixed rules: money spent and no
+job finished; too early to say; a finished job costs more than a person would;
+most of the money goes on jobs that don't finish; a bad job costs 3× or more a
+typical one; or the cost per finished job is steady. Beside it: the cost per
+finished job, the share of spending on jobs that didn't finish, and a typical
+job against a bad one. All of it is indicative.
+
+An owner can add **Compare with a person**: minutes a person takes per job and
+what their hour costs. The card then shows the AI's model cost as a share of
+that, labelled as the owner's estimate. Agents seen only in provider usage
+reports can't be judged automatically; an owner can enter last month's count of
+finished jobs (and, optionally, those that didn't finish) to see a cost per
+finished job for that month.
+
 ### The denominator is part of the number
 
 A 91% success rate over 4 of 900 runs is not a success rate. The report always

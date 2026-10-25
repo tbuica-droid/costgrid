@@ -148,6 +148,25 @@ provider usage reports have no runs.
   the engine for the period, so nothing derived is stored and a changed rule
   restates history consistently.
 
+### The results screen: one sentence per agent, from fixed rules
+
+Step 5. Each agent card on Results opens with a verdict sentence, the cost per
+finished job and the figures behind it.
+
+- **The verdict is a rule, not a guess.** `verdict.ts` picks one kind from an
+  `LcsoResult`, first match wins: no data, spend with no finished job, too
+  early, dearer than a person, half or more of the spend on failures, a bad
+  job (p90) at 3× a typical one (p50), steady. Comparisons are exact
+  (`compareRatio`), so a boundary case always lands the same way. The console
+  writes the sentence (`console-verdict.js`) and marks it indicative.
+- **The owner's estimates are kept apart.** `agent_person_cost` (minutes per
+  job and a fully loaded hourly rate) becomes the engine's `humanBaseline`, so
+  the comparison is HER: AI model cost per finished job over the person's.
+  `agent_job_counts` holds monthly counts for agents seen only in provider
+  reports; their newest counted month is priced with `computeLcsoAggregate`
+  from that month's imported cost, so failure share and spread are "not
+  reported" there. Both tables go with their agent and with the organisation.
+
 ## Package layout
 
 ```
