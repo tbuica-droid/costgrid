@@ -87,7 +87,7 @@
               <div class="plan-box"><b>View · Free</b><span>View and control can pause a runaway agent's Claude keys.</span><span style="color: var(--ink); font-weight: 600">Ask for a quote →</span></div>
             </aside>
             <div class="app-main">
-              <span class="example-tag">Preview of the Results screen we're building · example data</span>
+              <span class="example-tag">The Results screen · example data</span>
               <div class="app-top">
                 <div>
                   <h2>Results</h2>
@@ -100,24 +100,24 @@
                 </div>
               </div>
               <div class="kpis">
-                <div class="kpi"><span class="k">All-in cost per successful job</span><span class="v gold">$1.52</span><span class="n">Includes estimated staff time · AI bill alone: $0.39</span></div>
-                <div class="kpi"><span class="k">Spent on failed attempts</span><span class="v">38.2%</span><span class="n">$1,160 of $3,040</span></div>
-                <div class="kpi"><span class="k">Jobs that worked</span><span class="v">79.6%</span><span class="n">7,800 of 9,800</span></div>
-                <div class="kpi"><span class="k">Compared with a person</span><span class="v">23%</span><span class="n">of their cost · estimate</span></div>
+                <div class="kpi"><span class="k">Cost per finished job</span><span class="v gold">$0.39</span><span class="n">AI bill, retries included · indicative</span></div>
+                <div class="kpi"><span class="k">Spent on jobs that didn't finish</span><span class="v">38.2%</span><span class="n">$1,160 of $3,040</span></div>
+                <div class="kpi"><span class="k">Jobs finished</span><span class="v">7,800</span><span class="n">of 9,800 with an outcome</span></div>
+                <div class="kpi"><span class="k">Compared with a person</span><span class="v">6%</span><span class="n">of your estimate for a person</span></div>
               </div>
               <div class="table-box">
                 <table class="agents">
                   <caption class="sr-only">Example agents and what each finished job cost</caption>
-                  <thead><tr><th scope="col">Agent</th><th scope="col" class="r">Jobs done</th><th scope="col" class="r">AI cost / job</th><th scope="col" class="r">All-in / job</th><th scope="col" class="r">On failures</th><th scope="col">What it means</th><th scope="col">Status</th></tr></thead>
+                  <thead><tr><th scope="col">Agent</th><th scope="col" class="r">Jobs done</th><th scope="col" class="r">Cost / finished job</th><th scope="col" class="r">On failures</th><th scope="col">In plain words</th></tr></thead>
                   <tbody>
-                    <tr><td><div class="name">Support replies</div><div class="kind">Customer support</div></td><td class="r">7,800</td><td class="r">$0.39</td><td class="r" style="font-weight: 600">$1.52</td><td class="r">38%</td><td class="means">About a quarter of a person's cost per ticket. The biggest part is staff checking replies.</td><td><span class="pill good">On track</span></td></tr>
-                    <tr><td><div class="name">Lead research</div><div class="kind">Sales leads</div></td><td class="r">1,240</td><td class="r">$0.84</td><td class="r" style="font-weight: 600">$2.10</td><td class="r">22%</td><td class="means">Steady. Few retries, and the cost per lead barely changes.</td><td><span class="pill good">On track</span></td></tr>
-                    <tr><td><div class="name">Invoice entry</div><div class="kind">Data entry</div></td><td class="r">3,410</td><td class="r">$0.06</td><td class="r" style="font-weight: 600">$0.41</td><td class="r">61%</td><td class="means">Cheap per attempt but fails often. Failures are most of its bill.</td><td><span class="pill warn">Needs a look</span></td></tr>
-                    <tr><td><div class="name">Blog drafts</div><div class="kind">Content</div></td><td class="r">0</td><td class="r">—</td><td class="r">—</td><td class="r">—</td><td class="means">$46.20 spent this month with no finished drafts.</td><td><span class="pill bad">No successes</span></td></tr>
+                    <tr><td><div class="name">Support replies</div><div class="kind">Customer support</div></td><td class="r">7,800</td><td class="r" style="font-weight: 600">$0.39</td><td class="r">38%</td><td class="means">A bad job costs 3.2× a typical one. A per-job limit would catch the runaways.</td></tr>
+                    <tr><td><div class="name">Lead research</div><div class="kind">Sales leads</div></td><td class="r">1,240</td><td class="r" style="font-weight: 600">$0.84</td><td class="r">22%</td><td class="means">Steady from job to job.</td></tr>
+                    <tr><td><div class="name">Invoice entry</div><div class="kind">Data entry</div></td><td class="r">3,410</td><td class="r" style="font-weight: 600">$0.06</td><td class="r">61%</td><td class="means">Most of the money goes on jobs that don't finish.</td></tr>
+                    <tr><td><div class="name">Blog drafts</div><div class="kind">Content</div></td><td class="r">0</td><td class="r">—</td><td class="r">—</td><td class="means"><span class="pill bad">Spending, nothing finished</span> $46.20 spent and no job has finished yet.</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p class="small">Example data. "Compared with a person" is an estimate from public wage data, not your payroll.</p>
+              <p class="small">Example data. All figures are indicative. "Compared with a person" uses your own estimate of the minutes a person takes and what their hour costs.</p>
             </div>
           </div>
         </figure>
@@ -144,7 +144,7 @@
           <span class="overline">How it works</span>
           <h2 class="head">Three steps to the real cost of each job.</h2>
           <div class="grid g3" style="margin-top: 40px">
-            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add an admin key with an expiry date, or drop in the usage file you can download from OpenAI or Claude, and CostGrid imports your last 90 days. The key stays in your Mac's Keychain until the date you chose. Then say which agent uses each key.</p></div>
+            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add an admin key, or drop in the usage file you can download from OpenAI or Claude, and CostGrid imports your last 90 days. The key goes into your Mac's Keychain, and if you give it an expiry date, CostGrid stops using it then. Then say which agent uses each key.</p></div>
             <div class="card"><span class="step-no">Step 2</span><h3>Tell it which jobs worked</h3><p>CostGrid now estimates which jobs finished from how each agent behaves: asked again soon after, handed to a person, or ended in an error. These are estimates; a one-line report from your software makes them exact. Works for agents that send requests through CostGrid.</p></div>
             <div class="card"><span class="step-no">Step 3</span><h3>See the real cost per job</h3><p>Failed and retried attempts are charged to the jobs that worked. Each agent gets one plain sentence: steady, mostly failing, unpredictable, or spending with nothing finished. Add how long a person takes and it compares the two. All figures are indicative.</p></div>
           </div>
@@ -206,9 +206,10 @@
                 <li>Cost per successful job</li>
                 <li>Share of spend on failed attempts</li>
                 <li>How much the cost of the same job varies</li>
+                <li>Comparison with your estimate for a person</li>
                 <li>Warnings about risky key setups</li>
               </ul>
-              <p class="small" style="margin-top: 12px">Today's app also includes budgets, limits and a stop button for AI traffic you send through CostGrid, with alerts on your Mac.</p>
+              <p class="small" style="margin-top: 12px">Failed-attempt share and cost spread need the agent's requests to go through CostGrid; for other agents you can enter a monthly count of finished jobs. The app also includes budgets, limits and a stop button for AI traffic you send through CostGrid, with alerts on your Mac.</p>
               <a class="btn btn-accent" href="#download">Download for Mac</a>
             </div>
             <div class="plan control">
@@ -236,7 +237,7 @@
             <div class="card"><h3>Runs on your computer</h3><p>CostGrid is a Mac app. It works out your costs on your own machine, not on our servers.</p></div>
             <div class="card"><h3>Never keeps prompts or AI answers</h3><p>To notice when the same job is asked again, CostGrid turns the first message of each job into a one-way code on your computer. The words are never saved, the code can't be turned back into them, it never leaves your computer, and it's deleted with your other call records. You can turn this off in Settings.</p></div>
             <div class="card"><h3>Keys locked with your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them is kept in the Keychain, where macOS keeps your saved passwords. Your keys are only ever sent to OpenAI or Anthropic, never to us. An admin key you connect goes straight into the Keychain, never into CostGrid's own files, and CostGrid stops using it on the expiry date you chose.</p></div>
-            <div class="card"><h3>Nothing leaves unless you choose</h3><p>Nothing is sent from your computer unless you turn it on. A plain list of exactly what would be sent, shown before you turn anything on, is coming.</p></div>
+            <div class="card"><h3>Nothing leaves unless you choose</h3><p>Nothing is sent from your computer unless you turn it on. With View and control, pausing a key sends Anthropic only that key's id and whether to turn it off or on, and the app shows you exactly that before you press anything.</p></div>
             <div class="card"><h3>One key per agent, with an expiry date</h3><p>We recommend it. You see each agent's cost on its own, you can switch one off without touching the others, and a key with an expiry date stops working on its own.</p></div>
             <div class="card"><h3>What this protects against</h3><p>Your keys aren't sitting readable in plain files, settings or code, and a copied CostGrid folder holds only encrypted keys it can't unlock on another Mac. It can't protect against malware already running on the same Mac; that is out of scope.</p></div>
           </div>
