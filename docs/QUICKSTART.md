@@ -954,6 +954,16 @@ The same statement is the **Statement** tab in the dashboard, with a month
 picker and a *Download CSV* button, served from `/api/statement` and
 `/api/statement.csv?month=YYYY-MM`.
 
+**Did the jobs get done?** `costgrid statement` (every format) and the evidence
+pack add, per agent, how many jobs finished, didn't, or are still waiting, what
+a finished job cost and a one-line verdict, all marked indicative and saying
+where the counts came from (inferred, reported by your software, or your own
+count). A closed month is judged as of the day the statement is made, so a job
+that finished on the 30th has had its waiting period. Agents whose purpose
+predates automatic detection are named as not judged. The API includes it only
+when asked, `/api/statement?include=jobs`, because judging every job is real
+work on the process that meters traffic.
+
 Anything the numbers do not cover is stated on the statement rather than left
 out: unpriced calls, calls refused by policy (which cost nothing, and whose
 counterfactual cost is genuinely unmeasurable because they never ran), upstream

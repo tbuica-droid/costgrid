@@ -215,6 +215,16 @@ decided; it is apart from the older price plans.
 - Control jobs for one organisation run one at a time in the process, so an
   owner's click and the hourly check cannot both pause the same keys.
 
+### The statement carries cost per finished job
+
+Step 9. `statement-jobs.ts` runs `RunOutcomes` for the statement's month and
+turns each agent's LCSO result into a row: counts, spend, LCSO-1, failure
+share, the person ratio, the verdict, and the basis (inferred, reported, mixed
+or the owner's count). A closed month is judged as of now with runs read past
+its end, so late re-runs and reversals count and month-end jobs have matured.
+The section is optional on `buildStatement` (`runOutcomes`), and a failure in it
+leaves the statement without the section rather than failing the statement.
+
 ## Package layout
 
 ```

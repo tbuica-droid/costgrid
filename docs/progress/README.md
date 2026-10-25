@@ -278,3 +278,16 @@ An audit of the twelve sources the project was meant to be built on found the pr
 **Needs your decision:** the in-app wording of "What CostGrid sends, and to whom" (Limits), which is privacy wording; how View and control is granted once pricing is set; and whether the website's privacy card ("a plain list... is coming") can now point to it.
 
 **Still to check with real accounts:** pausing and resuming a real Claude key (and how long Anthropic takes), the `status` filter on the key list, and whether a real admin key is allowed to change key status.
+
+## Version 2, step 9: cost per finished job on the statement (25 October 2026)
+
+**What changed**
+- **The monthly statement says whether the jobs got done.** Text, CSV, JSON and the printable HTML statement, and the evidence pack, now have a "Did the jobs get done?" section per agent: finished, not finished, still waiting, cost per finished job, the share spent on jobs that didn't finish, comparison with your person estimate, and a one-line verdict. Every figure is marked indicative and says where the counts came from: inferred from behaviour, reported by your software, or your own count.
+- **A closed month is judged as of the day the statement is made**, reading runs after the month ended, so a job finished on the 30th has had its waiting period and one asked again in the next month counts as not finished.
+- Agents whose purpose predates automatic detection are listed as not judged rather than left out.
+- The statement API includes the section only with `?include=jobs`, so a dashboard polling the statement doesn't make the metering process judge every job.
+
+**How it was checked**
+- 958 tests pass, including a month-end job judged after the month closed and the CSV row with its agent id.
+- Code review: fixed month-end jobs stuck as "waiting" on closed months, owner counts for an older month vanishing once a newer one was entered, unjudged agents left out silently, the CLI's JSON mangling exact figures, and a failure in this section being able to break the whole statement.
+- Rendered the text and HTML statements with sample agents.
