@@ -282,12 +282,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .example-tag { display: inline-flex; align-self: flex-start; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--control); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
 
 /* the problem */
-/* The problem sits on a deep navy field with two soft glows, violet at the
-   top left and blue at the bottom right; the cards are frosted over it. */
+/* The problem sits on a deep warm-black field with two soft champagne
+   glows, top left and bottom right; the cards are frosted over it. */
 #problem { background:
-  radial-gradient(ellipse 55% 60% at 12% 10%, rgba(92, 66, 210, 0.42), transparent 72%),
-  radial-gradient(ellipse 55% 60% at 88% 85%, rgba(46, 76, 205, 0.45), transparent 72%),
-  #0a0a14; }
+  radial-gradient(ellipse 55% 60% at 12% 10%, rgba(217, 180, 108, 0.26), transparent 72%),
+  radial-gradient(ellipse 55% 60% at 88% 85%, rgba(179, 139, 56, 0.30), transparent 72%),
+  #0c0b09;
+  /* The site's cool neutrals, warmed to sit on the gold. */
+  --surface-2: #1a1814; --bg: #0c0b09; --line: #2e2a22; --line-soft: #24211b; --outline: #4d4637; }
 
 /* The problem: a bento grid of five cards. One column on a phone, two
    then three across on wider screens; the bottom two cards are wide. */
@@ -302,7 +304,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .bento-wide { grid-column: span 3; }
 }
 .bento-card { position: relative; overflow: hidden; padding: 28px; border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(14, 15, 26, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(16, 15, 13, 0.72);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bento-card h3 { font-size: 18px; line-height: 1.35; font-weight: 600; }
 .bento-card p { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--ink-2); }

@@ -291,3 +291,7 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - 958 tests pass, including a month-end job judged after the month closed and the CSV row with its agent id.
 - Code review: fixed month-end jobs stuck as "waiting" on closed months, owner counts for an older month vanishing once a newer one was entered, unjudged agents left out silently, the CLI's JSON mangling exact figures, and a failure in this section being able to break the whole statement.
 - Rendered the text and HTML statements with sample agents.
+
+## Back to champagne, with a golden problem section (25 October 2026)
+
+Lavender was tried and reverted: champagne gold is the accent again across the design system, app, demo and website. The website's problem section now sits on two soft champagne glows over a warm black, with its inner panels, lines and outlines warmed to match.
