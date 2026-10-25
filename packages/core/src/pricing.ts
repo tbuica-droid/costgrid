@@ -170,8 +170,11 @@ interface CatalogEntry {
   cacheWrite?: string;
   /** Fast-mode input/output, where the model supports `speed: "fast"`. */
   fast?: { input: string; output: string };
-  /** Rates above the long-context threshold, where the provider has two tiers. */
-  long?: { input: string; output: string; cacheRead?: string; cacheWrite?: string };
+  /**
+   * Rates above the long-context threshold, where the provider has two tiers.
+   * The threshold is OpenAI's 272K unless the model sets its own.
+   */
+  long?: { input: string; output: string; cacheRead?: string; cacheWrite?: string; thresholdTokens?: number };
   retired?: true;
 }
 
@@ -289,6 +292,7 @@ const ANTHROPIC_CATALOG: Record<string, CatalogEntry> = {
     tier: "mid",
     input: "2.00",
     output: "10.00",
+    cacheRead: "0.10", // 0.05x, not the standard 0.1x
   },
   "claude-sonnet-5": {
     displayName: "Claude Sonnet 5",
@@ -317,6 +321,15 @@ const ANTHROPIC_CATALOG: Record<string, CatalogEntry> = {
   },
 
   // --- Haiku ---
+  // Priced by prompt length: a request whose prompt (cache reads and writes
+  // included) is over 100,000 tokens pays the higher rates throughout.
+  "claude-haiku-5-5": {
+    displayName: "Claude Haiku 5.5",
+    tier: "small",
+    input: "0.10",
+    output: "0.50",
+    long: { input: "0.50", output: "2.50", thresholdTokens: 100_000 },
+  },
   "claude-haiku-4-5": {
     displayName: "Claude Haiku 4.5",
     tier: "small",
@@ -485,21 +498,29 @@ function build(catalog: Record<string, CatalogEntry>, provider: Provider): Map<s
       ...(entry.long
         ? {
             longContext: {
-              thresholdTokens: OPENAI_LONG_CONTEXT_THRESHOLD,
+              thresholdTokens: entry.long.thresholdTokens ?? OPENAI_LONG_CONTEXT_THRESHOLD,
               input: perMTok(entry.long.input),
               output: perMTok(entry.long.output),
+              // Anthropic's tiers keep its usual multipliers: 1.25x and 2x
+              // writes, 0.1x reads, of the higher input rate.
               cacheWrite5m:
                 entry.long.cacheWrite !== undefined
                   ? perMTok(entry.long.cacheWrite)
-                  : perMTok(entry.long.input),
+                  : provider === "anthropic"
+                    ? mulDiv(perMTok(entry.long.input), 5n, 4n)
+                    : perMTok(entry.long.input),
               cacheWrite1h:
                 entry.long.cacheWrite !== undefined
                   ? perMTok(entry.long.cacheWrite)
-                  : perMTok(entry.long.input),
+                  : provider === "anthropic"
+                    ? perMTok(entry.long.input) * 2n
+                    : perMTok(entry.long.input),
               cacheRead:
                 entry.long.cacheRead !== undefined
                   ? perMTok(entry.long.cacheRead)
-                  : perMTok(entry.long.input),
+                  : provider === "anthropic"
+                    ? mulDiv(perMTok(entry.long.input), 1n, 10n)
+                    : perMTok(entry.long.input),
             },
           }
         : {}),

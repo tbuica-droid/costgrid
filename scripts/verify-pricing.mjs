@@ -87,7 +87,9 @@ function parseAnthropic(markdown) {
     // The batch-pricing table has the same shape but fewer money columns;
     // requiring all five keeps us on the model-pricing table.
     if (Object.values(values).some((v) => v === undefined)) continue;
-    rows.set(id, values);
+    // A model priced by prompt length has a row per tier ("up to" first);
+    // the first row is its standard rate.
+    if (!rows.has(id)) rows.set(id, values);
   }
   return rows;
 }
@@ -197,10 +199,16 @@ async function verifyProvider({ provider, source, verifiedAt }) {
   }
 
   const problems = [];
+  const retiredUnlisted = [];
   let matched = 0;
 
   for (const model of listModelPrices(provider)) {
     const row = published.get(model.id);
+    if (!row && model.retired) {
+      // Kept on purpose so older calls stay priced; checked whenever it is listed.
+      retiredUnlisted.push(model.id);
+      continue;
+    }
     if (!row) {
       problems.push(`${model.id}: in our catalog but NOT on the published page`);
       continue;
@@ -252,6 +260,9 @@ async function verifyProvider({ provider, source, verifiedAt }) {
     `  ${matched}/${ours} catalogued model(s) match; ` +
       `${published.size} row(s) published, ${published.size - ours} covered by id resolution.`,
   );
+  if (retiredUnlisted.length > 0) {
+    console.log(`  Retired and no longer listed, kept for older calls: ${retiredUnlisted.join(", ")}.`);
+  }
   return { inconclusive: false, problems };
 }
 

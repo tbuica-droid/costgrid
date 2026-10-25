@@ -49,6 +49,25 @@ describe("pricing catalog", () => {
   });
 });
 
+describe("prompt-length pricing", () => {
+  it("prices Claude Haiku 5.5 at its standard rates up to 100,000 prompt tokens, and higher above", () => {
+    const haiku = findModelPrice("claude-haiku-5-5")!;
+    expect([haiku.input, haiku.cacheWrite5m, haiku.cacheWrite1h, haiku.cacheRead, haiku.output]).toEqual(
+      ["0.10", "0.125", "0.20", "0.01", "0.50"].map(perMTok),
+    );
+    const at = (inputTokens: number, cacheReadTokens = 0) =>
+      priceUsage("claude-haiku-5-5", { ...ZERO_USAGE, inputTokens, cacheReadTokens, outputTokens: 1_000_000 }).cost.total;
+    // Exactly 100,000 is still the standard tier.
+    expect(toUsdString(at(100_000), 6)).toBe("0.510000");
+    // Cache reads count toward the prompt: over the line, every category is billed at the higher tier.
+    expect(toUsdString(at(50_000, 50_001), 6)).toBe(toUsdString(usd("0.025") + usd("0.00250005") + usd("2.50"), 6));
+  });
+
+  it("prices Claude Sonnet 5.5 cache reads at 0.05x input", () => {
+    expect(findModelPrice("claude-sonnet-5-5")!.cacheRead).toBe(perMTok("0.10"));
+  });
+});
+
 describe("parseAnthropicUsage", () => {
   it("reads the flat cache_creation_input_tokens shape", () => {
     const usage = parseAnthropicUsage({
