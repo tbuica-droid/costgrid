@@ -84,6 +84,7 @@ export class AdminKeySync {
   readonly #deps: AdminKeySyncDeps;
   readonly #now: () => number;
   #running: Promise<SyncSummary> | undefined;
+  #runningPartial = false;
 
   constructor(deps: AdminKeySyncDeps) {
     this.#deps = deps;
@@ -94,18 +95,30 @@ export class AdminKeySync {
    * Sync every stored key. One run at a time: a call while one is in
    * progress gets that run's result rather than starting a second.
    */
-  syncAll(): Promise<SyncSummary> {
-    this.#running ??= this.#syncAll().finally(() => {
-      this.#running = undefined;
-    });
+  /** Every stored key, or only those of `tenants`. */
+  syncAll(tenants?: ReadonlySet<string>): Promise<SyncSummary> {
+    // A full sync asked for while a partial one runs waits for it, then runs in full.
+    if (this.#running !== undefined && tenants === undefined && this.#runningPartial) {
+      return this.#running.then(
+        () => this.syncAll(),
+        () => this.syncAll(),
+      );
+    }
+    if (this.#running === undefined) {
+      this.#runningPartial = tenants !== undefined;
+      this.#running = this.#syncAll(tenants).finally(() => {
+        this.#running = undefined;
+      });
+    }
     return this.#running;
   }
 
-  async #syncAll(): Promise<SyncSummary> {
+  async #syncAll(tenants?: ReadonlySet<string>): Promise<SyncSummary> {
     let synced = 0;
     let failed = 0;
     let skipped = 0;
     for (const key of this.#deps.sources.allAdminKeys()) {
+      if (tenants !== undefined && !tenants.has(key.tenantId)) continue;
       const now = this.#now();
       if ((key.expiresAt !== null && key.expiresAt <= now) || !importerFor(key.provider)) {
         skipped++;

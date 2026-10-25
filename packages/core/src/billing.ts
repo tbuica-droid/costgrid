@@ -29,6 +29,17 @@ import { type Nanodollars, usd } from "./money.js";
  * behind an explicit integration, not a library function.
  */
 
+/**
+ * Version 2's two tiers, an entitlement apart from the plans below: View
+ * (free) shows costs; View and control can also pause an agent's keys and
+ * hold it to a monthly cap. No price is attached here: that is decided
+ * separately, and until it is the tier is set by the operator.
+ */
+export const ACCESS_TIERS = ["view", "control"] as const;
+export type AccessTier = (typeof ACCESS_TIERS)[number];
+
+export const isAccessTier = (value: unknown): value is AccessTier => (ACCESS_TIERS as readonly unknown[]).includes(value);
+
 export type PlanId = "free" | "team" | "business";
 
 export interface Plan {

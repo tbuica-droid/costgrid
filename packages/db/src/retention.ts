@@ -112,6 +112,9 @@ const TENANT_TABLES = [
   "admin_keys",
   "usage_sources",
   "provider_keys",
+  "tenant_tier",
+  "agent_caps",
+  "key_actions",
   "outcome_settings",
   // The local copies only. Anchors already delivered live at the receiver,
   // which is the point of them, and are outside anything this can reach.

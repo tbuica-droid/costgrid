@@ -12,6 +12,8 @@ import {
   CostGridRepository,
   ImportsRepository,
   KeyFactsRepository,
+  AuditLog,
+  ControlRepository,
   openDatabase,
   Retention,
   SourcesRepository,
@@ -23,12 +25,15 @@ import type { AlertNotice } from "./alerts.js";
 import { AnchorSender } from "./anchor-sender.js";
 import type { GatewayConfig } from "./config.js";
 import { AdminKeySync } from "./connect-sync.js";
+import { KeyControl } from "./key-control.js";
 import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
 import { alerterOf, assertToolPoliciesEnforceable, createServer } from "./server.js";
 
 /** How often stored admin keys are used to bring imported usage up to date. */
 const ADMIN_KEY_SYNC_MS = 6 * 60 * 60 * 1000;
+/** Organisations with a monthly cap are synced and checked this often instead. */
+const CAP_CHECK_MS = 60 * 60 * 1000;
 
 /**
  * Bring the gateway up from a resolved configuration.
@@ -145,18 +150,36 @@ export async function startGateway(
       audit: accounts?.audit,
       log: app.log,
     });
+    const control = new ControlRepository(db);
+    const keyControl = new KeyControl({
+      db,
+      audit: accounts?.audit ?? new AuditLog(db),
+      secretStore: options.secretStore,
+      alerter: alerterOf(app),
+    });
+    // Hourly: every key on every sixth run, and in between only the
+    // organisations with a cap, whose usage is then checked against it.
+    let tick = 0;
     const syncKeys = (): void => {
-      try {
-        keySync.remindExpiring();
-      } catch (error) {
-        app.log.error({ err: error }, "admin key expiry reminders could not be checked");
+      const full = tick++ % (ADMIN_KEY_SYNC_MS / CAP_CHECK_MS) === 0;
+      if (full) {
+        try {
+          keySync.remindExpiring();
+        } catch (error) {
+          app.log.error({ err: error }, "admin key expiry reminders could not be checked");
+        }
       }
-      void keySync.syncAll().catch((error: unknown) => {
-        app.log.error({ err: error }, "the admin key sync failed");
-      });
+      const capped = new Set(control.tenantsWithCaps());
+      if (!full && capped.size === 0) return;
+      void keySync
+        .syncAll(full ? undefined : capped)
+        .then(() => keyControl.checkCaps())
+        .catch((error: unknown) => {
+          app.log.error({ err: error }, "the admin key sync or cap check failed");
+        });
     };
     syncKeys();
-    const syncing = setInterval(syncKeys, ADMIN_KEY_SYNC_MS);
+    const syncing = setInterval(syncKeys, CAP_CHECK_MS);
     syncing.unref();
     timers.push(syncing);
   }

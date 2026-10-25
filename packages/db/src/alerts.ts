@@ -37,6 +37,10 @@ export type AlertKind =
   | "stopped"
   /** A stored admin key stops working soon, so imports will stop with it. */
   | "key-expiring"
+  /** An agent's keys were paused or resumed at the provider. */
+  | "key-paused"
+  /** An agent reached the monthly cap its owner set. */
+  | "cap-reached"
   /** Sent from the settings screen to prove the channel works. */
   | "test";
 

@@ -246,6 +246,11 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   last_used_at: "BIGINT",
   default_workspace: "SMALLINT",
   seen_at: "BIGINT",
+  // View and control.
+  monthly_cap: "BIGINT",
+  requested_at: "BIGINT",
+  ok: "SMALLINT",
+  usage_through: "BIGINT",
 };
 
 /** An integer column in the migrations that nobody has decided a width for. */

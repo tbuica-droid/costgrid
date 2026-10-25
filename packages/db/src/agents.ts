@@ -222,7 +222,7 @@ export class AgentsRepository {
           .prepare("UPDATE agents SET name = NULL, purpose_id = NULL, purpose_version = NULL WHERE tenant_id = ? AND id = ?")
           .run(tenantId, id);
         // The owner's estimates go with the name, so they do not come back if the id is named again.
-        for (const table of ["agent_person_cost", "agent_job_counts"]) {
+        for (const table of ["agent_person_cost", "agent_job_counts", "agent_caps"]) {
           this.#db.prepare(`DELETE FROM ${table} WHERE tenant_id = ? AND agent_id = ?`).run(tenantId, id);
         }
       }

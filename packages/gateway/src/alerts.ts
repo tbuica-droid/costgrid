@@ -50,6 +50,8 @@ const TITLES: Record<StoredAlert["kind"], string> = {
   "runaway-run": "A run is costing far more than usual",
   stopped: "Agent stopped",
   "key-expiring": "An admin key expires soon",
+  "key-paused": "An agent's keys were paused or resumed",
+  "cap-reached": "An agent reached its monthly cap",
   test: "CostGrid test alert",
 };
 

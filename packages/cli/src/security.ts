@@ -1,7 +1,9 @@
+import { isAccessTier } from "@costgrid/core";
 import {
   Anchors,
   type AuditActor,
   AuditLog,
+  ControlRepository,
   type Db,
   generateAnchorKeys,
   describeVerification,
@@ -334,4 +336,24 @@ export function eraseCommand(db: Db, argv: string[]): void {
   console.log(`Completed ${when(result.erasedAt)}. Keep this output: it is the`);
   console.log("confirmation that the deletion happened, and no record of it remains");
   console.log("inside CostGrid, because that record would itself be their data.");
+}
+
+/**
+ * `costgrid tier [view|control]`: which version 2 tier the organisation is
+ * on. Set by whoever runs the install until pricing for View and control is
+ * decided; the console only reads it.
+ */
+export function tierCommand(db: Db, tenantId: string, argv: string[]): void {
+  const control = new ControlRepository(db);
+  const wanted = argv[1];
+  if (wanted === undefined) {
+    const tier = control.tierOf(tenantId);
+    console.log(tier === "control" ? "View and control" : "View");
+    return;
+  }
+  if (!isAccessTier(wanted)) fail('the tier is "view" or "control"');
+  const previous = control.tierOf(tenantId);
+  control.setTier(tenantId, wanted);
+  recordCli(db, tenantId, "tier.changed", tenantId, { from: previous, to: wanted });
+  console.log(wanted === "control" ? "View and control is on." : "Back to View. Caps stay saved but are not checked.");
 }

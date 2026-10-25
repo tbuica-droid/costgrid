@@ -40,6 +40,8 @@ import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
 import { registerKeySafety } from "./console-key-safety.js";
+import { registerControl } from "./console-control.js";
+import { KeyControl } from "./key-control.js";
 import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
@@ -435,6 +437,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     // listed; only an address cannot be saved, for want of a key.
     const alertStore = deps.alerts ?? new AlertsRepository(deps.db);
     registerLimits(app, { db: deps.db, accounts: accounts!, repository, alerts: alertStore, alerter });
+    registerControl(app, {
+      db: deps.db,
+      accounts: accounts!,
+      canStoreKeys: deps.secretStore !== undefined,
+      keyControl: new KeyControl({ db: deps.db, audit: accounts!.audit, secretStore: deps.secretStore, alerter, fetchImpl: deps.fetchImpl }),
+    });
     registerResults(app, {
       db: deps.db,
       accounts: accounts!,

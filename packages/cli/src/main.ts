@@ -35,7 +35,7 @@ import {
 import { formatProposals } from "./advise.js";
 import { agentCommand, formatResearchSections, reasoningRule } from "./control.js";
 import { renderStatementHtml } from "./statement-html.js";
-import { auditCommand, eraseCommand, recordCli, retentionCommand } from "./security.js";
+import { auditCommand, eraseCommand, recordCli, retentionCommand, tierCommand } from "./security.js";
 import { formatReport } from "./report.js";
 import { formatStatement } from "./statement.js";
 
@@ -79,6 +79,7 @@ Usage:
   costgrid retention [show|set|run] [--calls N] [--events N] [--audit N]
                                           How long data is kept. Zero, the default,
                                           keeps everything. "run" applies it now.
+  costgrid tier [view|control]            Show or set View, or View and control
   costgrid erase <organisation-id> --confirm
                                           Delete everything belonging to one
                                           organisation. Cannot be undone.
@@ -931,6 +932,12 @@ async function main(): Promise<void> {
     case "retention": {
       requireTenant();
       retentionCommand(db, tenantId, argv);
+      break;
+    }
+
+    case "tier": {
+      requireTenant();
+      tierCommand(db, tenantId, argv);
       break;
     }
 

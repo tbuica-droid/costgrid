@@ -203,6 +203,14 @@
 .key-warning p { margin: 0; overflow-wrap: anywhere; }
 .key-warning .tag { justify-self: start; }
 
+/* ----------------------------------------------- view and control (limits) */
+
+.control-sent { margin: var(--cg-space-3) 0; }
+.control-sent > summary { color: var(--cg-accent); font-size: var(--cg-text-sm); font-weight: var(--cg-weight-semibold); }
+.control-cap { margin-top: var(--cg-space-3); }
+.control-history-head { margin: var(--cg-space-5) 0 var(--cg-space-2); }
+.control-view p + p { margin-top: var(--cg-space-2); }
+
 /* ---------------------------------------------------------------- advanced */
 
 .advanced { margin-top: var(--cg-space-6); padding-top: var(--cg-space-4); border-top: 1px solid var(--cg-line); }

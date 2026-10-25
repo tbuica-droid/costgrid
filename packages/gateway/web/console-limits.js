@@ -9,6 +9,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
+import { controlSection } from "./console-control.js";
 import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
 
 const view = { data: null };
@@ -242,7 +243,10 @@ function alertsSection(d) {
 }
 
 export async function render() {
-  const d = await call("GET", `/console/${state.tenantId}/limits`);
+  const [d, control] = await Promise.all([
+    call("GET", `/console/${state.tenantId}/limits`),
+    call("GET", `/console/${state.tenantId}/control`).catch(() => null),
+  ]);
   view.data = d;
   return `
     ${pageHead(
@@ -251,7 +255,8 @@ export async function render() {
       answered "over budget" by CostGrid and never reaches the provider, so it is never billed.`,
     )}
     ${flashBanner()}
-    <h2 style="margin-top:22px">Stop</h2>
+    ${control ? `<h2 style="margin-top:22px">Agents' keys at the provider</h2>${controlSection(control)}` : ""}
+    <h2 style="margin-top:26px">Stop traffic through CostGrid</h2>
     ${stopsSection(d)}
     <h2 style="margin-top:26px">Set a limit</h2>
     ${newLimitForm(d)}
