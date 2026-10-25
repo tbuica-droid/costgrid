@@ -27,6 +27,7 @@ import {
   type Db,
   AgentsRepository,
   type ImportsRepository,
+  OutcomeSettingsRepository,
   SourcesRepository,
   trailingWindow,
 } from "@costgrid/db";
@@ -36,6 +37,7 @@ import { registerApi } from "./api.js";
 import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
+import { registerOutcomes } from "./console-outcomes.js";
 import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
@@ -48,6 +50,7 @@ import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
 import type { SecretStore } from "./secret-store.js";
+import { TASK_HEADER, TaskIdentifier } from "./task-identity.js";
 
 const AGENT_HEADER = "x-costgrid-agent";
 const DEPARTMENT_HEADER = "x-costgrid-department";
@@ -90,6 +93,8 @@ export interface ServerDeps {
   readonly onAlert?: ((notice: AlertNotice) => void) | undefined;
   /** Where admin keys are kept: the desktop app's keychain. Absent, a key is used once. */
   readonly secretStore?: SecretStore | undefined;
+  /** The key for one-way codes of a job's first message (`fingerprint-key.ts`). Absent, only the task header works. */
+  readonly fingerprintKey?: Uint8Array | undefined;
 }
 
 /** Each server's alerter, for the jobs `start.ts` runs beside it. */
@@ -312,6 +317,11 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   if (alerter !== undefined) ALERTERS.set(app, alerter);
   const runaway = new RunawayWatch(deps.db);
   const sources = new SourcesRepository(deps.db);
+  const outcomeSettings = new OutcomeSettingsRepository(deps.db);
+  const tasks = new TaskIdentifier({
+    key: deps.fingerprintKey,
+    enabled: (tenantId) => outcomeSettings.fingerprintEnabled(tenantId),
+  });
 
   /*
    * Metering that can fail without taking the request with it.
@@ -400,6 +410,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       fetchImpl: deps.fetchImpl,
     });
     registerAgents(app, { accounts: accounts!, agents: new AgentsRepository(deps.db) });
+    registerOutcomes(app, {
+      db: deps.db,
+      accounts: accounts!,
+      settings: outcomeSettings,
+      fingerprintAvailable: tasks.available,
+    });
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
@@ -604,6 +620,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         ...(parentRun !== undefined ? { parentRunId: parentRun } : {}),
         runDepth: runStats?.depth ?? 0,
         reasoningRequested: describeReasoning(reasoning),
+        // Which job this is part of: the developer's id, or a one-way code of its first message.
+        ...tasks.of(headerValue(request, TASK_HEADER), request.body, caller.tenantId),
       };
 
       if (!decision.allowed) {

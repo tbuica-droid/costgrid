@@ -22,6 +22,7 @@ import type { AlertNotice } from "./alerts.js";
 import { AnchorSender } from "./anchor-sender.js";
 import type { GatewayConfig } from "./config.js";
 import { AdminKeySync } from "./connect-sync.js";
+import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
 import { alerterOf, assertToolPoliciesEnforceable, createServer } from "./server.js";
 
@@ -86,6 +87,8 @@ export async function startGateway(
 
   assertToolPoliciesEnforceable(config, repository);
 
+  // Kept in the keychain where there is one, so the codes it makes can't be tested against offline.
+  const fingerprintKey = await loadFingerprintKey({ secretStore: options.secretStore, masterKey });
   const app = createServer({
     config,
     db,
@@ -96,6 +99,7 @@ export async function startGateway(
     alerts,
     onAlert: options.onAlert,
     secretStore: options.secretStore,
+    fingerprintKey,
   });
   const timers: NodeJS.Timeout[] = [];
 
