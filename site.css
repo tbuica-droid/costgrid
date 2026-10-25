@@ -282,6 +282,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .example-tag { display: inline-flex; align-self: flex-start; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--control); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
 
 /* the problem */
+/* The problem sits on a deep navy field with two soft glows, violet at the
+   top left and blue at the bottom right; the cards are frosted over it. */
+#problem { background:
+  radial-gradient(ellipse 55% 60% at 12% 10%, rgba(92, 66, 210, 0.42), transparent 72%),
+  radial-gradient(ellipse 55% 60% at 88% 85%, rgba(46, 76, 205, 0.45), transparent 72%),
+  #0a0a14; }
+
 /* The problem: a bento grid of five cards. One column on a phone, two
    then three across on wider screens; the bottom two cards are wide. */
 .bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 40px; }
@@ -295,7 +302,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .bento-wide { grid-column: span 3; }
 }
 .bento-card { position: relative; overflow: hidden; padding: 28px; border-radius: 14px;
-  border: 1px solid var(--line); background: var(--surface); }
+  border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(14, 15, 26, 0.72);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bento-card h3 { font-size: 18px; line-height: 1.35; font-weight: 600; }
 .bento-card p { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--ink-2); }
 .bento-a, .bento-b, .bento-c { display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -335,8 +343,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: 13.5px; color: var(--ink); }
 .bento-tag { display: inline-block; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--bg); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
-.bento-tag.on { color: var(--good); border-color: transparent; background: var(--good-bg); }
-.bento-tag.off { color: var(--bad); border-color: transparent; background: var(--bad-bg); }
+.bento-tag.on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.bento-tag.off { color: var(--ink-3); border-style: dashed; background: transparent; }
 
 .bento-steps { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 12px 0; }
 .bento-steps::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line); }
