@@ -681,6 +681,17 @@ reports can't be judged automatically; an owner can enter last month's count of
 finished jobs (and, optionally, those that didn't finish) to see a cost per
 finished job for that month.
 
+### Key safety
+
+Once an account is connected, Setup ends with **Key safety**: risky key setups,
+each with how to fix it at the provider. It checks for an admin key that has
+expired, is failing or expires within 14 days; keys shared by several agents;
+spending on keys not matched to an agent; keys that still work but haven't been
+used for 90 days; Claude keys in the Default workspace (which can't have a
+spending limit of its own); OpenAI keys owned by a person rather than a service
+account; and keys over a year old. It reads only what the providers' key lists
+say, never the keys, and changes nothing.
+
 ### The denominator is part of the number
 
 A 91% success rate over 4 of 900 runs is not a success rate. The report always

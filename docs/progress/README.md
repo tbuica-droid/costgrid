@@ -244,3 +244,18 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - Found and fixed along the way: one database test file had silently stopped running since step 3 (a leftover fragment broke it); it runs again.
 - Code review: fixed a misleading verdict when a month's report hadn't been imported yet, future months being accepted, estimates outliving a removed agent, repeated form ids, and a slow lookup.
 - In a browser with five sample agents: each verdict kind, saving a person estimate and a job count, dark and light, desktop and phone width with no sideways scrolling.
+
+## Version 2, step 6: key-safety warnings (25 October 2026)
+
+**What changed**
+- **Setup now ends with "Key safety".** Each warning says what could go wrong and the one thing that fixes it at the provider. Fix now: an admin key that has expired or whose sync is failing. Worth fixing: an admin key expiring within 14 days, a key shared by several agents, spending on a key no agent is matched to, a key that still works but hasn't been used for 90 days. Good practice: a Claude key in the Default workspace (no spending limit of its own), an OpenAI key owned by a person rather than a service account, a key over a year old.
+- **Nothing new is fetched.** The key lists CostGrid already reads for key names also say each key's status, age, last use (OpenAI only), owner type and workspace; that metadata is now kept. A list that couldn't be read in full keeps nothing, so no key is dropped from the checks by mistake, and forgetting the admin key clears it.
+- **Honest about what can't be seen.** Claude doesn't report when a key was last used, so an idle Claude key is described as "no use seen in the last 90 days", not "never used".
+- **Website:** "Warnings about risky key setups" is no longer marked "coming".
+
+**How it was checked**
+- 951 tests pass. New: every warning at its threshold, the order they come in, reading key facts from both providers' lists (including archived OpenAI projects and a list cut off after 50 pages), and the route (other organisations, no key in the response, cleared on disconnect).
+- Code review: fixed keys in archived OpenAI projects counted as working, a wrong "never used" for Claude keys, facts outliving a forgotten admin key, a metadata write that could fail a whole import, and partial lists replacing full ones.
+- In a browser: Setup with an expiring admin key, a shared key, an old idle key in the Default workspace and a person's key, desktop and phone width.
+
+**Still to check with real accounts:** the exact fields a real Claude and OpenAI key list returns (status values, `workspace_id` for the Default workspace, `owner.type`).

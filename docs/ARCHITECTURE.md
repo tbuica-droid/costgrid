@@ -167,6 +167,26 @@ finished job and the figures behind it.
   from that month's imported cost, so failure share and spread are "not
   reported" there. Both tables go with their agent and with the organisation.
 
+### Key safety: warnings from what the key lists already say
+
+Step 6. The sync that already lists keys for their names (`importers/names.ts`)
+now also keeps what those lists say about each key in `provider_keys`: status,
+when it was made, when it was last used (OpenAI only), whether a person or a
+service account owns it (OpenAI), and whether it sits in Claude's Default
+workspace. Metadata only, no new calls and no key material. The table is
+replaced per provider on each sync whose lists were read in full, and cleared
+when the admin key is forgotten, so it never goes stale silently.
+
+`key-safety.ts` in core turns those facts, the agents' sources and the stored
+admin keys into an ordered list of warnings: an admin key expired, failing or
+expiring within 14 days; a shared key; spend in the last 30 days on no agent;
+usage with no per-key breakdown; an active key idle for 90 days; a key in the
+Default workspace; a person's key; a key over a year old. Where the provider
+gives no last-use date (Claude), "idle" means no usage seen in the 90 days
+CostGrid imports, and the screen says "at least". The Setup screen shows each
+with what could go wrong and how to fix it at the provider; nothing is changed
+from CostGrid.
+
 ## Package layout
 
 ```
