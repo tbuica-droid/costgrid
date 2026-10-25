@@ -214,3 +214,19 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - In a browser on a throwaway database: sample usage files from both providers, one agent with a Claude key and an OpenAI key, a matched twin and its undo, a shared key and its guide, at desktop and phone width, dark and light.
 
 **Still to check with real accounts:** how a real Claude usage file names keys in the default workspace, before those can be matched too.
+
+## Version 2, step 4: automatic outcome detection (24 October 2026)
+
+**What changed**
+- **CostGrid now estimates which jobs got done**, with no logging by the owner. For agents that send requests through CostGrid, each job is judged from how the agent behaved: handed to a person, ended in an error, cut off, declined, or asked again soon after. A job that ended normally and wasn't asked again counts as finished once its waiting period passes. All of this is labelled "indicative"; a one-line report from the owner's software always wins and is shown separately.
+- **Recognising the same job.** A developer can label each job (`x-costgrid-task`). Without a label, CostGrid turns the job's first message into a one-way code on the computer. The words are never saved, the code can't be turned back into them, it never leaves the computer, and it is deleted with the call records. On by default, with an off switch in Settings that also deletes saved codes.
+- **Presets version 2** add how soon a repeat means the first try failed (24 hours for support, 48 for sales leads, 2 for data entry) and rate their evidence for automatic detection. Agents set up earlier keep version 1 until the owner turns detection on with one click.
+- **Results screen:** a new "Did the jobs get done?" section per agent: finished, didn't finish, stopped by your limits, still waiting, can't tell, the reasons, and an indicative cost per finished job.
+- **Website:** the privacy card now says CostGrid never *keeps* prompts or answers and explains the one-way code; step 2 of "How it works" describes the estimates.
+
+**How it was checked**
+- 923 tests pass (rules for every signal and window edge, the code never containing the message, the switch deleting codes, the read model, and the new routes including access from other organisations and sites).
+- Security review: nothing at high confidence; one hardening suggestion taken (each organisation gets its own fingerprint key).
+- In a browser against a fake provider: a finished job, a job asked twice, a hand-off, a cut-off answer, a too-short opening and a labelled job all landed where they should; Results and the Settings switch at desktop and phone width, dark and light.
+
+**Not yet:** agents known only from provider usage reports have no outcomes until a helpdesk connection exists (later in the plan).

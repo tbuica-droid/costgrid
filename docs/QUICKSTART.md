@@ -274,6 +274,7 @@ and should stop now. That needs one more header:
 |---|---|
 | `x-costgrid-run` | Groups calls into one run |
 | `x-costgrid-parent-run` | The run that delegated this one |
+| `x-costgrid-task` | The job the run is working on (a ticket or order id), so a job tried again is recognised |
 
 ```python
 headers = {"x-costgrid-run": run_id}                     # one per agent run
@@ -618,8 +619,8 @@ Everything so far answers "what did this cost". None of it answers "was it
 worth it", and a run that burned $4 and failed is not cheaper than one that
 burned $6 and worked.
 
-CostGrid cannot tell. It sees tokens, not truth. So your software has to say
-so, in one optional call at the end of a run:
+CostGrid estimates it on its own from how each agent behaves (below), and
+your software can make it exact with one optional call at the end of a run:
 
 ```bash
 curl -X POST http://127.0.0.1:8787/v1/costgrid/outcome \
@@ -644,6 +645,25 @@ Once you do this, `costgrid report` gains the figure nothing else can give you:
     Did not            35, costing $11.90
     Cost per result    $0.22
 ```
+
+### Without that call: inferred from behaviour
+
+For traffic sent through CostGrid, each agent's jobs are judged automatically
+and shown on the Results screen as **indicative** (evidence tier C in the LCSO
+method). A job did not finish when it was handed to a person (a tool named like
+`handoff_to_human`, `escalate…`, `transfer_to_agent`), ended in an error, was
+cut off, or the model declined. It finished when it ended normally and was not
+asked again within the agent's re-run window (24 hours for customer support,
+48 for sales leads, 2 for data entry), and it stays "still waiting" until the
+preset's maturation window has passed. A report from your software always wins.
+
+To recognise a job asked again, CostGrid uses `x-costgrid-task` when you send
+it. Otherwise it turns the job's first message into a one-way code (a keyed
+HMAC; the key stays in the Keychain, or is derived from the master key on a
+server). The message is never stored, the code never leaves the machine, and it
+is deleted with the call records. An owner can turn this off in Settings, which
+also deletes the codes already saved; jobs without a header then show as
+"can't tell".
 
 ### The denominator is part of the number
 

@@ -120,6 +120,34 @@ finished job), and says which sources it uses.
 - Migration 15 turned every source named in step 2 into an agent of its own,
   so nothing typed there was lost.
 
+### Outcome detection: inferred, labelled, and never mixed with reports
+
+Step 4. Whether a job got done is decided per agent from proxied traffic only;
+provider usage reports have no runs.
+
+- **Pure rules in core.** `run-status.ts` reads each provider's stop reason,
+  `escalation.ts` matches hand-off tool names by word, and `outcome-detect.ts`
+  groups runs into jobs and decides each one: reported (tier B) wins, then a
+  hand-off, a CostGrid limit, an error, cut-off or refusal; a job that ended
+  normally is finished only if it can be recognised again, because otherwise a
+  re-run could not have been seen. The LCSO engine then holds fresh successes
+  as pending and reverses those asked again inside the maturation window.
+- **Presets are versioned, never edited.** Version 2 adds each purpose's re-run
+  window and describes what CostGrid can actually see. Agents keep the version
+  they chose; a version 1 agent is offered the upgrade, not moved silently.
+- **Job identity is metadata.** `calls.task_key` holds the developer's
+  `x-costgrid-task`, or a 128-bit HMAC of the job's normalised first message
+  (`task-fingerprint.ts`), keyed per organisation from an install key kept in
+  the OS keychain (`fingerprint-key.ts`; derived from the master key where
+  there is no keychain). The message lives in one local variable in
+  `task-identity.ts` and is never logged or stored; a test searches every table
+  and every byte of the database for it. Codes sit on `calls`, so retention
+  purges them with the calls, and turning matching off deletes them.
+- **Computed on read.** `run-outcomes.ts` summarises runs (sub-agents folded
+  into their parent), attaches hand-offs and reports, and runs the detector and
+  the engine for the period, so nothing derived is stored and a changed rule
+  restates history consistently.
+
 ## Package layout
 
 ```

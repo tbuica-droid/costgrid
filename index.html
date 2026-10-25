@@ -6,9 +6,9 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0b0d12" />
     <title>CostGrid: optimize your AI costs by what actually gets done</title>
-    <meta name="description" content="CostGrid is a free Mac app for businesses that run their own AI agents on OpenAI or Claude. See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer and never sees your data." />
+    <meta name="description" content="CostGrid is a free Mac app for businesses that run their own AI agents on OpenAI or Claude. See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer and never keeps your data." />
     <meta property="og:title" content="CostGrid: optimize your AI costs by what actually gets done" />
-    <meta property="og:description" content="See the real cost of every successful job, spot the agents that waste money, and fix them first. A free Mac app that runs on your computer and never sees your data." />
+    <meta property="og:description" content="See the real cost of every successful job, spot the agents that waste money, and fix them first. A free Mac app that runs on your computer and never keeps your data." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://costgrid.dev/" />
     <meta property="og:site_name" content="CostGrid" />
@@ -21,7 +21,7 @@
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "CostGrid",
-      "description": "A Mac app for businesses that run their own AI agents on OpenAI or Claude. It shows the real cost of every successful job, which agents waste money, and what to fix first. It runs on your computer and never reads prompts or AI answers.",
+      "description": "A Mac app for businesses that run their own AI agents on OpenAI or Claude. It shows the real cost of every successful job, which agents waste money, and what to fix first. It runs on your computer and never keeps prompts or AI answers.",
       "url": "https://costgrid.dev/",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "macOS",
@@ -57,7 +57,7 @@
           <span class="overline fade" style="--delay: 100ms">For businesses that run their own AI agents</span>
           <h1 id="heroTitle" data-lines="Optimize your AI costs|by what actually gets done.">Optimize your AI costs by what actually gets done.</h1>
           <script src="hero.js"></script>
-          <p class="sub fade" style="--delay: 800ms">See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer. Never sees your data.</p>
+          <p class="sub fade" style="--delay: 800ms">See the real cost of every successful job, spot the agents that waste money, and fix them first. Runs on your computer. Never keeps your data.</p>
           <div class="cta-row fade" style="--delay: 1200ms">
             <a class="btn btn-accent btn-lg" href="#download">Download for Mac</a>
             <a class="btn btn-lg glass" href="#how">See how it works</a>
@@ -145,8 +145,8 @@
           <h2 class="head">Three steps to the real cost of each job.</h2>
           <div class="grid g3" style="margin-top: 40px">
             <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add an admin key with an expiry date, or drop in the usage file you can download from OpenAI or Claude, and CostGrid imports your last 90 days. The key stays in your Mac's Keychain until the date you chose. Then say which agent uses each key.</p></div>
-            <div class="card"><span class="step-no">Step 2</span><h3>Tell it which jobs worked</h3><p>Today your software reports whether each job worked, with one small addition your developer makes. You can already pick each agent's job type (customer support, sales leads, content, data entry); spotting finished jobs from it with no code is coming.</p></div>
-            <div class="card"><span class="step-no">Step 3</span><h3>See the real cost per job</h3><p>From the results your software reports, failed and retried attempts are charged to the jobs that worked. A plain verdict for every agent is coming.</p></div>
+            <div class="card"><span class="step-no">Step 2</span><h3>Tell it which jobs worked</h3><p>CostGrid now estimates which jobs finished from how each agent behaves: asked again soon after, handed to a person, or ended in an error. These are estimates; a one-line report from your software makes them exact. Works for agents that send requests through CostGrid.</p></div>
+            <div class="card"><span class="step-no">Step 3</span><h3>See the real cost per job</h3><p>From the results your software reports, failed and retried attempts are charged to the jobs that worked. A plain-language results page for each agent is coming.</p></div>
           </div>
         </div>
       </section>
@@ -234,7 +234,7 @@
           <h2 class="head">Your data stays on your computer.</h2>
           <div class="facts">
             <div class="card"><h3>Runs on your computer</h3><p>CostGrid is a Mac app. It works out your costs on your own machine, not on our servers.</p></div>
-            <div class="card"><h3>Never reads prompts or AI answers</h3><p>It works only from usage records: what each request cost, how much it used, when, and which key made it. Never the words going in or coming out.</p></div>
+            <div class="card"><h3>Never keeps prompts or AI answers</h3><p>To notice when the same job is asked again, CostGrid turns the first message of each job into a one-way code on your computer. The words are never saved, the code can't be turned back into them, it never leaves your computer, and it's deleted with your other call records. You can turn this off in Settings.</p></div>
             <div class="card"><h3>Keys locked with your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them is kept in the Keychain, where macOS keeps your saved passwords. Your keys are only ever sent to OpenAI or Anthropic, never to us. An admin key you connect goes straight into the Keychain, never into CostGrid's own files, and CostGrid stops using it on the expiry date you chose.</p></div>
             <div class="card"><h3>Nothing leaves unless you choose</h3><p>Nothing is sent from your computer unless you turn it on. A plain list of exactly what would be sent, shown before you turn anything on, is coming.</p></div>
             <div class="card"><h3>One key per agent, with an expiry date</h3><p>We recommend it. You see each agent's cost on its own, you can switch one off without touching the others, and a key with an expiry date stops working on its own.</p></div>
@@ -248,7 +248,7 @@
           <span class="overline">FAQ</span>
           <h2 class="head">Straight answers.</h2>
           <div class="faq">
-            <details><summary>Does it read my data?</summary><p>No. CostGrid never reads your prompts, your customers' messages or the AI's answers. It uses only usage metadata: costs, token counts, timestamps and which key made each request.</p></details>
+            <details><summary>Does it read my data?</summary><p>CostGrid never stores or sends your prompts, your customers' messages or the AI's answers. It saves usage records and, if job matching is on, a one-way code made from each job's first message.</p></details>
             <details><summary>Does it stop hallucinations?</summary><p>No. CostGrid does not detect hallucinations or check whether an answer is right. It shows what failed and re-run attempts cost you, so you can see which agents waste the most money and fix those first.</p></details>
             <details><summary>Do I need to be technical?</summary><p>No. Download the app and connect OpenAI or Claude. If a freelancer or someone else set up your AI, CostGrid writes a message you can send them, asking for what it needs.</p></details>
             <details><summary>What does it work with?</summary><p>OpenAI and Claude today, including agents built in tools like n8n, as long as they run on your own OpenAI or Claude account. To read usage directly, CostGrid needs a key made by someone with an admin or owner role on that account. Without one, drop in the usage file that a developer or billing user can download.</p></details>
@@ -357,7 +357,7 @@
     <footer class="site-foot">
       <div class="wrap">
         <div class="foot-facts">
-          <span>Never reads prompts or answers</span>
+          <span>Never keeps prompts or answers</span>
           <span>Keys locked with your Mac's Keychain</span>
           <span>Source-available under FSL-1.1-ALv2</span>
         </div>
