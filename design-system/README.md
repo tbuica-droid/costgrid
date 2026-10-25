@@ -1,6 +1,6 @@
 # @costgrid/ui
 
-CostGrid's design system, "Midnight". Dark by default, one champagne accent,
+CostGrid's design system, "Midnight". Dark by default, one lavender accent,
 Manrope for everything you read.
 
 ## The rules
@@ -10,7 +10,7 @@ headings. App body text is 14.5px, captions never below 12.5px, and every text
 colour clears 4.5:1 against its background in both themes. Figures are tabular
 everywhere numbers line up.
 
-**Champagne is the one accent.** `--cg-accent` marks primary buttons, the
+**Lavender is the one accent.** `--cg-accent` marks primary buttons, the
 active nav icon, the headline figure and the focus ring. It is never a fill for
 a large area, and nothing else competes with it.
 
