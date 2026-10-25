@@ -11,7 +11,7 @@ Dark is the brand and the default. Light is opt-in (`data-theme="light"` on
 
 - **Readable first.** Manrope for everything anyone reads. App body 14.5px,
   site body 16 to 17px, never below 12.5px.
-- **Lavender is the one accent** (`--cg-accent`): primary buttons, the active
+- **Champagne is the one accent** (`--cg-accent`): primary buttons, the active
   nav icon, the headline figure, the focus ring. Never a fill for a large area.
 - **Colour for state only, always with a word:** `--cg-good` (on track),
   `--cg-warn` (needs a look), `--cg-bad` (failing), each with a `-bg`.

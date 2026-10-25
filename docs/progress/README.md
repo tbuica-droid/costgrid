@@ -291,7 +291,3 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - 958 tests pass, including a month-end job judged after the month closed and the CSV row with its agent id.
 - Code review: fixed month-end jobs stuck as "waiting" on closed months, owner counts for an older month vanishing once a newer one was entered, unjudged agents left out silently, the CLI's JSON mangling exact figures, and a failure in this section being able to break the whole statement.
 - Rendered the text and HTML statements with sample agents.
-
-## Brand accent: champagne to lavender (25 October 2026)
-
-The one accent colour is now lavender (`#c2a9ff` in dark mode, `#6a4bd6` in light), replacing champagne gold, so it sits with the website's violet and blue glows. Changed in the design system's tokens and synced to the app and the demo; the website, the logo and favicon on every page, the hero glow and the hero video's tint follow. Contrast: lavender text on the dark background is 9.6:1, dark text on a lavender button 9.0:1, and the light-mode accent 5.9:1 on white. Green, amber and red still mean state only. The app picks this up in its next release; the Mac app icon (red, white and green bars) is unchanged and is due a redesign of its own.

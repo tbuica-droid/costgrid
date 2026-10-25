@@ -16,7 +16,7 @@
 /*
  * CostGrid design tokens: "Midnight".
  *
- * Dark is the brand, and the default. Lavender is the one accent: primary
+ * Dark is the brand, and the default. Champagne is the one accent: primary
  * buttons, the active nav icon, the headline figure, the focus ring. It is
  * never a fill for a large area. Green, amber and red mean state (on track,
  * needs a look, failing) and always sit next to a word that says so.
@@ -52,11 +52,11 @@
   --cg-ink-3:          #8b93a1;
 
   /* --- The accent -------------------------------------------------------- */
-  --cg-accent:         #c2a9ff;
-  --cg-on-accent:      #1a0f33;
-  --cg-accent-wash:    #171230;
-  --cg-accent-line:    #352a5c;
-  --cg-chart:          #9d82f0;
+  --cg-accent:         #d9b46c;
+  --cg-on-accent:      #1a1307;
+  --cg-accent-wash:    #17140e;
+  --cg-accent-line:    #3a3222;
+  --cg-chart:          #b38b38;
 
   /* --- State: text on its own background, always with a word ----------- */
   --cg-good:           #7dd8a8;
@@ -137,8 +137,8 @@
   --cg-surface-2: #f8f9fb; --cg-nav-active: #e4e7ec;
   --cg-line: #e1e4ea; --cg-line-soft: #eceef2; --cg-control: #cfd4dc;
   --cg-ink: #12151c; --cg-ink-2: #4a5160; --cg-ink-3: #5f6673;
-  --cg-accent: #6a4bd6; --cg-on-accent: #ffffff;
-  --cg-accent-wash: #f3effe; --cg-accent-line: #ddd3fb; --cg-chart: #7d62e3;
+  --cg-accent: #8a6628; --cg-on-accent: #ffffff;
+  --cg-accent-wash: #f7f1e4; --cg-accent-line: #e6d6b3; --cg-chart: #a8823a;
   --cg-good: #17603a; --cg-good-bg: #e3f1e8;
   --cg-warn: #8a4b00; --cg-warn-bg: #fdf0dc;
   --cg-bad: #a1241a; --cg-bad-bg: #fbe6e3;
@@ -152,8 +152,8 @@
     --cg-surface-2: #f8f9fb; --cg-nav-active: #e4e7ec;
     --cg-line: #e1e4ea; --cg-line-soft: #eceef2; --cg-control: #cfd4dc;
     --cg-ink: #12151c; --cg-ink-2: #4a5160; --cg-ink-3: #5f6673;
-    --cg-accent: #6a4bd6; --cg-on-accent: #ffffff;
-    --cg-accent-wash: #f3effe; --cg-accent-line: #ddd3fb; --cg-chart: #7d62e3;
+    --cg-accent: #8a6628; --cg-on-accent: #ffffff;
+    --cg-accent-wash: #f7f1e4; --cg-accent-line: #e6d6b3; --cg-chart: #a8823a;
     --cg-good: #17603a; --cg-good-bg: #e3f1e8;
     --cg-warn: #8a4b00; --cg-warn-bg: #fdf0dc;
     --cg-bad: #a1241a; --cg-bad-bg: #fbe6e3;
