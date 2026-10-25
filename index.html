@@ -50,9 +50,11 @@
     </header>
 
     <main>
-      <!-- Full-screen hero. The moving background is CSS only: no video, nothing third-party. -->
+      <!-- Full-screen hero. The video is served from this site (media/), so visitors contact no one else;
+           hero.js starts it only for visitors who allow motion, and the CSS glows and grid show without it. -->
       <section class="hero" id="top">
-        <div class="hero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span></div>
+        <div class="hero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span>
+          <video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
         <div class="wrap hero-in">
           <span class="overline fade" style="--delay: 100ms">For businesses that run their own AI agents</span>
           <h1 id="heroTitle" data-lines="Optimize your AI costs|by what actually gets done.">Optimize your AI costs by what actually gets done.</h1>

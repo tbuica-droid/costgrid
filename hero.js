@@ -5,11 +5,24 @@
  * Loaded straight after the heading, not deferred, so the letters are hidden
  * before the first paint rather than flashing in and out. Without this file,
  * or for anyone who has asked for less motion, everything is simply shown.
+ *
+ * Also starts the background video, served from this site. It is never loaded
+ * for anyone who asked for less motion or to save data; the CSS background
+ * shows instead, and the video fades in over it once it is actually playing.
  */
 (function () {
   var title = document.getElementById("heroTitle");
   var hero = title && title.closest(".hero");
   if (!hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  var video = hero.querySelector(".hero-video");
+  var saveData = navigator.connection && navigator.connection.saveData;
+  if (video && !saveData) {
+    video.addEventListener("playing", function () { video.classList.add("on"); }, { once: true });
+    video.src = video.getAttribute("data-src");
+    var playing = video.play();
+    if (playing && playing.catch) playing.catch(function () {});
+  }
 
   var START_MS = 200;
   var CHAR_MS = 30;
