@@ -26,6 +26,8 @@ import {
   statementToCsv,
   type TimeRange,
   trailingWindow,
+  jobsView,
+  type RunOutcomes,
 } from "@costgrid/db";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
@@ -45,6 +47,8 @@ export interface ApiDeps {
   readonly analytics: Analytics;
   readonly imports: ImportsRepository;
   readonly sources: SourcesRepository;
+  /** Gives statements their jobs section, for `?include=jobs`. */
+  readonly runOutcomes: RunOutcomes;
   /** Resolves the caller's tenant, or undefined when unauthenticated. */
   readonly tenantOf: (request: FastifyRequest) => string | undefined;
 }
@@ -195,10 +199,20 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
    * days" is never that number.
    */
   const statementFor = (request: FastifyRequest) => {
-    const raw = (request.query as Record<string, unknown> | undefined)?.["month"];
+    const query = request.query as Record<string, unknown> | undefined;
+    const raw = query?.["month"];
     const month = raw === undefined ? monthOf() : String(raw);
+    // Judging every job is real work on the metering process, so only when asked: ?include=jobs.
+    const withJobs = query?.["include"] === "jobs";
     try {
-      return buildStatement({ analytics, repository, imports, tenantId: tenant(request), month });
+      return buildStatement({
+        analytics,
+        repository,
+        imports,
+        tenantId: tenant(request),
+        month,
+        ...(withJobs ? { runOutcomes: deps.runOutcomes } : {}),
+      });
     } catch (error) {
       throw Object.assign(new Error(error instanceof Error ? error.message : "invalid month"), {
         statusCode: 400,
@@ -259,6 +273,7 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
               requests: statement.imported.requests,
               costUsd: money(statement.imported.reportedCost ?? statement.imported.catalogCost),
             },
+      jobs: jobsView(statement.jobs),
     };
   });
 

@@ -29,6 +29,7 @@ import {
   type ImportsRepository,
   KeyFactsRepository,
   OutcomeSettingsRepository,
+  RunOutcomes,
   SourcesRepository,
   trailingWindow,
 } from "@costgrid/db";
@@ -394,6 +395,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     analytics,
     imports,
     sources,
+    runOutcomes: new RunOutcomes(deps.db),
     // Read-only: a session cookie is accepted here and nowhere else.
     tenantOf: (request) => identify(request, deps, true)?.tenantId,
   });

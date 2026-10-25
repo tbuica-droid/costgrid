@@ -17,6 +17,8 @@ import {
   RuleRegister,
   type Statement,
   trailingWindow,
+  jobsView,
+  RunOutcomes,
 } from "@costgrid/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { type ConsoleRequest, createGuards } from "./console.js";
@@ -94,6 +96,7 @@ export function registerResults(app: FastifyInstance, deps: ResultsDeps): void {
   const fixedCosts = new FixedCosts(db);
   const register = new RuleRegister(db, repository);
   const measured = new MeasuredSavings(db);
+  const runOutcomes = new RunOutcomes(db);
   const bad = (reply: FastifyReply, error: string) => reply.code(400).send({ error });
 
   app.get("/console/:tenantId/results", async (request: ConsoleRequest, reply) => {
@@ -221,7 +224,7 @@ export function registerResults(app: FastifyInstance, deps: ResultsDeps): void {
     if (!actor) return;
 
     const month = monthParam(request);
-    const s = buildStatement({ analytics, repository, imports, fixedCosts, tenantId, month });
+    const s = buildStatement({ analytics, repository, imports, fixedCosts, tenantId, month, runOutcomes });
     const entries = register.entries(tenantId, s.range);
     const log = new AuditLog(db);
     const verification = log.verify(tenantId);
@@ -258,6 +261,7 @@ export function registerResults(app: FastifyInstance, deps: ResultsDeps): void {
           fullCostPerSuccessUsd: optionalMoney(s.fullCostPerSuccess),
         },
         entered: fullCostView(s)["entered"],
+        jobs: jobsView(s.jobs),
       },
       ruleRegister: entries.map((e) => ({ ...e, rule: ruleView(e.rule) })),
       measuredSwitches: measured.forPolicies(tenantId, entries).map((m) => ({

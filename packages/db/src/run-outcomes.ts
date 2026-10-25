@@ -98,9 +98,20 @@ export class RunOutcomes {
     this.#db = db;
   }
 
-  forTenant(tenantId: string, range: { from: number; to: number }, asOf: number): OutcomesReport {
-    const runs = this.#runs(tenantId, range.from - LOOKBACK_MS, range.to);
-    const escalations = this.#escalations(tenantId, range.from - LOOKBACK_MS, range.to);
+  /**
+   * `followUntil` reads runs past the period's end, so a closed month's jobs
+   * can be seen asked again or reversed later; `month` prices that month's
+   * owner count rather than the newest.
+   */
+  forTenant(
+    tenantId: string,
+    range: { from: number; to: number },
+    asOf: number,
+    opts: { followUntil?: number; month?: string } = {},
+  ): OutcomesReport {
+    const until = Math.max(range.to, opts.followUntil ?? range.to);
+    const runs = this.#runs(tenantId, range.from - LOOKBACK_MS, until);
+    const escalations = this.#escalations(tenantId, range.from - LOOKBACK_MS, until);
     const reported = this.#reported(tenantId);
     const inputs = new JobInputs(this.#db);
     const persons = inputs.personCosts(tenantId);
@@ -205,7 +216,7 @@ export class RunOutcomes {
         .all(tenantId) as { id: string; name: string | null }[]
     )
       .filter((a) => !proxied.has(a.id))
-      .map((a) => this.#providerOnly(tenantId, a, persons.get(a.id), counts.get(a.id) ?? [], views));
+      .map((a) => this.#providerOnly(tenantId, a, persons.get(a.id), counts.get(a.id) ?? [], views, opts.month));
 
     return { agents: results, noOutcomeData, longestWindowMs };
   }
@@ -217,9 +228,10 @@ export class RunOutcomes {
     person: PersonCost | undefined,
     counts: JobCount[],
     views: Map<string, ReturnType<AgentsRepository["view"]>>,
+    wanted?: string,
   ): ProviderOnlyOutcomes {
     const base = { ...agent, counts, ...(person !== undefined ? { person } : {}) };
-    const latest = counts[0];
+    const latest = wanted === undefined ? counts[0] : counts.find((c) => c.month === wanted);
     if (latest === undefined) return base;
     const [year, month] = latest.month.split("-").map(Number) as [number, number];
     const from = Date.UTC(year, month - 1, 1);

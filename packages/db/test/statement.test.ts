@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Analytics } from "../src/analytics.js";
 import { openDatabase } from "../src/database.js";
 import { CostGridRepository } from "../src/repositories.js";
+import { RunOutcomes } from "../src/run-outcomes.js";
 import { buildStatement, monthOf, monthRange, previousMonth, statementToCsv } from "../src/statement.js";
+import { jobsView } from "../src/statement-jobs.js";
 
 describe("month arithmetic", () => {
   it("spans a calendar month in UTC, half-open", () => {
@@ -86,6 +88,33 @@ describe("monthly statement", () => {
   });
 
   afterEach(() => db.close());
+
+  it("says per agent whether the month's jobs got done, labelled indicative", () => {
+    const job = (at: number, task: string, stop = "end_turn") => {
+      const usage = { ...ZERO_USAGE, inputTokens: 1_000_000 };
+      const priced = priceUsage("claude-haiku-4-5", usage);
+      const id = `${task}-${at}`;
+      repository.recordCall({
+        id, tenantId: "t1", agentId: "support-bot", department: "Ops", provider: "anthropic", model: "claude-haiku-4-5",
+        startedAt: at, durationMs: 10, streamed: false, usage, cost: priced.cost, priced: true, outcome: "ok",
+        stopReason: stop, runId: id, runDeclared: false, runDepth: 0, taskKey: task, taskSource: "header",
+      });
+    };
+    job(SEPT, "t1");
+    job(SEPT + 3_600_000, "t2", "max_tokens");
+    // Finished on the last day: still in its waiting period at month end, matured by the time the statement is made.
+    job(Date.UTC(2026, 8, 30, 12), "t3");
+    expect(statement().jobs).toBeUndefined();
+
+    const s = buildStatement({ analytics, repository, tenantId: "t1", month: "2026-09", now: NOW, runOutcomes: new RunOutcomes(db) });
+    expect(s.jobs!.rows).toEqual([
+      expect.objectContaining({ agentId: "support-bot", basis: "inferred", finished: 2, notFinished: 1, waiting: 0, verdict: "steady" }),
+    ]);
+    expect(jobsView(s.jobs)).toMatchObject({ indicative: true, notJudged: [], agents: [{ costPerFinishedUsd: "1.500000", spendOnUnfinishedPct: "33.3" }] });
+    const csv = statementToCsv(s);
+    expect(csv).toContain("jobs (indicative; cost per finished job, LCSO method v0.1)");
+    expect(csv).toContain("\nsupport-bot,support-bot,inferred,2,1,0,3.000000,1.500000,33.3,,steady");
+  });
 
   it("totals only the month it names", () => {
     record(AUG);

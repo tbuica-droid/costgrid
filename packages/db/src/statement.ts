@@ -3,6 +3,8 @@ import type { Analytics, GroupedSpend, OutcomeSummary, RoutingSavings, TimeRange
 import { FIXED_COST_CATEGORIES, type FixedCostCategory, type FixedCosts } from "./fixed-costs.js";
 import type { ImportsRepository } from "./imports.js";
 import type { CostGridRepository } from "./repositories.js";
+import type { RunOutcomes } from "./run-outcomes.js";
+import { jobsCsvRows, type StatementJobs, statementJobs } from "./statement-jobs.js";
 
 /**
  * The monthly statement: the artifact a customer forwards to finance.
@@ -151,6 +153,17 @@ export interface Statement {
   readonly fullCost: Nanodollars;
   /** Full cost divided by reported successful runs; undefined without any. */
   readonly fullCostPerSuccess: Nanodollars | undefined;
+  /** Per agent, whether the jobs got done and what a finished one cost. Indicative. */
+  readonly jobs: StatementJobs | undefined;
+}
+
+/** The indicative jobs section must never cost a finance reader the statement itself. */
+function jobsOrNothing(...args: Parameters<typeof statementJobs>): StatementJobs | undefined {
+  try {
+    return statementJobs(...args);
+  } catch {
+    return undefined;
+  }
 }
 
 function describeScope(scope: PolicyScope): string {
@@ -193,6 +206,8 @@ export interface StatementInput {
   readonly now?: number;
   /** Entered non-token costs. Optional so older callers keep working. */
   readonly fixedCosts?: FixedCosts;
+  /** Gives the month's "did the jobs get done" section; absent, there is none. */
+  readonly runOutcomes?: RunOutcomes;
 }
 
 /**
@@ -318,6 +333,7 @@ export function buildStatement(input: StatementInput): Statement {
     fixedCosts: { total: fixedTotal, lines: fixedLines },
     fullCost,
     fullCostPerSuccess: outcomes.succeeded > 0 ? fullCost / BigInt(outcomes.succeeded) : undefined,
+    jobs: input.runOutcomes ? jobsOrNothing(input.runOutcomes, tenantId, month, range, now) : undefined,
   };
 }
 
@@ -442,6 +458,8 @@ export function statementToCsv(statement: Statement): string {
       ]),
     );
   }
+
+  if (statement.jobs) lines.push(...jobsCsvRows(statement.jobs, csvRow));
 
   if (statement.budgets.length > 0) {
     lines.push(

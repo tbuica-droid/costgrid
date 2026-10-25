@@ -24,6 +24,8 @@ import {
   openDatabase,
   statementToCsv,
   trailingWindow,
+  RunOutcomes,
+  jobsView,
 } from "@costgrid/db";
 import {
   ask,
@@ -663,6 +665,7 @@ async function main(): Promise<void> {
           imports: new ImportsRepository(db),
           tenantId,
           month,
+          runOutcomes: new RunOutcomes(db),
         });
       } catch (error) {
         fail(error instanceof Error ? error.message : String(error));
@@ -681,7 +684,8 @@ async function main(): Promise<void> {
           : format === "json"
             ? // Money is bigint nanodollars, which JSON cannot hold. Serialising
               // it as a decimal string keeps the exact value; a float would not.
-              JSON.stringify(statement, (_key, value) =>
+              // The jobs section carries exact ratios, so it goes out in its own decimal form.
+              JSON.stringify({ ...statement, jobs: jobsView(statement.jobs) }, (_key, value) =>
                 typeof value === "bigint" ? toUsdString(value, 9) : value,
               )
             : formatStatement(statement);

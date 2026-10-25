@@ -1,5 +1,5 @@
-import { toUsdString, type Nanodollars } from "@costgrid/core";
-import type { OutcomeSummary, Statement, StatementLine } from "@costgrid/db";
+import { formatPercent, formatUsdPerOutcome, type Nanodollars, toUsdString } from "@costgrid/core";
+import { BASIS_LABELS, type OutcomeSummary, type Statement, type StatementLine, VERDICT_LINES } from "@costgrid/db";
 
 /**
  * The statement as one page someone can read who has never opened the
@@ -136,6 +136,26 @@ export function renderStatementHtml(s: Statement, options: StatementHtmlOptions)
       ${o.reportedRuns < o.totalRuns / 2 ? '<p class="note">Read that rate carefully. It covers under half the runs in this period.</p>' : ""}
     </section>`
       : "";
+
+  const jobRows = s.jobs?.rows ?? [];
+  const jobsBlock = jobRows.length || s.jobs?.notJudged.length
+    ? `<section>
+      <h2>Did the jobs get done?</h2>
+      <table>
+        <thead><tr><th>Agent</th><th class="num">Finished</th><th class="num">Not finished</th><th class="num">Per finished job</th><th>In plain words</th></tr></thead>
+        <tbody>${jobRows
+          .map(
+            (r) => `<tr><td>${esc(r.name ?? r.agentId)}<br /><small>${esc(BASIS_LABELS[r.basis])}</small></td>
+              <td class="num">${r.finished.toLocaleString("en-US")}</td><td class="num">${r.notFinished.toLocaleString("en-US")}</td>
+              <td class="num">${r.costPerFinished === undefined ? "&mdash;" : `$${formatUsdPerOutcome(r.costPerFinished, 2)}`}</td>
+              <td>${esc(VERDICT_LINES[r.verdict])}${r.failureShare === undefined || r.finished === 0 ? "" : ` ${formatPercent(r.failureShare, 0)}% of its spend was on jobs that didn&rsquo;t finish.`}</td></tr>`,
+          )
+          .join("")}</tbody>
+      </table>
+      ${s.jobs!.notJudged.length ? `<p class="note">Not judged, because their purpose predates automatic detection: ${s.jobs!.notJudged.map((a) => esc(a.name ?? a.agentId)).join(", ")}.</p>` : ""}
+      <p class="note">Indicative. Failed and retried attempts are charged to the jobs that worked (LCSO method v${esc(s.jobs!.methodologyVersion)}). Where it says &ldquo;inferred&rdquo;, CostGrid judged each job from how the agent behaved; a report from your software makes it exact.</p>
+    </section>`
+    : "";
 
   const savings = s.routing;
   const savingsBlock =
@@ -277,6 +297,7 @@ export function renderStatementHtml(s: Statement, options: StatementHtmlOptions)
 </section>
 
 ${savingsBlock}
+${jobsBlock}
 ${outcomeBlock}
 ${budgetBlock}
 

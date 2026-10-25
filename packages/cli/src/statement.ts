@@ -1,5 +1,5 @@
-import { type Nanodollars, toUsdNumber, toUsdString } from "@costgrid/core";
-import type { Statement, StatementLine } from "@costgrid/db";
+import { formatPercent, formatUsdPerOutcome, type Nanodollars, toUsdNumber, toUsdString } from "@costgrid/core";
+import { BASIS_LABELS, type Statement, type StatementLine, VERDICT_LINES } from "@costgrid/db";
 
 function money(value: Nanodollars): string {
   const dollars = toUsdNumber(value);
@@ -114,6 +114,24 @@ export function formatStatement(statement: Statement): string {
           `[${budget.action}${fallback}]${over}`,
       );
     }
+  }
+
+  const jobs = statement.jobs?.rows ?? [];
+  if (jobs.length > 0 || (statement.jobs?.notJudged.length ?? 0) > 0) {
+    out.push("");
+    out.push(`  Did the jobs get done? (indicative, LCSO method v${statement.jobs!.methodologyVersion})`);
+    for (const r of jobs) {
+      const per = r.costPerFinished === undefined ? "no finished job" : `$${formatUsdPerOutcome(r.costPerFinished, 2)} per finished job`;
+      const share = r.failureShare === undefined || r.finished === 0 ? "" : `, ${formatPercent(r.failureShare, 0)}% on unfinished`;
+      out.push(
+        `    ${(r.name ?? r.agentId).padEnd(24)} ${r.finished} finished, ${r.notFinished} not, ${r.waiting} waiting. ` +
+          `${per}${share} [${BASIS_LABELS[r.basis]}]`,
+      );
+      out.push(`    ${"".padEnd(24)} ${VERDICT_LINES[r.verdict]}`);
+    }
+  }
+  for (const a of statement.jobs?.notJudged ?? []) {
+    out.push(`    ${(a.name ?? a.agentId).padEnd(24)} Not judged: its purpose predates automatic detection.`);
   }
 
   if (statement.rates.length > 0) {
