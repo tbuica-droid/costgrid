@@ -94,30 +94,58 @@ function parseAnthropic(markdown) {
 
 // ------------------------------------------------------------------- OpenAI
 
-/** Model | short in | short cached | short write | short out | long… */
+/**
+ * Which column holds which price, read from a table's own header row.
+ *
+ * OpenAI reorders its columns from time to time (in October 2026 they became
+ * input, output, cached input, 30m write, 12h write, then the long-context
+ * set), and older models sit in narrower tables of their own. Reading by
+ * position turned a reorder into dozens of false mismatches, so columns are
+ * found by name, and the long-context ones are never taken for the short.
+ */
+function openAiColumns(header) {
+  const names = header.map((c) => c.toLowerCase().replace(/^short context /, "").trim());
+  const find = (test) => {
+    const i = names.findIndex((n, k) => k > 0 && !n.startsWith("long") && test(n));
+    return i === -1 ? undefined : i;
+  };
+  return {
+    input: find((n) => n === "input"),
+    output: find((n) => n === "output"),
+    cached: find((n) => n === "cached input"),
+    write: find((n) => /write$/.test(n)),
+  };
+}
+
 function parseOpenAi(fullMarkdown) {
   const markdown = section(fullMarkdown, "### Standard pricing data");
   if (markdown === undefined) return new Map();
 
   const rows = new Map();
+  let columns;
   for (const cells of tableRows(markdown)) {
-    if (cells.length < 5) continue;
+    if (cells[0]?.toLowerCase() === "model") {
+      columns = openAiColumns(cells);
+      continue;
+    }
+    if (columns?.input === undefined || columns.output === undefined) continue;
 
     // Rows annotate context limits, e.g. "gpt-5.5 (<272K context length)".
     const id = cells[0].replace(/\(.*?\)/g, "").trim();
     if (!/^[a-z0-9][a-z0-9.\-]*$/.test(id)) continue;
 
-    const input = parseMoney(cells[1]);
-    const output = parseMoney(cells[4]);
+    const input = parseMoney(cells[columns.input]);
+    const output = parseMoney(cells[columns.output]);
     if (input === undefined || output === undefined) continue;
+    const cell = (i) => (i === undefined ? undefined : parseMoney(cells[i]));
 
     rows.set(id, {
       input,
-      // "-" means the model does not support caching; our catalog then prices
-      // a cache read at the input rate, so that is what we compare against.
-      cacheRead: parseMoney(cells[2]) ?? input,
-      cacheWrite5m: parseMoney(cells[3]) ?? input,
-      cacheWrite1h: parseMoney(cells[3]) ?? input,
+      // "-" or no column means the model does not support it; our catalog
+      // then prices it at the input rate, so that is what we compare against.
+      cacheRead: cell(columns.cached) ?? input,
+      cacheWrite5m: cell(columns.write) ?? input,
+      cacheWrite1h: cell(columns.write) ?? input,
       output,
     });
   }
