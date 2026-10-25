@@ -10,6 +10,7 @@
  */
 
 import { call, state } from "./console-api.js";
+import { countForm, monthName, usd, verdictBlock } from "./console-verdict.js";
 import { button, count, escapeHtml } from "./ui.js";
 
 /** Whether the person looking is an owner of the organisation on screen. */
@@ -31,7 +32,6 @@ const HEADER_TIP = `Jobs CostGrid couldn't match can be matched exactly if your 
   <code>x-costgrid-task</code> header with the job's id, for example the ticket number.`;
 
 const n = (value) => Number(value ?? 0);
-const usd = (value) => `$${Number(value).toFixed(Number(value) < 0.1 ? 4 : 2)}`;
 const plural = (k, one, many) => `${count(k)} ${k === 1 ? one : many}`;
 
 /** One figure in the row of five; `note` is markup. */
@@ -70,21 +70,9 @@ function reasonsList(agent) {
       .join("")}</ul>`;
 }
 
-function costLines(agent) {
-  const lines = [];
-  if (agent.costPerFinishedUsd !== null && agent.costPerFinishedUsd !== undefined) {
-    lines.push(`About ${escapeHtml(usd(agent.costPerFinishedUsd))} per finished job (indicative)`);
-  }
-  if (agent.failureCostShare !== null && agent.failureCostShare !== undefined) {
-    // Jobs still waiting are left out of this share, so the sentence says so.
-    lines.push(
-      `Of the spending on jobs with an outcome so far, ${escapeHtml(agent.failureCostShare)}% went on jobs that didn't finish (indicative)`,
-    );
-  }
-  if (agent.totalCostUsd !== null && agent.totalCostUsd !== undefined) {
-    lines.push(`${escapeHtml(usd(agent.totalCostUsd))} spent on these jobs through CostGrid`);
-  }
-  return lines.length ? `<div class="agent-costs">${lines.map((l) => `<p>${l}</p>`).join("")}</div>` : "";
+function spentLine(agent) {
+  if (agent.totalCostUsd === null || agent.totalCostUsd === undefined) return "";
+  return `<div class="agent-costs"><p>${escapeHtml(usd(agent.totalCostUsd))} spent on these jobs through CostGrid</p></div>`;
 }
 
 function upgradeLine(agent, owner) {
@@ -134,21 +122,40 @@ function agentCard(agent, index, owner) {
         <span class="tag ${tone}">Evidence: ${escapeHtml(evidence)}</span>
       </div>
       ${agent.mostlyInferred ? '<p class="outcome-badge"><span class="tag">Inferred from how the agent behaved (indicative)</span></p>' : ""}
+      ${verdictBlock(agent, { owner, spent: agent.totalCostUsd })}
       ${countsRow(agent)}
-      ${costLines(agent)}
+      ${spentLine(agent)}
       ${reasonsList(agent)}
       ${matchingNotes(agent)}
       ${upgradeLine(agent, owner)}
     </article>`;
 }
 
-function noDataCard(list) {
+/** An agent known only from provider reports: its count-based figures, or how to get them. */
+function providerOnlyCard(agent, index, owner) {
+  const latest = agent.latest;
+  const body = latest
+    ? `${verdictBlock({ ...agent, summary: latest.summary }, { owner, spent: latest.costUsd, month: latest.month })}
+       <p class="kpi-sub">From the provider's usage report for ${escapeHtml(monthName(latest.month))}
+         (${escapeHtml(usd(latest.costUsd))}) and the jobs you counted. Reports don't say which jobs failed, so the
+         spending on failed jobs and the cost spread can't be shown.</p>`
+    : `<p class="kpi-sub">Provider reports don't say whether a job finished.${
+        owner ? " Count last month's finished jobs (from your helpdesk or CRM, say) to see the cost per finished job." : ""
+      }</p>`;
+  return `<article class="agent-card" aria-labelledby="outcome-only-${index}">
+      <div class="agent-card-head"><h4 id="outcome-only-${index}">${escapeHtml(agent.name ?? agent.id)}</h4>
+        <span class="tag">From provider reports</span></div>
+      ${body}
+      ${countForm(agent, owner)}
+    </article>`;
+}
+
+function noDataCard(list, owner) {
   if (!list.length) return "";
-  return `<div class="card sunk outcome-nodata">
-      <p><strong>No outcome data yet:</strong> these agents' costs come from provider reports, which don't say whether
-        a job finished. Send their traffic through CostGrid (Advanced setup) to see this.</p>
-      <ul>${list.map((a) => `<li>${escapeHtml(a.name ?? a.id)}</li>`).join("")}</ul>
-    </div>`;
+  return `<h3 class="outcome-only-head">Agents CostGrid only sees in provider reports</h3>
+    <p class="section-note">Send their traffic through CostGrid (Advanced setup) to have jobs judged automatically, or
+      enter a monthly count of finished jobs.</p>
+    <div class="agent-list">${list.map((a, i) => providerOnlyCard(a, i, owner)).join("")}</div>`;
 }
 
 function topNotes(payload) {
@@ -183,7 +190,7 @@ export function outcomesSection(payload, { isOwner: owner = false } = {}) {
   }
   return `${intro}${topNotes(payload)}
     ${agents.length ? `<div class="agent-list">${agents.map((a, i) => agentCard(a, i, owner)).join("")}</div>` : ""}
-    ${noDataCard(noData)}`;
+    ${noDataCard(noData, owner)}`;
 }
 
 export async function submit() {

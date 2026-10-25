@@ -166,10 +166,30 @@
 .outcome-reasons { list-style: none; margin: 0 0 var(--cg-space-3); padding: 0; max-width: 420px; font-size: var(--cg-text-sm); }
 .outcome-reasons li { display: flex; justify-content: space-between; gap: var(--cg-space-3); padding: var(--cg-space-1) 0; border-bottom: 1px solid var(--cg-line-soft); }
 .outcome-note { margin-top: var(--cg-space-3); padding-top: var(--cg-space-3); border-top: 1px solid var(--cg-line-soft); }
-.agent-card .kpi-sub code, .outcome-nodata li { overflow-wrap: anywhere; }
-.outcome-nodata { margin-top: var(--cg-space-4); }
-.outcome-nodata p { margin: 0; }
-.outcome-nodata ul { margin: var(--cg-space-2) 0 0; padding-left: 1.2em; }
+.agent-card .kpi-sub code { overflow-wrap: anywhere; }
+
+/* -------------------------------------------- the verdict per agent (results) */
+
+.verdict {
+  margin: var(--cg-space-3) 0; padding: var(--cg-space-3) var(--cg-space-4);
+  border-left: 2px solid var(--cg-accent-line); background: var(--cg-accent-wash); border-radius: var(--cg-radius-sm);
+}
+.verdict-warn { border-left-color: var(--cg-warn); background: var(--cg-warn-bg); }
+.verdict-flag { margin: 0 0 var(--cg-space-2); }
+.verdict-sentence { margin: 0; font-size: var(--cg-text-lg); font-weight: var(--cg-weight-semibold); line-height: 1.4; }
+.verdict-figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--cg-space-3);
+  margin: var(--cg-space-3) 0 0;
+}
+.verdict-figures dt { font-size: var(--cg-text-xs); font-weight: var(--cg-weight-medium); color: var(--cg-ink-2); }
+.verdict-figures dd { margin: 0; overflow-wrap: anywhere; }
+.verdict-figures dd:first-of-type { font-size: var(--cg-text-xl); font-weight: var(--cg-weight-bold); font-variant-numeric: tabular-nums; }
+.verdict-person { margin: var(--cg-space-3) 0 0; }
+.verdict-form { margin: var(--cg-space-3) 0 0; }
+.verdict-form > summary { color: var(--cg-accent); font-size: var(--cg-text-sm); font-weight: var(--cg-weight-semibold); }
+.verdict-form form { margin-top: var(--cg-space-2); }
+.verdict-count { margin-top: var(--cg-space-3); }
+.outcome-only-head { margin: var(--cg-space-5) 0 var(--cg-space-1); }
 
 /* ---------------------------------------------------------------- advanced */
 
