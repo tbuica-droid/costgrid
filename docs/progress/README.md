@@ -259,3 +259,22 @@ An audit of the twelve sources the project was meant to be built on found the pr
 - In a browser: Setup with an expiring admin key, a shared key, an old idle key in the Default workspace and a person's key, desktop and phone width.
 
 **Still to check with real accounts:** the exact fields a real Claude and OpenAI key list returns (status values, `workspace_id` for the Default workspace, `owner.type`).
+
+## Version 2, steps 7 and 8: View and control (25 October 2026)
+
+**What changed**
+- **Two tiers.** View (free) and View and control, kept apart from the older price plans and with no price attached. Until pricing is decided, whoever runs the install turns it on with `costgrid tier control`.
+- **Pause an agent's Claude keys** from Limits, with one click and a confirmation. CostGrid checks each key first and only turns off keys that were working; a workspace means every working key in it. **Resume** turns back on exactly what CostGrid turned off, and stays available after a move back to View or after the agent is removed, so no key is left off by accident. Anthropic's Admin API is used (`inactive` and `active`, never `archived`), and a pause counts only when Anthropic reports the new status.
+- **OpenAI keys can't be paused**: OpenAI documents no way to do it. They are listed as such, with what to do in the OpenAI dashboard instead.
+- **Monthly caps per agent.** Organisations with a cap are synced hourly. When the provider's usage report shows an agent past its cap this month, its Claude keys are paused and one alert says what was reached and what was done. A cap pauses once per month per setting: if the owner resumes, CostGrid doesn't overrule them until the cap is changed. A failed pause is retried.
+- **Measured stop time.** Every pause and resume is listed with how far behind the usage report was when the cap was seen and how long Anthropic took to act. Nothing says "instant".
+- **Website:** the pricing card describes what View and control does now, says OpenAI keys can't be paused, and says a cap acts on a report that runs behind.
+
+**How it was checked**
+- 957 tests pass, against a fake Anthropic Admin API that keeps each key's status: only working keys paused, only CostGrid's pauses resumed, the admin key only ever in the request header, caps once a month, a failed pause retried, resume after the tier or the agent is gone, owner only, other organisations and other sites refused, no audit entries when there is nothing to pause.
+- Code review: fixed a failed cap pause stopping the cap for the month, keys stranded off after a tier change or a removed agent, an alert that said keys were being paused when they weren't, two cap checks racing, a full sync swallowed by a partial one, and pausing an agent that doesn't exist.
+- In a browser: pause, set a cap, resume, with the confirmation, at desktop and phone width.
+
+**Needs your decision:** the in-app wording of "What CostGrid sends, and to whom" (Limits), which is privacy wording; how View and control is granted once pricing is set; and whether the website's privacy card ("a plain list... is coming") can now point to it.
+
+**Still to check with real accounts:** pausing and resuming a real Claude key (and how long Anthropic takes), the `status` filter on the key list, and whether a real admin key is allowed to change key status.
