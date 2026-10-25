@@ -692,6 +692,26 @@ spending limit of its own); OpenAI keys owned by a person rather than a service
 account; and keys over a year old. It reads only what the providers' key lists
 say, never the keys, and changes nothing.
 
+### View and control: pause an agent, or cap it
+
+On View and control (`costgrid tier control` turns it on for an organisation),
+Limits opens with **Agents' keys at the provider**. With a Claude admin key
+connected, an owner can:
+
+- **Pause now**: turn off the agent's Claude keys at Anthropic. Every program
+  using them stops, whether or not its traffic goes through CostGrid. Keys
+  already off are left alone.
+- **Resume**: turn back on exactly the keys CostGrid turned off.
+- **Set a monthly cap**: when the provider's usage report shows the agent has
+  spent that much this month, CostGrid pauses its Claude keys and alerts you.
+  The report is in daily totals and runs behind, so spending stops some time
+  after the cap is crossed. The table under the agents shows, for every pause,
+  how far behind the report was and how long Anthropic took.
+
+OpenAI has no way to pause a key by API: set a project budget or delete the key
+in the OpenAI dashboard. A cap on an agent with only OpenAI keys alerts you but
+pauses nothing.
+
 ### The denominator is part of the number
 
 A 91% success rate over 4 of 900 runs is not a success rate. The report always

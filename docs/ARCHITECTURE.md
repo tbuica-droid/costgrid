@@ -187,6 +187,34 @@ CostGrid imports, and the screen says "at least". The Setup screen shows each
 with what could go wrong and how to fix it at the provider; nothing is changed
 from CostGrid.
 
+### View and control: pausing keys, caps and measured stop time
+
+Steps 7 and 8. `AccessTier` (`billing.ts`) is View or View and control, kept in
+`tenant_tier` and set by the operator (`costgrid tier control`) until pricing is
+decided; it is apart from the older price plans.
+
+- **Pause is Claude only.** `key-status.ts` sets a key `inactive` or `active`
+  through Anthropic's Admin API (never `archived`, which cannot be undone), and
+  checks the status Anthropic reports back. OpenAI documents no key pause, so
+  its sources are listed as "can't be paused" with guidance.
+- **CostGrid pauses only what was working, and resumes only what it paused.**
+  `key-control.ts` reads each key's status first (a workspace means its active
+  keys at that moment) and records every request in `key_actions` before
+  asking. Resume turns on the keys whose latest successful action is
+  CostGrid's pause, on any tier and even after the agent is removed, so a key
+  is never stranded off.
+- **Caps act on the usage report.** The background sync runs hourly for
+  organisations with a cap (every six hours otherwise), then `checkCaps`
+  compares month-to-date provider-reported cost with each cap. A cap pauses
+  once per month per cap setting; an owner's resume stands until the cap is
+  changed, and a failed pause is retried. One alert says the cap was reached
+  and what was done.
+- **Stop time is measured, not promised.** Each cap pause stores the end of
+  the newest usage day it saw; the screen shows how far behind the report was
+  and how long Anthropic took to act.
+- Control jobs for one organisation run one at a time in the process, so an
+  owner's click and the hourly check cannot both pause the same keys.
+
 ## Package layout
 
 ```
