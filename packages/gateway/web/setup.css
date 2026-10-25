@@ -150,6 +150,27 @@
 }
 .agents-finish { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cg-space-3); }
 
+/* -------------------------------------------- did the jobs get done (results) */
+
+.outcome-badge { margin: var(--cg-space-2) 0 0; }
+.outcome-badge .tag { white-space: normal; border-radius: var(--cg-radius-sm); }
+.outcome-counts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: var(--cg-space-2);
+  margin: var(--cg-space-3) 0;
+}
+.outcome-stat { min-width: 0; padding: var(--cg-space-2) var(--cg-space-3); border: 1px solid var(--cg-line-soft); border-radius: var(--cg-radius-sm); background: var(--cg-surface); }
+.outcome-stat dt { font-size: var(--cg-text-xs); font-weight: var(--cg-weight-medium); color: var(--cg-ink-2); }
+.outcome-stat dd { margin: 0; overflow-wrap: anywhere; }
+.outcome-stat dd:first-of-type { font-size: var(--cg-text-xl); font-weight: var(--cg-weight-bold); font-variant-numeric: tabular-nums; }
+.outcome-label { margin: var(--cg-space-3) 0 var(--cg-space-1); font-size: var(--cg-text-sm); font-weight: var(--cg-weight-semibold); }
+.outcome-reasons { list-style: none; margin: 0 0 var(--cg-space-3); padding: 0; max-width: 420px; font-size: var(--cg-text-sm); }
+.outcome-reasons li { display: flex; justify-content: space-between; gap: var(--cg-space-3); padding: var(--cg-space-1) 0; border-bottom: 1px solid var(--cg-line-soft); }
+.outcome-note { margin-top: var(--cg-space-3); padding-top: var(--cg-space-3); border-top: 1px solid var(--cg-line-soft); }
+.agent-card .kpi-sub code, .outcome-nodata li { overflow-wrap: anywhere; }
+.outcome-nodata { margin-top: var(--cg-space-4); }
+.outcome-nodata p { margin: 0; }
+.outcome-nodata ul { margin: var(--cg-space-2) 0 0; padding-left: 1.2em; }
+
 /* ---------------------------------------------------------------- advanced */
 
 .advanced { margin-top: var(--cg-space-6); padding-top: var(--cg-space-4); border-top: 1px solid var(--cg-line); }

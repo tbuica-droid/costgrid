@@ -8,6 +8,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
+import { isOwner, outcomesSection as jobsSection } from "./console-outcomes.js";
 import { button, count, escapeHtml, field, money, pageHead } from "./ui.js";
 
 const view = { days: 30 };
@@ -122,7 +123,13 @@ function fullCostSection(f, costs, categories) {
 }
 
 export async function render() {
-  const d = await call("GET", `/console/${state.tenantId}/results?days=${view.days}`);
+  // Two requests, so one failing still shows the other; each failure is a banner in its own section.
+  const [res, jobs] = await Promise.allSettled([
+    call("GET", `/console/${state.tenantId}/results?days=${view.days}`),
+    call("GET", `/console/${state.tenantId}/outcomes?days=${view.days}`),
+  ]);
+  const failed = (r) => `<div class="banner bad" role="status"><strong>${escapeHtml(r.reason?.message ?? r.reason)}</strong></div>`;
+  const d = res.value;
   const actions = `<form id="results-window" class="form-row">
       <select name="days" aria-label="Window">${[7, 30, 90].map((n) => `<option value="${n}" ${n === view.days ? "selected" : ""}>${n} days</option>`).join("")}</select>
       ${button("Show", 'type="submit"', "secondary")}
@@ -136,14 +143,16 @@ export async function render() {
       actions,
     )}
     ${flashBanner()}
-    <h2>What the money bought</h2>
+    <h2>Did the jobs get done?</h2>
+    ${jobs.status === "fulfilled" ? jobsSection(jobs.value, { isOwner: isOwner() }) : failed(jobs)}
+    ${res.status === "rejected" ? failed(res) : `<h2 style="margin-top:26px">Reported by your software</h2>
     ${outcomesSection(d.outcomes)}
     <h2 style="margin-top:26px">What a run costs</h2>
     ${spreadSection(d.runSpread)}
     <h2 style="margin-top:26px">Reasoning</h2>
     ${reasoningSection(d.reasoning)}
     <h2 style="margin-top:26px">Full cost this month</h2>
-    ${fullCostSection(d.fullCost, d.fixedCosts, d.categories)}`;
+    ${fullCostSection(d.fullCost, d.fixedCosts, d.categories)}`}`;
 }
 
 export async function submit(form) {

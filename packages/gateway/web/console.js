@@ -27,6 +27,8 @@ import * as limits from "./console-limits.js";
 import * as proxy from "./console-proxy.js";
 import * as agents from "./console-agents.js";
 import * as results from "./console-results.js";
+import * as outcomes from "./console-outcomes.js";
+import * as outcomeSettings from "./console-settings-outcomes.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
@@ -40,7 +42,7 @@ const PAGES = [
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
-const SCREENS = [connect, agents, proxy, limits, results, advice, drift, data];
+const SCREENS = [connect, agents, proxy, limits, results, outcomes, outcomeSettings, advice, drift, data];
 
 // ------------------------------------------------------------- signed out
 
