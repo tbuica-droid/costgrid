@@ -236,6 +236,11 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   // Outcome detection.
   turns: "INTEGER",
   fingerprint: "SMALLINT",
+  // What the owner types in for the results screen.
+  minutes: "INTEGER",
+  hourly_rate: "BIGINT",
+  finished: "INTEGER",
+  not_finished: "INTEGER",
 };
 
 /** An integer column in the migrations that nobody has decided a width for. */

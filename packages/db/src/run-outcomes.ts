@@ -1,5 +1,6 @@
 import {
   computeLcso,
+  computeLcsoAggregate,
   type DetectedTask,
   detectOutcomes,
   type LcsoResult,
@@ -11,7 +12,9 @@ import {
   runStatusOf,
   type TaskSource,
 } from "@costgrid/core";
+import { AgentsRepository } from "./agents.js";
 import type { Db } from "./database.js";
+import { type JobCount, JobInputs, type PersonCost, personBaseline } from "./job-inputs.js";
 
 /**
  * Whether each agent's jobs got done, from the calls the proxy recorded.
@@ -43,12 +46,28 @@ export interface AgentOutcomes {
   readonly totalCost: Nanodollars;
   readonly escalationTools: readonly string[];
   readonly sharedOpenings: number;
+  /** The owner's estimate of the same job done by a person. */
+  readonly person?: PersonCost;
+}
+
+/**
+ * An agent known only from provider usage reports. With a job count the
+ * owner entered, its latest such month is priced from totals alone.
+ */
+export interface ProviderOnlyOutcomes {
+  readonly id: string;
+  readonly name: string | null;
+  readonly person?: PersonCost;
+  /** Newest first. */
+  readonly counts: readonly JobCount[];
+  /** For `counts[0]`, when there is one. */
+  readonly latest?: { readonly month: string; readonly cost: Nanodollars; readonly result: LcsoResult };
 }
 
 export interface OutcomesReport {
   readonly agents: AgentOutcomes[];
   /** Agents with provider usage but no proxied runs in the period. */
-  readonly noOutcomeData: { id: string; name: string | null }[];
+  readonly noOutcomeData: ProviderOnlyOutcomes[];
   /** The longest maturation plus re-run window any agent needs, so the caller can compare it with retention. */
   readonly longestWindowMs: number;
 }
@@ -83,6 +102,8 @@ export class RunOutcomes {
     const runs = this.#runs(tenantId, range.from - LOOKBACK_MS, range.to);
     const escalations = this.#escalations(tenantId, range.from - LOOKBACK_MS, range.to);
     const reported = this.#reported(tenantId);
+    const inputs = new JobInputs(this.#db);
+    const persons = inputs.personCosts(tenantId);
     const agents = new Map(
       (
         this.#db
@@ -130,6 +151,7 @@ export class RunOutcomes {
       const preset =
         (purposeSet ? presetFor(agent!.purposeId!, agent!.purposeVersion ?? undefined) : undefined) ?? presetFor("other")!;
       const needsUpgrade = preset.reRunWindowMs === undefined;
+      const person = persons.get(agentId);
       const base = {
         agentId,
         name: agent?.name ?? null,
@@ -137,6 +159,7 @@ export class RunOutcomes {
         purposeSet,
         needsUpgrade,
         escalationTools: [...(toolsByAgent.get(agentId) ?? [])].sort(),
+        ...(person !== undefined ? { person } : {}),
       };
       if (needsUpgrade) {
         results.push({ ...base, tasks: [], totalCost: 0n, sharedOpenings: 0 });
@@ -156,6 +179,7 @@ export class RunOutcomes {
         successDefinition: { id: preset.id, version: preset.version, maturationWindowMs: preset.maturationWindowMs },
         asOf,
         tasks: tasks.map((t) => t.task),
+        ...(person !== undefined ? { humanBaseline: personBaseline(person) } : {}),
       });
       results.push({
         ...base,
@@ -168,6 +192,8 @@ export class RunOutcomes {
     results.sort((a, b) => (a.totalCost === b.totalCost ? a.agentId.localeCompare(b.agentId) : a.totalCost > b.totalCost ? -1 : 1));
 
     const proxied = new Set(results.map((r) => r.agentId));
+    const counts = inputs.jobCounts(tenantId);
+    const views = new Map<string, ReturnType<AgentsRepository["view"]>>();
     const noOutcomeData = (
       this.#db
         .prepare(
@@ -177,9 +203,45 @@ export class RunOutcomes {
            ORDER BY a.name, a.id`,
         )
         .all(tenantId) as { id: string; name: string | null }[]
-    ).filter((a) => !proxied.has(a.id));
+    )
+      .filter((a) => !proxied.has(a.id))
+      .map((a) => this.#providerOnly(tenantId, a, persons.get(a.id), counts.get(a.id) ?? [], views));
 
     return { agents: results, noOutcomeData, longestWindowMs };
+  }
+
+  /** Totals-only figures for the newest month the owner counted: that month's provider-reported cost over the count. */
+  #providerOnly(
+    tenantId: string,
+    agent: { id: string; name: string | null },
+    person: PersonCost | undefined,
+    counts: JobCount[],
+    views: Map<string, ReturnType<AgentsRepository["view"]>>,
+  ): ProviderOnlyOutcomes {
+    const base = { ...agent, counts, ...(person !== undefined ? { person } : {}) };
+    const latest = counts[0];
+    if (latest === undefined) return base;
+    const [year, month] = latest.month.split("-").map(Number) as [number, number];
+    const from = Date.UTC(year, month - 1, 1);
+    const to = Date.UTC(year, month, 1);
+    const days = { from: latest.month + "-01", to: new Date(to - DAY_MS).toISOString().slice(0, 10) };
+    // One view per month, shared by every agent counted in it.
+    let view = views.get(latest.month);
+    if (view === undefined) {
+      view = new AgentsRepository(this.#db).view(tenantId, days);
+      views.set(latest.month, view);
+    }
+    const cost = view.agents.find((a) => a.id === agent.id)?.imported.costNano ?? 0n;
+    const result = computeLcsoAggregate({
+      workflowId: agent.id,
+      period: { from, to },
+      successDefinition: { id: "owner-count", version: "1", maturationWindowMs: 0 },
+      modelCost: cost,
+      successCount: latest.finished,
+      ...(latest.notFinished !== null ? { failureCount: latest.notFinished, abandonedCount: 0, unknownCount: 0 } : {}),
+      ...(person !== undefined ? { humanBaseline: personBaseline(person) } : {}),
+    });
+    return { ...base, latest: { month: latest.month, cost, result } };
   }
 
   /** One row per run: first call's job identity, last call's ending, totals. */

@@ -111,7 +111,7 @@ describe("RunOutcomes", () => {
     const report = new RunOutcomes(db).forTenant(T, RANGE, ASOF);
     expect(report.agents).toEqual([expect.objectContaining({ agentId: "old-bot", needsUpgrade: true, tasks: [] })]);
     expect(report.agents[0]!.result).toBeUndefined();
-    expect(report.noOutcomeData).toEqual([{ id: writer, name: "Writer" }]);
+    expect(report.noOutcomeData).toEqual([{ id: writer, name: "Writer", counts: [] }]);
   });
 
   it("measures an agent with no purpose as 'other', and says so", () => {

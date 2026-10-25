@@ -91,6 +91,8 @@ const TENANT_TABLES = [
   "outcomes",
   "imported_usage",
   "import_runs",
+  "agent_person_cost",
+  "agent_job_counts",
   "agents",
   "policies",
   "api_keys",

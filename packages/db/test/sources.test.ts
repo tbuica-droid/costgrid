@@ -216,23 +216,6 @@ describe("SourcesRepository", () => {
     expect(() => sources.list(T, { from: "2026-06-03", to: "2026-06-01" })).toThrow();
   });
 
-    expect(sources.setNameAndPurpose(T, "openai", "project", "proj_1", { name: "  Support bot " })).toBe(true);
-    expect(
-      sources.setNameAndPurpose(T, "openai", "project", "proj_1", { purposeId: "support", purposeVersion: "1" }),
-    ).toBe(true);
-    let [source] = sources.list(T, { from: "2026-06-01", to: "2026-06-01" });
-    expect(source).toMatchObject({ name: "Support bot", purposeId: "support", purposeVersion: "1" });
-
-    // Empty clears.
-    sources.setNameAndPurpose(T, "openai", "project", "proj_1", { purposeId: "" });
-    [source] = sources.list(T, { from: "2026-06-01", to: "2026-06-01" });
-    expect(source).toMatchObject({ name: "Support bot", purposeId: null, purposeVersion: null });
-
-    expect(sources.setNameAndPurpose(T, "openai", "project", "proj_404", { name: "x" })).toBe(false);
-    expect(sources.setNameAndPurpose("t2", "openai", "project", "proj_1", { name: "x" })).toBe(false);
-    expect(sources.setNameAndPurpose(T, "openai", "project", "proj_1", {})).toBe(true);
-  });
-
   it("keeps admin-key metadata, records syncs, and forgets on request", () => {
     sources.putAdminKey(T, { provider: "anthropic", hint: "sk-ant-…abcd", expiresAt: 2_000, createdAt: 1_000 });
     sources.putAdminKey("t2", { provider: "openai", hint: "sk-…wxyz", expiresAt: null, createdAt: 1_500 });

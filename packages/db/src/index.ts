@@ -24,3 +24,4 @@ export * from "./agents.js";
 export * from "./sources.js";
 export * from "./outcome-settings.js";
 export * from "./run-outcomes.js";
+export * from "./job-inputs.js";

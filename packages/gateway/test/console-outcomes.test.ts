@@ -105,8 +105,15 @@ describe("outcome routes", () => {
       mostlyInferred: true,
       identity: { header: 3, fingerprint: 0, none: 1 },
     });
-    expect(body.agents[0].costPerFinishedUsd).toMatch(/^\d+\.\d{6}$/);
-    expect(body.agents[0].failureCostShare).toMatch(/^\d+\.\d$/);
+    expect(body.agents[0].summary.costPerFinishedUsd).toMatch(/^\d+\.\d{6}$/);
+    expect(body.agents[0].summary).toMatchObject({
+      verdict: "mostly-failures",
+      failureCostShare: "66.7", // the job that can't be told counts as not finished
+      spread: { ratio: "1.0" },
+      personRatio: null,
+      spendNoSuccesses: false,
+    });
+    expect(body.agents[0].person).toBeNull();
     expect(body.noOutcomeData).toEqual([]);
     expect(body.retentionNote).toBe(false);
     expect((await call("GET", `/console/${tenantId}/outcomes?days=0`)).statusCode).toBe(400);
@@ -140,5 +147,63 @@ describe("outcome routes", () => {
       payload: { enabled: true },
     });
     expect(forged.statusCode).toBe(403);
+  });
+
+  it("takes the owner's person cost and job counts, and shows them as estimates beside the figures", async () => {
+    const agents = new AgentsRepository(db);
+    agents.create(tenantId, { name: "Support bot", purposeId: "support", purposeVersion: "2" });
+    record({ at: Date.now() - 10 * 24 * HOUR, task: "ticket-1" });
+
+    const url = `/console/${tenantId}/agents/support-bot/person-cost`;
+    expect((await call("PUT", url, { minutes: 10, hourlyUsd: "abc" })).statusCode).toBe(400);
+    expect((await call("PUT", url, { minutes: 1.5, hourlyUsd: "30" })).statusCode).toBe(400);
+    expect((await call("PUT", url, { minutes: 0, hourlyUsd: "30" })).statusCode).toBe(400);
+    expect((await call("PUT", `/console/${tenantId}/agents/nobody/person-cost`, { minutes: 10, hourlyUsd: "30" })).statusCode).toBe(404);
+    expect((await call("PUT", url, { minutes: 10, hourlyUsd: "30" })).statusCode).toBe(200);
+
+    let agent = (await call("GET", `/console/${tenantId}/outcomes`)).json().agents[0];
+    expect(agent.person).toEqual({ minutes: 10, hourlyUsd: "30.00", costPerJobUsd: "5.00" });
+    expect(agent.summary.personRatio).toMatch(/^0\.\d\d$/);
+    expect(agent.summary.verdict).toBe("steady");
+
+    expect((await call("PUT", url, { clear: true })).statusCode).toBe(200);
+    agent = (await call("GET", `/console/${tenantId}/outcomes`)).json().agents[0];
+    expect(agent.person).toBeNull();
+
+    const writer = agents.create(tenantId, { name: "Writer" })!;
+    db.prepare(
+      `INSERT INTO usage_sources (tenant_id, provider, source_kind, source_id, first_day, last_day, created_at, agent_id, assigned_by)
+       VALUES (?, 'openai', 'project', 'proj_w', '2026-09-01', '2026-09-30', 0, ?, 'owner')`,
+    ).run(tenantId, writer);
+    const counts = `/console/${tenantId}/agents/${writer}/job-counts`;
+    expect((await call("PUT", `${counts}/2026-9`, { finished: 3 })).statusCode).toBe(400);
+    expect((await call("PUT", `${counts}/2999-01`, { finished: 3 })).statusCode).toBe(400);
+    expect((await call("PUT", `${counts}/2026-09`, { finished: -3 })).statusCode).toBe(400);
+    expect((await call("PUT", `${counts}/2026-09`, { finished: 3, notFinished: "2" })).statusCode).toBe(400);
+    expect((await call("PUT", `${counts}/2026-09`, { finished: 0 })).statusCode).toBe(200);
+    const only = (await call("GET", `/console/${tenantId}/outcomes`)).json().noOutcomeData;
+    expect(only).toEqual([
+      expect.objectContaining({
+        id: writer,
+        counts: [{ month: "2026-09", finished: 0, notFinished: null }],
+        latest: expect.objectContaining({ month: "2026-09", costUsd: "0.000000" }),
+      }),
+    ]);
+    expect(only[0].latest.summary).toMatchObject({ verdict: "no-data", costPerFinishedUsd: null, successRate: null });
+    agents.remove(tenantId, writer);
+    expect((await call("GET", `/console/${tenantId}/outcomes`)).json().noOutcomeData).toEqual([]);
+
+    const member = await signup("member@acme.test", "Personal");
+    accounts.addMember(tenantId, member.userId, "member");
+    expect((await call("PUT", url, { minutes: 10, hourlyUsd: "30" }, member.cookie)).statusCode).toBe(403);
+    expect((await call("PUT", `${counts}/2026-09`, { finished: 1 }, member.cookie)).statusCode).toBe(403);
+    const other = await signup("other@other.test", "Other");
+    expect((await call("PUT", url, { minutes: 10, hourlyUsd: "30" }, other.cookie)).statusCode).toBe(404);
+    const actions = db.prepare("SELECT action FROM audit_log WHERE action LIKE 'agent.%' ORDER BY rowid").all();
+    expect(actions.map((a) => (a as { action: string }).action)).toEqual([
+      "agent.person-cost",
+      "agent.person-cost",
+      "agent.job-count",
+    ]);
   });
 });
