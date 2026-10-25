@@ -13,3 +13,7 @@ export * from "./lcso-types.js";
 export * from "./lcso.js";
 export * from "./presets.js";
 export * from "./source-match.js";
+export * from "./run-status.js";
+export * from "./escalation.js";
+export * from "./task-fingerprint.js";
+export * from "./outcome-detect.js";

@@ -143,7 +143,7 @@ describe("matching keys to agents", () => {
       id: "support-bot",
       name: "Support bot",
       purposeId: "support",
-      purposeVersion: "1",
+      purposeVersion: "2",
       origin: "owner",
       imported: { costUsd: "1.000000", estimatedUsd: "1.000000" },
       metered: { costUsd: "0.000000", calls: 0 },

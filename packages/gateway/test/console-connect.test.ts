@@ -390,10 +390,10 @@ describe("connecting a provider", () => {
     expect(res.json().presets.map((p: { id: string }) => p.id)).toEqual(["support", "sales-leads", "content", "data-entry", "other"]);
     expect(res.json().presets[0]).toEqual({
       id: "support",
-      version: "1",
+      version: "2",
       label: "Customer support",
       finishedJob: expect.any(String),
-      evidence: "strong",
+      evidence: "medium",
     });
     expect((await app.inject({ method: "GET", url: "/console/presets" })).statusCode).toBe(401);
   });
