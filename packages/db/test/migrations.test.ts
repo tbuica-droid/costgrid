@@ -312,6 +312,28 @@ describe("migrations", () => {
     db.close();
   });
 
+  it("adds job identity to existing calls without touching them, and matching starts on", () => {
+    const db = buildAtVersion(15);
+    db.prepare("INSERT INTO tenants (id, name, created_at) VALUES ('t1', 'Acme', 0)").run();
+    db.prepare(
+      `INSERT INTO calls (id, tenant_id, agent_id, department, provider, model, started_at, duration_ms, streamed,
+                          input_tokens, output_tokens, cost_total, priced, outcome, run_id)
+       VALUES ('c1', 't1', 'bot', 'Ops', 'anthropic', 'claude-haiku-4-5', 1, 2, 0, 10, 5, 99, 1, 'ok', 'c1')`,
+    ).run();
+
+    migrate(db);
+
+    expect(db.prepare("SELECT cost_total, task_key, task_source, turns FROM calls").get()).toEqual({
+      cost_total: 99,
+      task_key: null,
+      task_source: null,
+      turns: null,
+    });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM outcome_settings").get()).toEqual({ n: 0 });
+    expect(() => db.prepare("UPDATE calls SET task_source = 'guess'").run()).toThrow(/CHECK/);
+    db.close();
+  });
+
   it("declares versions that are unique and ascending", () => {
     const versions = MIGRATIONS.map((m) => m.version);
     expect(versions).toEqual([...new Set(versions)]);

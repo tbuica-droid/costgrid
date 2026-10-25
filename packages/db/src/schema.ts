@@ -28,6 +28,7 @@
  */
 
 import { AGENTS_MIGRATION } from "./schema-agents.js";
+import { OUTCOMES_MIGRATION } from "./schema-outcomes.js";
 
 export interface Migration {
   readonly version: number;
@@ -885,6 +886,7 @@ export const MIGRATIONS: readonly Migration[] = [
     `,
   },
   AGENTS_MIGRATION,
+  OUTCOMES_MIGRATION,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

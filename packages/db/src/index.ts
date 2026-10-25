@@ -22,3 +22,5 @@ export * from "./measured.js";
 export * from "./fixed-costs.js";
 export * from "./agents.js";
 export * from "./sources.js";
+export * from "./outcome-settings.js";
+export * from "./run-outcomes.js";

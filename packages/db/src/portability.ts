@@ -233,6 +233,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   // Agents and the sources they use.
   shared: "SMALLINT",
   assigned_at: "BIGINT",
+  // Outcome detection.
+  turns: "INTEGER",
+  fingerprint: "SMALLINT",
 };
 
 /** An integer column in the migrations that nobody has decided a width for. */

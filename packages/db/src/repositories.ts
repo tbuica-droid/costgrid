@@ -66,6 +66,14 @@ export interface CallRecord {
   readonly statusCode?: number | undefined;
   readonly stopReason?: string | undefined;
   readonly errorMessage?: string | undefined;
+  /**
+   * Which job the call is part of: the developer's `x-costgrid-task`, or a
+   * one-way code of the job's first message. Never the message itself.
+   */
+  readonly taskKey?: string | undefined;
+  readonly taskSource?: "header" | "fingerprint" | undefined;
+  /** How many messages the request carried, so a continuing conversation is told from a retry. */
+  readonly turns?: number | undefined;
 }
 
 /** A run's consumption so far, as read on the metering path. */
@@ -254,7 +262,7 @@ export class CostGridRepository {
            speed, inference_geo, batch,
            requested_model, routed, route_dry_run, saving_estimate,
            run_id, parent_run_id, run_depth, run_declared, cost_list,
-           reasoning_tokens, reasoning_requested
+           reasoning_tokens, reasoning_requested, task_key, task_source, turns
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -264,7 +272,7 @@ export class CostGridRepository {
            @speed, @inferenceGeo, @batch,
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
            @runId, @parentRunId, @runDepth, @runDeclared, @costList,
-           @reasoningTokens, @reasoningRequested
+           @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns
          )`,
       )
       .run({
@@ -308,6 +316,9 @@ export class CostGridRepository {
         costList: call.costList?.total ?? call.cost.total,
         reasoningTokens: call.reasoningTokens ?? null,
         reasoningRequested: call.reasoningRequested ?? null,
+        taskKey: call.taskKey ?? null,
+        taskSource: call.taskKey === undefined ? null : (call.taskSource ?? null),
+        turns: call.turns ?? null,
       });
   }
 
