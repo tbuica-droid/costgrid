@@ -6,10 +6,12 @@ import type {
   ImportOrigin,
   ImportsRepository,
   ImportWindow,
+  KeyFactsRepository,
   SourceRef,
   SourcesRepository,
 } from "@costgrid/db";
 import type { ImportResult } from "./importers/index.js";
+import type { SourceDirectory } from "./importers/names.js";
 
 /**
  * One import, start to finish, the same way whoever asked for it.
@@ -25,6 +27,8 @@ import type { ImportResult } from "./importers/index.js";
 export interface ImportRunDeps {
   readonly imports: ImportsRepository;
   readonly sources: SourcesRepository;
+  /** Where key facts from the provider's key lists go; absent, they are not kept. */
+  readonly keyFacts?: KeyFactsRepository | undefined;
 }
 
 export type AuditDetail = Readonly<Record<string, string | number | boolean | null>>;
@@ -36,8 +40,8 @@ export interface ImportRunRequest {
   readonly window: ImportWindow;
   /** Fetches or parses the usage. Called after the run is opened, so a failure is kept. */
   readonly load: () => Promise<ImportResult>;
-  /** The provider's names for sources, by id. Best effort; only asked once the usage loaded. */
-  readonly labels?: () => Promise<ReadonlyMap<string, string>>;
+  /** The provider's names for sources, and its key facts. Best effort; only asked once the usage loaded. */
+  readonly directory?: () => Promise<SourceDirectory>;
   /** What must never appear in a recorded or returned error: the admin key. */
   readonly secret?: string;
   /** Written once the rows are in. The detail gains the window and the row count. */
@@ -135,9 +139,16 @@ export async function runImport(deps: ImportRunDeps, request: ImportRunRequest):
   let outcome: ImportRunOutcome;
   try {
     const result = await request.load();
-    const labels = request.labels ? await request.labels().catch(() => new Map<string, string>()) : new Map();
+    const directory = request.directory ? await request.directory().catch(() => null) : null;
     const rowsWritten = imports.putRows(tenantId, provider, window, result.rows, origin);
-    recordSources(sources, tenantId, result.sources, result.rows, window, labels);
+    recordSources(sources, tenantId, result.sources, result.rows, window, directory?.labels ?? new Map());
+    if (directory?.keys && deps.keyFacts) {
+      try {
+        deps.keyFacts.replace(tenantId, provider, directory.keys);
+      } catch {
+        // Best effort, like the names: the usage import stands without them.
+      }
+    }
     imports.finishRun(runId, rowsWritten);
     outcome = {
       rowsWritten,

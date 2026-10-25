@@ -3,6 +3,7 @@ import {
   type AdminKeyMeta,
   type AuditLog,
   type ImportsRepository,
+  type KeyFactsRepository,
   type SourcesRepository,
   SYSTEM_ACTOR,
   toUtcDay,
@@ -11,7 +12,7 @@ import type { Alerter } from "./alerts.js";
 import { explainImportError } from "./connect-copy.js";
 import { ImportRunError, runImport, safeErrorMessage } from "./import-run.js";
 import { importerFor } from "./importers/index.js";
-import { fetchSourceLabels } from "./importers/names.js";
+import { fetchSourceDirectory } from "./importers/names.js";
 import { adminKeyAccount, type SecretStore } from "./secret-store.js";
 
 /**
@@ -45,6 +46,7 @@ export interface SyncLog {
 export interface AdminKeySyncDeps {
   readonly imports: ImportsRepository;
   readonly sources: SourcesRepository;
+  readonly keyFacts?: KeyFactsRepository | undefined;
   readonly secretStore: SecretStore;
   /** Where expiry reminders go. Absent, nobody is reminded. */
   readonly alerter?: Alerter | undefined;
@@ -142,7 +144,7 @@ export class AdminKeySync {
 
     try {
       const outcome = await runImport(
-        { imports, sources },
+        { imports, sources, keyFacts: this.#deps.keyFacts },
         {
           tenantId,
           provider,
@@ -150,7 +152,7 @@ export class AdminKeySync {
           window: { fromDay: toUtcDay(from), toDay: toUtcDay(to) },
           secret,
           load: () => importerFor(provider)!.run({ apiKey: secret, from, to, fetchImpl: doFetch }),
-          labels: () => fetchSourceLabels(provider, secret, doFetch),
+          directory: () => fetchSourceDirectory(provider, secret, doFetch),
           ...(audit
             ? {
                 audit: {

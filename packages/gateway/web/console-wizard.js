@@ -15,6 +15,7 @@ import { call, flashBanner, state } from "./console-api.js";
 import { connectDone, renderConnect } from "./console-connect.js";
 import { proxyNeedsSetup, renderSteps } from "./console-proxy.js";
 import { agentsDone, allSources, renderAgents } from "./console-agents.js";
+import { keySafetySection } from "./console-key-safety.js";
 import { escapeHtml, pageHead } from "./ui.js";
 
 /** Whether "Advanced" was left open, so a redraw does not fold it away. */
@@ -71,6 +72,8 @@ export async function render() {
   const connected = connectDone(connect.value) || allSources(agentList.value).length > 0;
   const matched = agentsDone(agentList.value);
   const status2 = connected ? "done" : "next";
+  // Only worth asking once there is something to check.
+  const keySafety = connected ? await settle(call("GET", `/console/${t}/key-safety`)) : null;
   const status3 = matched ? "done" : connected ? "next" : "later";
 
   // Only a desktop install keeps the account on this computer; a hosted one does not.
@@ -90,6 +93,7 @@ export async function render() {
       ${step(2, "Connect your AI accounts", status2, connectBody)}
       ${step(3, "Match each key to an agent", status3, agentsBody)}
     </ol>
+    ${keySafetySection(keySafety?.value ?? null)}
 
     <details class="advanced"${advancedOpen ? " open" : ""}>
       <summary>Advanced: send traffic through CostGrid</summary>

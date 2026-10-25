@@ -27,6 +27,7 @@ import {
   type Db,
   AgentsRepository,
   type ImportsRepository,
+  KeyFactsRepository,
   OutcomeSettingsRepository,
   SourcesRepository,
   trailingWindow,
@@ -38,6 +39,7 @@ import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
+import { registerKeySafety } from "./console-key-safety.js";
 import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
@@ -406,9 +408,11 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       accounts: accounts!,
       imports,
       sources,
+      keyFacts: new KeyFactsRepository(deps.db),
       secretStore: deps.secretStore,
       fetchImpl: deps.fetchImpl,
     });
+    registerKeySafety(app, { db: deps.db, accounts: accounts! });
     registerAgents(app, { accounts: accounts!, agents: new AgentsRepository(deps.db) });
     registerOutcomes(app, {
       db: deps.db,

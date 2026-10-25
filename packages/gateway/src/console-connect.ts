@@ -1,5 +1,11 @@
 import { maskSecret, PURPOSE_PRESETS, type Provider } from "@costgrid/core";
-import { type AccountsRepository, type ImportsRepository, type SourcesRepository, toUtcDay } from "@costgrid/db";
+import {
+  type AccountsRepository,
+  type ImportsRepository,
+  type KeyFactsRepository,
+  type SourcesRepository,
+  toUtcDay,
+} from "@costgrid/db";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { developerMessage, explainImportError, isMessageAudience, notAnAdminKey } from "./connect-copy.js";
 import { type ConsoleRequest, createGuards } from "./console.js";
@@ -7,7 +13,7 @@ import { bodyOf, by, CONTROL, rangeOf, sourceView } from "./console-fields.js";
 import { ImportRunError, runImport } from "./import-run.js";
 import { MAX_FILE_CHARS, parseUsageFile, UsageFileError } from "./importers/csv.js";
 import { importerFor, IMPORTERS } from "./importers/index.js";
-import { fetchSourceLabels } from "./importers/names.js";
+import { fetchSourceDirectory } from "./importers/names.js";
 import { adminKeyAccount, type SecretStore } from "./secret-store.js";
 
 /**
@@ -29,6 +35,7 @@ export interface ConnectDeps {
   readonly accounts: AccountsRepository;
   readonly imports: ImportsRepository;
   readonly sources: SourcesRepository;
+  readonly keyFacts?: KeyFactsRepository | undefined;
   /** The desktop app's keychain. Absent on a server: a key is then used once. */
   readonly secretStore?: SecretStore | undefined;
   /** Overridable so tests never reach a real provider. */
@@ -149,7 +156,7 @@ export function registerConnect(app: FastifyInstance, deps: ConnectDeps): void {
         window: { fromDay: toUtcDay(from), toDay: toUtcDay(to) },
         secret: adminKey,
         load: () => importerFor(provider)!.run({ apiKey: adminKey, from, to, fetchImpl: doFetch }),
-        labels: () => fetchSourceLabels(provider, adminKey, doFetch),
+        directory: () => fetchSourceDirectory(provider, adminKey, doFetch),
         audit: { log: audit, actor: by(actor.user), action: "import.ran", detail: { origin: "admin-api" } },
       });
     } catch (error) {
@@ -210,6 +217,8 @@ export function registerConnect(app: FastifyInstance, deps: ConnectDeps): void {
       }
     }
     const forgotten = sources.deleteAdminKey(tenantId, provider) || removed;
+    // What the key's lists said goes too: without the key it can only go stale.
+    deps.keyFacts?.replace(tenantId, provider, []);
 
     audit.record(tenantId, {
       actor: by(actor.user),

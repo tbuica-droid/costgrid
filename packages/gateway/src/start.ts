@@ -11,6 +11,7 @@ import {
   Anchors,
   CostGridRepository,
   ImportsRepository,
+  KeyFactsRepository,
   openDatabase,
   Retention,
   SourcesRepository,
@@ -138,6 +139,7 @@ export async function startGateway(
     const keySync = new AdminKeySync({
       imports,
       sources: new SourcesRepository(db),
+      keyFacts: new KeyFactsRepository(db),
       secretStore: options.secretStore,
       alerter: alerterOf(app),
       audit: accounts?.audit,

@@ -18,3 +18,4 @@ export * from "./escalation.js";
 export * from "./task-fingerprint.js";
 export * from "./outcome-detect.js";
 export * from "./verdict.js";
+export * from "./key-safety.js";

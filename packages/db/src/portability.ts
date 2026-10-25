@@ -241,6 +241,11 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   hourly_rate: "BIGINT",
   finished: "INTEGER",
   not_finished: "INTEGER",
+  // Provider key facts.
+  key_created_at: "BIGINT",
+  last_used_at: "BIGINT",
+  default_workspace: "SMALLINT",
+  seen_at: "BIGINT",
 };
 
 /** An integer column in the migrations that nobody has decided a width for. */

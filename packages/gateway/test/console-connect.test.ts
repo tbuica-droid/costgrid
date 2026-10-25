@@ -61,7 +61,13 @@ function anthropicStub(seen: { urls: URL[]; keys: string[] }, failWith?: number)
     const body = url.pathname.endsWith("/workspaces")
       ? { data: [{ id: "wrkspc_01", name: "Support" }], has_more: false }
       : url.pathname.endsWith("/api_keys")
-        ? { data: [{ id: "apikey_01", name: "support-bot" }], has_more: false }
+        ? {
+            data: [
+              { id: "apikey_01", name: "support-bot", status: "active", created_at: "2025-01-01T00:00:00Z", workspace_id: "wrkspc_01" },
+              { id: "apikey_02", name: "old-test", status: "active", created_at: "2025-01-01T00:00:00Z", workspace_id: null },
+            ],
+            has_more: false,
+          }
         : {
             data: [
               {
@@ -210,6 +216,34 @@ describe("connecting a provider", () => {
 
     db.pragma("wal_checkpoint(TRUNCATE)");
     await expectNowhereOnDisk(ADMIN_KEY);
+  });
+
+  it("keeps what the key list says about each key, and warns about risky ones", async () => {
+    expect((await connect({ adminKey: ADMIN_KEY, expiresAt: Date.now() + 7 * 86_400_000 })).statusCode).toBe(200);
+    const res = await call("GET", `/console/${tenantId}/key-safety`);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.keysChecked).toBe(true);
+    expect(body.warnings.map((w: { code: string; subject: { id: string } | null }) => [w.code, w.subject?.id ?? null])).toEqual([
+      ["admin-key-expiring", null],
+      // Usage today, but no agent uses it yet.
+      ["unassigned-spend", "apikey_01"],
+      ["unused-active-key", "apikey_02"],
+      ["default-workspace-key", "apikey_02"],
+      ["old-key", "apikey_01"],
+      ["old-key", "apikey_02"],
+    ]);
+    expect(JSON.stringify(body)).not.toContain(ADMIN_KEY);
+
+    // Forgetting the admin key forgets what its lists said.
+    expect((await call("DELETE", `/console/${tenantId}/connect/anthropic/admin-key`)).statusCode).toBe(200);
+    const after = (await call("GET", `/console/${tenantId}/key-safety`)).json();
+    expect(after.keysChecked).toBe(false);
+    expect(after.warnings.map((w: { code: string }) => w.code)).toEqual(["unassigned-spend"]);
+
+    const other = await signup("other@other.test", "Other");
+    expect((await call("GET", `/console/${tenantId}/key-safety`, undefined, other.cookie)).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/console/${tenantId}/key-safety` })).statusCode).toBe(401);
   });
 
   it("stores nothing when the import fails, and never repeats the key", async () => {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fetchSourceLabels } from "../src/importers/names.js";
+import { fetchSourceDirectory } from "../src/importers/names.js";
+
+const fetchSourceLabels = async (...args: Parameters<typeof fetchSourceDirectory>) => (await fetchSourceDirectory(...args)).labels;
 
 /** Serves JSON by path and records every request, headers included. */
 function routes(
@@ -83,5 +85,78 @@ describe("source names", () => {
       await expect(fetchSourceLabels("openai", "k", doFetch)).resolves.toEqual(new Map());
     }
     await expect(fetchSourceLabels("bedrock", "k", forbidden)).resolves.toEqual(new Map());
+  });
+
+  it("reads key facts from the same lists: status, dates, owner and workspace", async () => {
+    const claude = await fetchSourceDirectory(
+      "anthropic",
+      "k",
+      routes({
+        "/v1/organizations/workspaces": { data: [], has_more: false },
+        "/v1/organizations/api_keys": {
+          data: [
+            { id: "apikey_a", name: "bot", status: "active", created_at: "2025-01-02T03:04:05Z", workspace_id: null },
+            { id: "apikey_b", status: "archived", created_at: "nonsense", workspace_id: "wrkspc_1" },
+            { name: "no id" },
+          ],
+          has_more: false,
+        },
+      }),
+    );
+    expect(claude.keys).toEqual([
+      {
+        provider: "anthropic", id: "apikey_a", label: "bot", status: "active", createdAt: Date.parse("2025-01-02T03:04:05Z"),
+        lastUsedAt: null, ownerKind: null, defaultWorkspace: true,
+      },
+      {
+        provider: "anthropic", id: "apikey_b", label: null, status: "archived", createdAt: null,
+        lastUsedAt: null, ownerKind: null, defaultWorkspace: false,
+      },
+    ]);
+
+    const openai = await fetchSourceDirectory(
+      "openai",
+      "k",
+      routes({
+        "/v1/organization/projects": {
+          data: [
+            { id: "proj_1", name: "Support" },
+            { id: "proj_old", name: "Old", status: "archived" },
+          ],
+          has_more: false,
+        },
+        "/v1/organization/projects/proj_old/api_keys": { data: [{ id: "key_old", created_at: 1_600_000_000 }], has_more: false },
+        "/v1/organization/projects/proj_1/api_keys": {
+          data: [
+            { id: "key_1", name: "bot", created_at: 1_700_000_000, last_used_at: null, owner: { type: "user" } },
+            { id: "key_2", created_at: 1_700_000_000, last_used_at: 1_710_000_000, owner: { type: "service_account" } },
+          ],
+          has_more: false,
+        },
+      }),
+    );
+    expect(openai.keys!.map((k) => [k.id, k.status, k.createdAt, k.lastUsedAt, k.ownerKind])).toEqual([
+      ["key_1", "active", 1_700_000_000_000, null, "user"],
+      ["key_2", "active", 1_700_000_000_000, 1_710_000_000_000, "service-account"],
+      ["key_old", "archived", 1_600_000_000_000, null, null],
+    ]);
+
+    const failed = (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch;
+    expect((await fetchSourceDirectory("openai", "k", failed)).keys).toBeNull();
+
+    // A list that never ends is cut off, and a cut-off list keeps no key facts, though its names are used.
+    const endless = await fetchSourceDirectory(
+      "anthropic",
+      "k",
+      routes({
+        "/v1/organizations/workspaces": { data: [], has_more: false },
+        "/v1/organizations/api_keys": (url: URL) => {
+          const n = Number(url.searchParams.get("after_id") ?? "0") + 1;
+          return { data: [{ id: String(n), name: `k${n}` }], has_more: true, last_id: String(n) };
+        },
+      }),
+    );
+    expect(endless.keys).toBeNull();
+    expect(endless.labels.size).toBe(50);
   });
 });

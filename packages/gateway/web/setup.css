@@ -191,6 +191,18 @@
 .verdict-count { margin-top: var(--cg-space-3); }
 .outcome-only-head { margin: var(--cg-space-5) 0 var(--cg-space-1); }
 
+/* ------------------------------------------------------- key safety (setup) */
+
+.key-safety { margin-top: var(--cg-space-5); }
+.key-safety h2 { margin: 0 0 var(--cg-space-1); }
+.key-warnings { list-style: none; margin: var(--cg-space-3) 0 0; padding: 0; }
+.key-warning {
+  display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: var(--cg-space-3); align-items: start;
+  padding: var(--cg-space-3) 0; border-top: 1px solid var(--cg-line-soft);
+}
+.key-warning p { margin: 0; overflow-wrap: anywhere; }
+.key-warning .tag { justify-self: start; }
+
 /* ---------------------------------------------------------------- advanced */
 
 .advanced { margin-top: var(--cg-space-6); padding-top: var(--cg-space-4); border-top: 1px solid var(--cg-line); }
@@ -206,4 +218,5 @@
   .provider-card, .source-form, .agent-card { padding: var(--cg-space-3); }
   .agent-fold > summary .preset-job { margin-left: 0; }
   .source-cost { margin-left: 0; flex-basis: 100%; }
+  .key-warning { grid-template-columns: minmax(0, 1fr); gap: var(--cg-space-1); }
 }
