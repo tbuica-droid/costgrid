@@ -129,14 +129,78 @@
         <div class="wrap">
           <span class="overline">The problem</span>
           <h2 class="head">Your AI bill counts attempts, not finished jobs.</h2>
-          <div class="points">
-            <div class="card"><h3>You pay for every try</h3><p>Each time an agent runs, you pay, whether the job got done or not. The bill can't tell you which runs actually worked.</p></div>
-            <div class="card"><h3>Some costs never show up</h3><p>Failed and retried attempts are paid for, then forgotten. So is the time your staff spend checking and fixing AI work. Neither is a line on the bill.</p></div>
-            <div class="card"><h3>The same job, very different prices</h3><p>One run of a job can be cheap and the next can cost many times more. An average hides the expensive ones.</p></div>
+          <div class="bento">
+            <article class="bento-card bento-a">
+              <div class="bento-swoosh">
+                <svg viewBox="0 0 254 104" aria-hidden="true"><path fill="currentColor" d="M112.891 97.7022C140.366 97.0802 171.004 94.6715 201.087 87.5116C210.43 85.2881 219.615 82.6412 228.284 78.2473C232.198 76.3179 235.905 73.9942 239.348 71.3124C241.85 69.2557 243.954 66.7571 245.555 63.9408C249.34 57.3235 248.281 50.5341 242.498 45.6109C239.033 42.7237 235.228 40.2703 231.169 38.3054C219.443 32.7209 207.141 28.4382 194.482 25.534C184.013 23.1927 173.358 21.7755 162.64 21.2989C161.376 21.3512 160.113 21.181 158.908 20.796C158.034 20.399 156.857 19.1682 156.962 18.4535C157.115 17.8927 157.381 17.3689 157.743 16.9139C158.104 16.4588 158.555 16.0821 159.067 15.8066C160.14 15.4683 161.274 15.3733 162.389 15.5286C179.805 15.3566 196.626 18.8373 212.998 24.462C220.978 27.2494 228.798 30.4747 236.423 34.1232C240.476 36.1159 244.202 38.7131 247.474 41.8258C254.342 48.2578 255.745 56.9397 251.841 65.4892C249.793 69.8582 246.736 73.6777 242.921 76.6327C236.224 82.0192 228.522 85.4602 220.502 88.2924C205.017 93.7847 188.964 96.9081 172.738 99.2109C153.442 101.949 133.993 103.478 114.506 103.79C91.1468 104.161 67.9334 102.97 45.1169 97.5831C36.0094 95.5616 27.2626 92.1655 19.1771 87.5116C13.839 84.5746 9.1557 80.5802 5.41318 75.7725C-0.54238 67.7259 -1.13794 59.1763 3.25594 50.2827C5.82447 45.3918 9.29572 41.0315 13.4863 37.4319C24.2989 27.5721 37.0438 20.9681 50.5431 15.7272C68.1451 8.8849 86.4883 5.1395 105.175 2.83669C129.045 0.0992292 153.151 0.134761 177.013 2.94256C197.672 5.23215 218.04 9.01724 237.588 16.3889C240.089 17.3418 242.498 18.5197 244.933 19.6446C246.627 20.4387 247.725 21.6695 246.997 23.615C246.455 25.1105 244.814 25.5605 242.63 24.5811C230.322 18.9961 217.233 16.1904 204.117 13.4376C188.761 10.3438 173.2 8.36665 157.558 7.52174C129.914 5.70776 102.154 8.06792 75.2124 14.5228C60.6177 17.8788 46.5758 23.2977 33.5102 30.6161C26.6595 34.3329 20.4123 39.0673 14.9818 44.658C12.9433 46.8071 11.1336 49.1622 9.58207 51.6855C4.87056 59.5336 5.61172 67.2494 11.9246 73.7608C15.2064 77.0494 18.8775 79.925 22.8564 82.3236C31.6176 87.7101 41.3848 90.5291 51.3902 92.5804C70.6068 96.5773 90.0219 97.7419 112.891 97.7022Z"/></svg>
+                <span class="bento-big">49%</span>
+              </div>
+              <h3>got a higher AI bill than they expected</h3>
+              <p>Of those paying for AI, in a Q3 2026 survey of 1,150 decision-makers at businesses with 5 to 499 staff. 57% in the US.</p>
+            </article>
+
+            <article class="bento-card bento-b">
+              <div class="bento-ring bento-ring-lg">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+              </div>
+              <h3>You pay for every try</h3>
+              <p>Each time an agent runs, you pay, whether the job got done or not. The bill can't tell you which runs actually worked.</p>
+            </article>
+
+            <article class="bento-card bento-c">
+              <div class="bento-chart">
+                <div class="bento-chart-head"><span>Cost of each run, same job</span><span class="bento-chip">illustration</span></div>
+                <svg viewBox="0 0 386 96" preserveAspectRatio="none" aria-hidden="true">
+                  <defs><linearGradient id="bento-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b46c" stop-opacity="0.32"/><stop offset="1" stop-color="#d9b46c" stop-opacity="0"/></linearGradient></defs>
+                  <path fill="url(#bento-fill)" d="M0 96V78L18 80 34 76 50 79 66 77 82 80 98 74 114 78 130 30 146 76 162 79 178 77 194 80 210 75 226 78 242 12 258 74 274 79 290 77 306 80 322 76 338 79 354 50 370 77 386 78V96Z"/>
+                  <path fill="none" stroke="#d9b46c" stroke-width="2" stroke-linejoin="round" d="M0 78L18 80 34 76 50 79 66 77 82 80 98 74 114 78 130 30 146 76 162 79 178 77 194 80 210 75 226 78 242 12 258 74 274 79 290 77 306 80 322 76 338 79 354 50 370 77 386 78"/>
+                </svg>
+              </div>
+              <h3>The same job, very different prices</h3>
+              <p>One run of a job can be cheap and the next can cost many times more. An average hides the expensive ones.</p>
+            </article>
+
+            <article class="bento-card bento-wide bento-d">
+              <div class="bento-text">
+                <div class="bento-ring">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+                </div>
+                <div>
+                  <h3>Some costs never show up</h3>
+                  <p>Failed and retried attempts are paid for, then forgotten. So is the time your staff spend checking and fixing AI work. Neither is a line on the bill.</p>
+                </div>
+              </div>
+              <div class="bento-window" aria-hidden="true">
+                <div class="bento-dots"><span></span><span></span><span></span></div>
+                <p class="bento-window-title">Your AI bill</p>
+                <ul class="bento-bill">
+                  <li><span>Tokens used</span><span class="bento-tag on">on the bill</span></li>
+                  <li><span>Failed and retried attempts</span><span class="bento-tag">mixed in, not itemised</span></li>
+                  <li><span>Staff checking and fixing</span><span class="bento-tag off">not on the bill</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="bento-card bento-wide bento-e">
+              <div class="bento-text">
+                <div class="bento-ring">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <div>
+                  <p class="bento-stat">55%</p>
+                  <h3>spend 3 or more hours a week checking AI output</h3>
+                  <p>Time that never appears on an AI bill, but is part of what each finished job costs.</p>
+                </div>
+              </div>
+              <div class="bento-steps" aria-hidden="true">
+                <div class="bento-step left"><span class="bento-tag">Re-read the answer</span><i></i></div>
+                <div class="bento-step right"><i></i><span class="bento-tag">Fix what it got wrong</span></div>
+                <div class="bento-step left"><span class="bento-tag">Send it on</span><i></i></div>
+              </div>
+            </article>
           </div>
-          <p class="note survey">
-            <strong>You're not alone.</strong> In a Q3 2026 survey of 1,150 decision-makers at businesses with 5 to 499 staff, 49% of those paying for AI got a higher bill than they expected (57% in the US), and 55% spend 3 or more hours a week checking AI output.
-            <span class="small" style="display: block; margin-top: 6px">Source: Pax8 SMB AI Pulse, Q3 2026, a survey commissioned by Pax8, which sells to small businesses. <a href="https://www.globenewswire.com/news-release/2026/10/12/3378898/0/en/pax8-research-finds-small-businesses-are-building-ai-faster-than-they-can-govern-it.html" rel="noopener">Press release, 12 Oct 2026</a> · <a href="https://thenextweb.com/news/shadow-ai-small-businesses-pax8-survey" rel="noopener">TNW report</a></span>
+          <p class="small bento-source">
+            Source: Pax8 SMB AI Pulse, Q3 2026, a survey commissioned by Pax8, which sells to small businesses. <a href="https://www.globenewswire.com/news-release/2026/10/12/3378898/0/en/pax8-research-finds-small-businesses-are-building-ai-faster-than-they-can-govern-it.html" rel="noopener">Press release, 12 Oct 2026</a> · <a href="https://thenextweb.com/news/shadow-ai-small-businesses-pax8-survey" rel="noopener">TNW report</a>
           </p>
         </div>
       </section>
