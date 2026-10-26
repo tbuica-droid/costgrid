@@ -129,6 +129,15 @@ describe("the analyst", () => {
     await expect(ask(CONFIG, BRIEFING, "q", impl)).rejects.toThrow(/402.*insufficient credits/);
   });
 
+  it("never repeats the key a vendor echoes back in its error", async () => {
+    const apiKey = "xai-SECRETKEY0123456789abcdef";
+    const { impl } = stub({ error: { message: `Incorrect API key provided: ${apiKey}` } }, 401);
+    const failure = await ask({ ...CONFIG, apiKey }, BRIEFING, "q", impl).catch((e: Error) => e);
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toMatch(/401.*Incorrect API key provided: \[key\]/);
+    expect((failure as Error).message).not.toContain(apiKey);
+  });
+
   it("refuses an empty answer rather than printing nothing", async () => {
     const { impl } = stub(openai(""));
     await expect(ask(CONFIG, BRIEFING, "q", impl)).rejects.toThrow(/empty/);

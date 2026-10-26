@@ -43,6 +43,7 @@ import { registerOutcomes } from "./console-outcomes.js";
 import { registerKeySafety } from "./console-key-safety.js";
 import { registerControl } from "./console-control.js";
 import { KeyControl } from "./key-control.js";
+import { logSerializers } from "./log-safety.js";
 import { registerConnect } from "./console-connect.js";
 import { registerData } from "./console-data.js";
 import { registerImport } from "./console-import.js";
@@ -303,6 +304,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     logger: {
       level: config.logLevel,
       ...(config.logFile === undefined ? {} : { file: config.logFile }),
+      // An SSO callback's query string holds a one-time code; see log-safety.ts.
+      serializers: logSerializers,
     },
     // A large context window means a large request body; the default 1MB cap
     // would reject legitimate long-document calls.
