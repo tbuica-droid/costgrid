@@ -103,6 +103,47 @@ export interface GatewayConfig {
    * existed still type-checks.
    */
   readonly alertWebhookUrl?: string | undefined;
+  /**
+   * Which proxies may tell the gateway the client's protocol, host and
+   * address (`X-Forwarded-*`), in Fastify's `trustProxy` form: true for any,
+   * or a comma-separated list of addresses or CIDR ranges.
+   *
+   * Off by default, because a gateway reachable directly would otherwise
+   * believe whatever a client wrote in those headers. A hosted deployment
+   * behind its TLS proxy sets it, and then redirects plain http to https.
+   */
+  readonly trustProxy?: boolean | string | undefined;
+}
+
+/**
+ * A provider base URL from the environment. The provider key is sent to it on
+ * every call, so it must be https; plain http is allowed only to this machine,
+ * for a local mock or a tunnel.
+ */
+function providerBaseUrl(name: string): string | undefined {
+  const raw = optional(name);
+  if (raw === undefined) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`${name} is not a valid URL, got ${JSON.stringify(raw)}`);
+  }
+  const loopback = LOOPBACK.has(parsed.hostname.replace(/^\[|\]$/g, ""));
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && loopback)) {
+    throw new Error(`${name} must be https (http is allowed only for localhost), got ${JSON.stringify(raw)}`);
+  }
+  return raw;
+}
+
+function trustProxy(): boolean | string | undefined {
+  const raw = optional("COSTGRID_TRUST_PROXY");
+  if (raw === undefined) return undefined;
+  const lower = raw.toLowerCase();
+  if (lower === "true" || lower === "1") return true;
+  if (lower === "false" || lower === "0") return false;
+  return raw;
 }
 
 function publicUrl(): string | undefined {
@@ -195,12 +236,12 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
 
   const anthropicKey = optional("ANTHROPIC_API_KEY");
   if (anthropicKey !== undefined) providerKeys.anthropic = anthropicKey;
-  const anthropicBase = optional("ANTHROPIC_BASE_URL");
+  const anthropicBase = providerBaseUrl("ANTHROPIC_BASE_URL");
   if (anthropicBase !== undefined) providerBaseUrls.anthropic = anthropicBase;
 
   const openaiKey = optional("OPENAI_API_KEY");
   if (openaiKey !== undefined) providerKeys.openai = openaiKey;
-  const openaiBase = optional("OPENAI_BASE_URL");
+  const openaiBase = providerBaseUrl("OPENAI_BASE_URL");
   if (openaiBase !== undefined) providerBaseUrls.openai = openaiBase;
 
   /*
@@ -210,7 +251,7 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
    */
   const bedrockKey = optional("AWS_BEDROCK_CREDENTIAL");
   if (bedrockKey !== undefined) providerKeys.bedrock = bedrockKey;
-  const bedrockBase = optional("AWS_BEDROCK_BASE_URL");
+  const bedrockBase = providerBaseUrl("AWS_BEDROCK_BASE_URL");
   if (bedrockBase !== undefined) {
     providerBaseUrls.bedrock = bedrockBase;
   } else if (bedrockKey !== undefined) {
@@ -222,7 +263,7 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
 
   const vertexKey = optional("GOOGLE_SERVICE_ACCOUNT_JSON");
   if (vertexKey !== undefined) providerKeys.vertex = vertexKey;
-  const vertexBase = optional("GOOGLE_VERTEX_BASE_URL");
+  const vertexBase = providerBaseUrl("GOOGLE_VERTEX_BASE_URL");
   if (vertexBase !== undefined) {
     providerBaseUrls.vertex = vertexBase;
   } else if (vertexKey !== undefined) {
@@ -323,5 +364,6 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     logLevel: process.env["COSTGRID_LOG_LEVEL"]?.trim() || "info",
     logFile: optional("COSTGRID_LOG_FILE"),
     alertWebhookUrl: alertWebhookUrl(),
+    trustProxy: trustProxy(),
   };
 }

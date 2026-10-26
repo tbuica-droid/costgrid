@@ -54,6 +54,7 @@ import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
+import { registerSecurityHeaders } from "./security-headers.js";
 import type { SecretStore } from "./secret-store.js";
 import { TASK_HEADER, TaskIdentifier } from "./task-identity.js";
 
@@ -307,7 +308,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     // A large context window means a large request body; the default 1MB cap
     // would reject legitimate long-document calls.
     bodyLimit: 64 * 1024 * 1024,
+    // Off unless configured: see GatewayConfig.trustProxy.
+    trustProxy: config.trustProxy ?? false,
   });
+  registerSecurityHeaders(app, config);
 
   const alerter =
     deps.alerts === undefined
