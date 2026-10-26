@@ -36,7 +36,7 @@ import {
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alerts.js";
 import { registerApi } from "./api.js";
-import { readCookie, registerConsole, SESSION_COOKIE } from "./console.js";
+import { readCookie, registerConsole, sameOrigin, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
@@ -222,6 +222,12 @@ function identifyBySession(request: FastifyRequest, deps: ServerDeps): Caller | 
       : memberships[0];
   if (!chosen) return undefined;
 
+  // A write by cookie (the dashboard's policy toggle, an outcome) is held to
+  // the console's rules: sent from our own pages, and by an owner.
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    if (!sameOrigin(request) || chosen.role !== "owner") return undefined;
+  }
+
   return { tenantId: chosen.tenantId, agentId: session.user.email, department: "Unassigned" };
 }
 
@@ -399,7 +405,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     imports,
     sources,
     runOutcomes: new RunOutcomes(deps.db),
-    // Read-only: a session cookie is accepted here and nowhere else.
+    // A session cookie is accepted here for reading; writes by cookie need an
+    // owner and a same-origin request (see identifyBySession).
     tenantOf: (request) => identify(request, deps, true)?.tenantId,
   });
   if (config.hosted) {

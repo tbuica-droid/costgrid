@@ -62,6 +62,26 @@ export class RateLimiter {
     };
   }
 
+  /**
+   * Whether one more attempt would be allowed, without counting one.
+   *
+   * For lockouts that count only failures: the check happens before the
+   * attempt, and `check` is called afterwards only if it failed.
+   */
+  peek(key: string, limit: number, now = Date.now()): RateLimitDecision {
+    const window = this.#windows.get(key);
+    const live = window !== undefined && window.resetAt > now;
+    const count = live ? window.count : 0;
+    const resetAt = live ? window.resetAt : now + this.#windowMs;
+    return {
+      allowed: count < limit,
+      limit,
+      remaining: Math.max(0, limit - count),
+      resetAt,
+      retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+    };
+  }
+
   #evictExpired(now: number): void {
     for (const [key, window] of this.#windows) {
       if (window.resetAt <= now) this.#windows.delete(key);
@@ -82,3 +102,21 @@ export class RateLimiter {
     return this.#windows.size;
   }
 }
+
+/**
+ * Limits on the routes that take a password or start a sign-in.
+ *
+ * Per IP, every attempt counts, which slows a scripted run across many
+ * accounts. Per account, only failures count, and the account stays locked
+ * for the rest of the window even against the right password, which stops a
+ * slow guess against one address spread over many IPs. Counted by the address
+ * typed, not the account found, so a lockout says nothing about whether the
+ * address is registered.
+ */
+export const AUTH_WINDOW_MS = 15 * 60 * 1000;
+export const AUTH_LIMITS = {
+  loginPerIp: 30,
+  loginFailuresPerAccount: 10,
+  signupPerIp: 10,
+  ssoStartPerIp: 30,
+} as const;

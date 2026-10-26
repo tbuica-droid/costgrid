@@ -68,6 +68,17 @@ describe("RateLimiter", () => {
     expect(limiter.size).toBeLessThanOrEqual(200);
   });
 
+  it("peeks without counting, for lockouts that count only failures", () => {
+    const limiter = new RateLimiter(60_000);
+    const now = 1_000_000;
+
+    for (let i = 0; i < 5; i++) expect(limiter.peek("acct", 2, now).allowed).toBe(true);
+    limiter.check("acct", 2, now);
+    limiter.check("acct", 2, now);
+    expect(limiter.peek("acct", 2, now).allowed).toBe(false);
+    expect(limiter.peek("acct", 2, now + 60_001).allowed).toBe(true);
+  });
+
   it("reclaims expired keys rather than live ones", () => {
     const limiter = new RateLimiter(1_000, 100);
     for (let i = 0; i < 100; i++) limiter.check(`old-${i}`, 10, 1_000);

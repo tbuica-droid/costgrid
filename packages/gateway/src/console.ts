@@ -21,6 +21,7 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayConfig } from "./config.js";
 import { ADAPTERS } from "./providers/index.js";
+import { AUTH_LIMITS, AUTH_WINDOW_MS, type RateLimitDecision, RateLimiter } from "./ratelimit.js";
 
 /**
  * The hosted control plane: signup, login, org settings, credentials, billing.
@@ -100,6 +101,11 @@ export function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
  * blocks the classic forged-form attack without a token round-trip.
  */
 export function sameOrigin(request: FastifyRequest): boolean {
+  // Fetch metadata, where the browser sends it, is the browser's own verdict
+  // and covers a sibling subdomain that an Origin match on Host would not.
+  const site = request.headers["sec-fetch-site"];
+  if (site === "cross-site" || site === "same-site") return false;
+
   const origin = request.headers.origin;
   if (typeof origin !== "string") {
     // No Origin header: not a browser-initiated cross-site POST. Same-origin
@@ -116,9 +122,47 @@ export function sameOrigin(request: FastifyRequest): boolean {
   }
 }
 
+/**
+ * Sign someone in: end whatever session this browser presented, then start a
+ * new one. Rotating on every sign-in means a session id planted in the browser
+ * beforehand is never the one that ends up authenticated.
+ */
+export function startSession(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  accounts: AccountsRepository,
+  userId: string,
+  secure: boolean,
+): void {
+  const previous = readCookie(request, SESSION_COOKIE);
+  if (previous !== undefined) accounts.revokeSession(previous);
+  const session = accounts.createSession(userId, SESSION_TTL_MS);
+  setSessionCookie(reply, session.token, session.expiresAt, secure);
+}
+
+/** A 429 with the wait in Retry-After, the same shape on every auth route. */
+export function tooManyAttempts(reply: FastifyReply, decision: RateLimitDecision): FastifyReply {
+  return reply
+    .code(429)
+    .header("retry-after", String(decision.retryAfterSeconds))
+    .send({ error: "too many attempts; wait a few minutes and try again" });
+}
+
+/**
+ * A form field no person fills in. The console's form hides it; a bot filling
+ * every input it finds does not know to leave it empty.
+ */
+export const HONEYPOT_FIELD = "website";
+
+function trippedHoneypot(body: Record<string, unknown> | undefined): boolean {
+  const value = body?.[HONEYPOT_FIELD];
+  return typeof value === "string" ? value.trim() !== "" : value !== undefined && value !== null;
+}
+
 export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
   const { accounts, analytics, config, repository } = deps;
   const secure = config.secureCookies;
+  const authLimiter = new RateLimiter(AUTH_WINDOW_MS);
 
   /** Resolve the session on every console request; does not itself reject. */
   app.addHook("preHandler", async (request: ConsoleRequest, reply) => {
@@ -142,7 +186,13 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
   // -------------------------------------------------------------- accounts
 
   app.post("/console/signup", async (request, reply) => {
+    const limit = authLimiter.check(`signup:${request.ip}`, AUTH_LIMITS.signupPerIp);
+    if (!limit.allowed) return tooManyAttempts(reply, limit);
+
     const body = request.body as Record<string, unknown> | undefined;
+    // Refused with the same message as any other bad signup, so a bot learns
+    // nothing about which field gave it away.
+    if (trippedHoneypot(body)) return reply.code(400).send({ error: "could not create account" });
     const email = typeof body?.["email"] === "string" ? body["email"] : "";
     const name = typeof body?.["name"] === "string" ? body["name"] : "";
     const password = typeof body?.["password"] === "string" ? body["password"] : "";
@@ -171,8 +221,7 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
       detail: { email: created.user.email, role: "owner" },
     });
 
-    const session = accounts.createSession(created.user.id);
-    setSessionCookie(reply, session.token, session.expiresAt, secure);
+    startSession(request, reply, accounts, created.user.id, secure);
 
     return reply.code(201).send({
       user: { id: created.user.id, email: created.user.email, name: created.user.name },
@@ -181,9 +230,17 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
   });
 
   app.post("/console/login", async (request, reply) => {
+    const perIp = authLimiter.check(`login:${request.ip}`, AUTH_LIMITS.loginPerIp);
+    if (!perIp.allowed) return tooManyAttempts(reply, perIp);
+
     const body = request.body as Record<string, unknown> | undefined;
     const email = typeof body?.["email"] === "string" ? body["email"] : "";
     const password = typeof body?.["password"] === "string" ? body["password"] : "";
+    if (trippedHoneypot(body)) return reply.code(401).send({ error: "email or password is incorrect" });
+
+    const accountKey = `login-failed:${email.trim().toLowerCase()}`;
+    const locked = authLimiter.peek(accountKey, AUTH_LIMITS.loginFailuresPerAccount);
+    if (!locked.allowed) return tooManyAttempts(reply, locked);
 
     // An organisation that has turned on single sign-on has decided passwords
     // are not an acceptable way in, and leaving this path open would make that
@@ -199,6 +256,7 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
     const user = accounts.authenticate(email, password);
     if (!user) {
+      authLimiter.check(accountKey, AUTH_LIMITS.loginFailuresPerAccount);
       // Recorded where there is an organisation it belongs to. A run of these
       // is what an attack on an account looks like from the inside, and it is
       // one of the few things an audit log can show that nothing else does.
@@ -226,8 +284,7 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
       });
     }
 
-    const session = accounts.createSession(user.id, SESSION_TTL_MS);
-    setSessionCookie(reply, session.token, session.expiresAt, secure);
+    startSession(request, reply, accounts, user.id, secure);
     return { user: { id: user.id, email: user.email, name: user.name } };
   });
 

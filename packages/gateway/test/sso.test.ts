@@ -127,6 +127,8 @@ describe("single sign-on", () => {
   }) as unknown as typeof fetch;
 
   let pendingNonce = "";
+  /** The state cookie the last start set, which a real browser would send back. */
+  let stateCookie = "";
   let pendingChallenge: string | undefined;
 
   /** Walk a sign-in as far as the redirect, and report the state and nonce. */
@@ -137,6 +139,7 @@ describe("single sign-on", () => {
       payload: { email },
     });
     if (res.statusCode !== 200) return { state: "", status: res.statusCode };
+    stateCookie = cookieFrom(res);
 
     const target = new URL((res.json() as { redirectTo: string }).redirectTo);
     const state = target.searchParams.get("state")!;
@@ -289,6 +292,7 @@ describe("single sign-on", () => {
       const res = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=auth-code`,
+        headers: { cookie: stateCookie },
       });
 
       expect(res.statusCode).toBe(302);
@@ -302,7 +306,7 @@ describe("single sign-on", () => {
 
     it("records the sign-in in the audit log", async () => {
       const { state } = await startSignIn("dana@acme.test");
-      await app.inject({ method: "GET", url: `/console/sso/callback?state=${state}&code=c` });
+      await app.inject({ method: "GET", url: `/console/sso/callback?state=${state}&code=c`, headers: { cookie: stateCookie } });
 
       const entries = accounts.audit.list(tenantId, { action: "auth" });
       expect(entries.map((e) => e.action)).toContain("auth.sso-provisioned");
@@ -311,9 +315,9 @@ describe("single sign-on", () => {
 
     it("does not create a second account for somebody who already has one", async () => {
       const first = await startSignIn("dana@acme.test");
-      await app.inject({ method: "GET", url: `/console/sso/callback?state=${first.state}&code=c` });
+      await app.inject({ method: "GET", url: `/console/sso/callback?state=${first.state}&code=c`, headers: { cookie: stateCookie } });
       const second = await startSignIn("dana@acme.test");
-      await app.inject({ method: "GET", url: `/console/sso/callback?state=${second.state}&code=c` });
+      await app.inject({ method: "GET", url: `/console/sso/callback?state=${second.state}&code=c`, headers: { cookie: stateCookie } });
 
       const count = db
         .prepare("SELECT COUNT(*) AS n FROM users WHERE email = 'dana@acme.test'")
@@ -324,7 +328,7 @@ describe("single sign-on", () => {
 
     it("leaves a provisioned account unable to sign in with a password", async () => {
       const { state } = await startSignIn("dana@acme.test");
-      await app.inject({ method: "GET", url: `/console/sso/callback?state=${state}&code=c` });
+      await app.inject({ method: "GET", url: `/console/sso/callback?state=${state}&code=c`, headers: { cookie: stateCookie } });
 
       // The stored hash is of a value nobody has ever seen, so there is no
       // password to guess rather than a check that could be forgotten.
@@ -344,6 +348,7 @@ describe("single sign-on", () => {
       const res = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=c`,
+        headers: { cookie: stateCookie },
       });
       expect(res.statusCode).toBe(400);
       expect(accounts.findUserByEmail("mallory@elsewhere.test")).toBeUndefined();
@@ -354,15 +359,30 @@ describe("single sign-on", () => {
       const first = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=c`,
+        headers: { cookie: stateCookie },
       });
       expect(first.statusCode).toBe(302);
 
       const replay = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=c`,
+        headers: { cookie: stateCookie },
       });
       expect(replay.statusCode).toBe(400);
       expect(replay.body).toContain("already been used");
+    });
+
+    it("refuses a callback in a browser that did not start the sign-in", async () => {
+      // An attacker's own sign-in, stopped at the callback and sent to someone
+      // else: the state is genuine, but the victim's browser never held it.
+      const { state } = await startSignIn("dana@acme.test");
+      const res = await app.inject({
+        method: "GET",
+        url: `/console/sso/callback?state=${state}&code=c`,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(String(res.headers["set-cookie"])).not.toContain("costgrid_session=");
+      expect(accounts.findUserByEmail("dana@acme.test")).toBeUndefined();
     });
 
     it("refuses a state this server never issued", async () => {
@@ -389,6 +409,7 @@ describe("single sign-on", () => {
       const res = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=c`,
+        headers: { cookie: stateCookie },
       });
       expect(res.statusCode).toBe(400);
       expect(res.body).toContain("invalid_grant");
@@ -402,6 +423,7 @@ describe("single sign-on", () => {
       const res = await app.inject({
         method: "GET",
         url: `/console/sso/callback?state=${state}&code=c`,
+        headers: { cookie: stateCookie },
       });
       expect(res.statusCode).toBe(302);
     });

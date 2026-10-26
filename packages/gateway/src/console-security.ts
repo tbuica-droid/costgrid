@@ -4,20 +4,28 @@ import {
   domainOf,
   MIN_AUDIT_DAYS,
   type SsoConnection,
-  SESSION_TTL_MS,
+  SSO_REQUEST_TTL_MS,
 } from "@costgrid/db";
 import { hashPassword } from "@costgrid/core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { GatewayConfig } from "./config.js";
-import { type ConsoleRequest, createGuards, setSessionCookie } from "./console.js";
+import {
+  type ConsoleRequest,
+  createGuards,
+  readCookie,
+  startSession,
+  tooManyAttempts,
+} from "./console.js";
 import {
   buildAuthorizeUrl,
   createPkcePair,
   discover,
   exchangeCode,
   randomToken,
+  secretEquals,
   verifyIdToken,
 } from "./oidc.js";
+import { AUTH_LIMITS, AUTH_WINDOW_MS, RateLimiter } from "./ratelimit.js";
 
 /**
  * The console routes a security review asks for: the audit log, single sign-on
@@ -41,6 +49,28 @@ export interface SecurityDeps {
 
 /** Where the identity provider sends the browser back to. */
 const CALLBACK_PATH = "/console/sso/callback";
+
+/**
+ * The sign-in's state, also kept in the browser that started it.
+ *
+ * Without this the state proves only that this server started *a* sign-in. An
+ * attacker could start one, stop at the callback, and send that link to
+ * somebody else, who would arrive signed in to the attacker's account. The
+ * callback is a top-level navigation back from the provider, which Lax sends.
+ */
+const SSO_STATE_COOKIE = "costgrid_sso_state";
+
+function ssoStateCookie(value: string, maxAgeSeconds: number, secure: boolean): string {
+  const attributes = [
+    `${SSO_STATE_COOKIE}=${encodeURIComponent(value)}`,
+    "Path=/console/sso",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${maxAgeSeconds}`,
+  ];
+  if (secure) attributes.push("Secure");
+  return attributes.join("; ");
+}
 
 function originOf(request: ConsoleRequest, config: GatewayConfig): string {
   if (config.publicUrl !== undefined) return config.publicUrl;
@@ -81,6 +111,7 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
   const { audit, retention, sso } = accounts;
   const { requireRole } = createGuards(accounts);
   const doFetch = deps.fetchImpl ?? fetch;
+  const startLimiter = new RateLimiter(AUTH_WINDOW_MS);
 
   // ------------------------------------------------------------- audit log
 
@@ -295,6 +326,10 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
    * at a customer.
    */
   app.post("/console/sso/start", async (request: ConsoleRequest, reply) => {
+    // Each start writes a row and costs the provider a round trip later.
+    const limit = startLimiter.check(`sso-start:${request.ip}`, AUTH_LIMITS.ssoStartPerIp);
+    if (!limit.allowed) return tooManyAttempts(reply, limit);
+
     const body = request.body as Record<string, unknown> | undefined;
     const email = typeof body?.["email"] === "string" ? body["email"].trim().toLowerCase() : "";
 
@@ -316,6 +351,10 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
       codeVerifier: pkce.verifier,
       redirectUri,
     });
+    reply.header(
+      "set-cookie",
+      ssoStateCookie(state, Math.floor(SSO_REQUEST_TTL_MS / 1000), config.secureCookies),
+    );
 
     return {
       redirectTo: buildAuthorizeUrl(connection, {
@@ -346,6 +385,15 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
     const code = query["code"];
     if (typeof state !== "string" || typeof code !== "string") {
       return signInFailure(reply, "The response was missing its state or code.");
+    }
+
+    const bound = readCookie(request, SSO_STATE_COOKIE);
+    reply.header("set-cookie", ssoStateCookie("", 0, config.secureCookies));
+    if (bound === undefined || !secretEquals(bound, state)) {
+      return signInFailure(
+        reply,
+        "This sign-in was not started in this browser. Start again from the sign-in page.",
+      );
     }
 
     const pending = sso.consumeRequest(state);
@@ -421,8 +469,7 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
       detail: { issuer: connection.issuer },
     });
 
-    const session = accounts.createSession(provisioned.userId, SESSION_TTL_MS);
-    setSessionCookie(reply, session.token, session.expiresAt, config.secureCookies);
+    startSession(request, reply, accounts, provisioned.userId, config.secureCookies);
     return reply.redirect("/console");
   });
 
