@@ -377,6 +377,11 @@
                   <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" />
                   <p class="err" id="signinErr">Enter a valid email address.</p>
                 </div>
+                <!-- Honeypot: hidden from people and screen readers, so only bots fill it in. site.js drops any sign-in that does. -->
+                <div aria-hidden="true" style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden">
+                  <label for="signinWebsite">Website</label>
+                  <input id="signinWebsite" name="website" type="text" tabindex="-1" autocomplete="off" />
+                </div>
                 <button type="submit" class="btn btn-accent" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
                 <p class="small" style="text-align: center; margin-top: 12px">No password: we email you a one-time link. The account is for this website only.</p>
               </form>
