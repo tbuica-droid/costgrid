@@ -141,7 +141,10 @@ export class Alerter {
       alerts.markDelivered(alert.id);
       return { delivered: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      // The address is a credential, and a fetch error may quote it. What is
+      // stored, logged and shown in the console never does.
+      const raw = error instanceof Error ? error.message : String(error);
+      const message = raw.split(url).join("[alert address]");
       try {
         alerts.markFailed(alert.id, message);
       } catch {

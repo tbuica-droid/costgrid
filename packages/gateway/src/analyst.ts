@@ -1,3 +1,4 @@
+import { safeErrorMessage } from "./import-run.js";
 import { anthropicAdapter, openaiAdapter } from "./providers/index.js";
 import type { ProviderAdapter } from "./providers/types.js";
 
@@ -163,8 +164,9 @@ export async function ask(
 
   if (!response.ok) {
     // The vendor's own message is the actionable part; wrapping it in ours
-    // would only hide the reason.
-    throw new Error(`${config.model} returned ${response.status}: ${text.slice(0, 300)}`);
+    // would only hide the reason. Some vendors echo the key they were sent,
+    // so it is taken out before the message is printed anywhere.
+    throw new Error(`${config.model} returned ${response.status}: ${safeErrorMessage(text, config.apiKey)}`);
   }
 
   let payload: unknown;
