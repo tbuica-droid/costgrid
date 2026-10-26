@@ -151,6 +151,10 @@ export async function ask(
   const adapter = adapterFor(config.wire);
   const base = config.baseUrl ?? defaultBaseUrl(config.wire);
   const url = new URL(adapter.upstreamPath(config.model, false), base);
+  // The key goes with every question, so plain http is allowed only to this machine.
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
+    throw new Error(`the analyst's base URL must be https (http is allowed only for localhost), got ${base}`);
+  }
   const bytes = JSON.stringify(requestBody(config, briefing, question));
 
   const headers: Record<string, string> = {

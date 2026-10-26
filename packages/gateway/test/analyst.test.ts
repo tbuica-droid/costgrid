@@ -138,6 +138,12 @@ describe("the analyst", () => {
     expect((failure as Error).message).not.toContain(apiKey);
   });
 
+  it("will not send the key over plain http, except to this machine", async () => {
+    const { impl } = stub(openai("ok"));
+    await expect(ask({ ...CONFIG, baseUrl: "http://api.x.ai" }, BRIEFING, "q", impl)).rejects.toThrow(/must be https/);
+    await expect(ask({ ...CONFIG, baseUrl: "http://localhost:8080" }, BRIEFING, "q", impl)).resolves.toBeDefined();
+  });
+
   it("refuses an empty answer rather than printing nothing", async () => {
     const { impl } = stub(openai(""));
     await expect(ask(CONFIG, BRIEFING, "q", impl)).rejects.toThrow(/empty/);

@@ -76,6 +76,14 @@ and `/console` correctly. Build it once before trusting it.
 so plain http will not keep anyone signed in. Which is the correct failure.
 Provider keys and API keys cross this connection.
 
+**Tell it which proxy to trust.** Set `COSTGRID_TRUST_PROXY` to `true`, or to
+a comma-separated list of the proxy's IPs or CIDR ranges. With it set, a
+hosted gateway redirects any request the proxy reports as plain http to https
+(to `COSTGRID_PUBLIC_URL` when that is https), and sign-in rate limits count
+each visitor's own address. Without it, every visitor arrives from the proxy's
+address and shares one sign-in limit, so one person hammering the login can
+lock everyone out. HSTS is sent in hosted mode either way.
+
 ## Onboarding a customer
 
 The fastest path to showing value, and the one to use in a sales call:

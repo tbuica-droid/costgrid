@@ -112,7 +112,9 @@ export class AnchorSender {
       if (!response.ok) return { ok: false, error: `receiver returned ${response.status}` };
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      // The receiver's address can carry a token, so it never reaches the stored error.
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: message.split(this.#options.url).join("[receiver address]") };
     }
   }
 }
