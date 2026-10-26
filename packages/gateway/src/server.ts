@@ -394,7 +394,11 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     hosted: config.hosted,
     /** Rows that could not be written. Non-zero means figures are understated. */
     meteringFailures,
-    ...(lastMeteringFailure ? { lastMeteringFailure } : {}),
+    // /health is unauthenticated, so a hosted gateway shows when, not the raw
+    // error (which can name tables); the reason is in the operator's log.
+    ...(lastMeteringFailure
+      ? { lastMeteringFailure: config.hosted ? { at: lastMeteringFailure.at } : lastMeteringFailure }
+      : {}),
     providers: ADAPTERS.filter((a) => config.hosted || config.providerKeys[a.id] !== undefined).map(
       (a) => ({ id: a.id, path: a.path }),
     ),

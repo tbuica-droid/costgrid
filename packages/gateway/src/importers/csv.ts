@@ -50,6 +50,8 @@ export type UsageFileResult = ImportResult & {
 /** Far above any real export; a cap on what one upload can make the server parse. */
 export const MAX_FILE_CHARS = 32 * 1024 * 1024;
 export const MAX_DATA_ROWS = 200_000;
+/** Real exports have a few dozen; thousands is a file built to make every row expensive. */
+export const MAX_COLUMNS = 500;
 
 const NAMES: Record<Provider, string> = { anthropic: "Claude", openai: "OpenAI", bedrock: "Bedrock", vertex: "Vertex" };
 
@@ -442,6 +444,14 @@ export function parseUsageFile(provider: Provider, text: string): UsageFileResul
   const header = records[0]!.map(normaliseHeader);
   if (header.length < 2) {
     throw new UsageFileError("not-csv", "This file has only one column, so it is not a usage export.");
+  }
+  const wide = records.findIndex((record) => record.length > MAX_COLUMNS);
+  if (wide !== -1) {
+    throw new UsageFileError(
+      "not-csv",
+      `This file has more than ${MAX_COLUMNS} columns, so it is not a usage export.`,
+      { row: wide + 1 },
+    );
   }
   // The first column of a name wins, should a file ever repeat one.
   const columns = new Map<string, number>();

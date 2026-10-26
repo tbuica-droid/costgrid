@@ -345,9 +345,18 @@ export function buildStatement(input: StatementInput): Statement {
  * Department and agent names are customer-supplied, so a team called
  * "Sales, EMEA" would silently split into two columns without this — the kind
  * of corruption nobody notices until the totals stop adding up.
+ *
+ * A name that starts like a formula (`=`, `+`, `-`, `@`, or a tab or carriage
+ * return) gets a leading `'`, so a spreadsheet shows it as text instead of
+ * running it: an agent named `=HYPERLINK(…)` is data, not a link planted in
+ * finance's copy. Plain numbers, negative ones included, are left alone so the
+ * columns still sum.
  */
 function csvField(value: string | number): string {
-  const text = String(value);
+  let text = String(value);
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) {
+    text = `'${text}`;
+  }
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

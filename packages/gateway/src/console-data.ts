@@ -149,6 +149,11 @@ export function registerData(app: FastifyInstance, deps: DataDeps): void {
 
     const body = request.body as Record<string, unknown> | undefined;
     const requested = typeof body?.["model"] === "string" ? body["model"].trim() : "";
+    // A model id goes into the provider's URL on some channels, so only the
+    // characters model ids are made of: no slashes, no spaces, nothing to escape.
+    if (requested !== "" && !/^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$/.test(requested)) {
+      return reply.code(400).send({ error: "model must be a model id, like claude-haiku-4-5" });
+    }
     const model = requested === "" ? defaultPreflightModel(provider)! : requested;
 
     const result = await preflight({

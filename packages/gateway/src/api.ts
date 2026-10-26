@@ -74,8 +74,41 @@ function rangeFor(days: number): TimeRange {
   return trailingWindow(days);
 }
 
+/**
+ * Fastify's own default, 1 MiB, for everything that is not the proxy. The
+ * instance allows 64 MiB because a long-context call is that large; nothing a
+ * browser or the dashboard sends is, and parsing 64 MiB of JSON on a settings
+ * route is work an anonymous caller should not be able to ask for. A route
+ * that needs more (the usage-file upload) says so in its own options.
+ */
+export const CONTROL_BODY_LIMIT = 1024 * 1024;
+const CONTROL_PREFIXES = ["/api/", "/console/", "/v1/costgrid/"];
+
 export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
   const { analytics, imports, repository, sources, tenantOf } = deps;
+
+  // Registered before any console or API route, so it reaches every one of them.
+  app.addHook("onRoute", (route) => {
+    if (CONTROL_PREFIXES.some((p) => route.url.startsWith(p))) route.bodyLimit ??= CONTROL_BODY_LIMIT;
+  });
+
+  /*
+   * One shape for every error, and nothing internal in it. A client error
+   * keeps its message, which is the point of it. A server error is logged in
+   * full and answered with nothing: Fastify's default would send the thrown
+   * message, and a database error's message names tables and constraints.
+   */
+  app.setErrorHandler((error: { statusCode?: number; message?: string }, request, reply) => {
+    const status =
+      typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 500;
+    if (status >= 500) {
+      request.log.error({ err: error }, "request failed");
+      return reply.code(status).send({ error: "internal error" });
+    }
+    return reply.code(status).send({ error: error.message || "bad request" });
+  });
 
   // Every /api route is tenant-scoped; resolving it once here means no
   // individual handler can forget to filter by tenant.
@@ -521,24 +554,52 @@ type ParsedPolicy =
   | { policy: Parameters<CostGridRepository["createPolicy"]>[1] }
   | { error: string };
 
+const MAX_POLICY_NAME = 80;
+const MAX_IDENTIFIER = 128;
+const MAX_MODELS = 100;
+/** Far above any real answer; below what SQLite or a provider would choke on. */
+const MAX_OUTPUT_TOKENS = 10_000_000;
+/** Up to $999,999,999 with nanodollar precision: wide, but a bigint SQLite can store. */
+const LIMIT_USD = /^\d{1,9}(\.\d{1,9})?$/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
+/** An agent id, team or model name: non-empty, one line, not too long. */
+function identifier(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw !== "" && raw.length <= MAX_IDENTIFIER && !CONTROL_CHARS.test(raw)
+    ? raw
+    : undefined;
+}
+
 /** Validate an untrusted policy payload. This is a write boundary. */
 function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
-  const name = typeof body["name"] === "string" && body["name"] ? body["name"] : "policy";
+  const rawName = body["name"];
+  if (
+    rawName !== undefined &&
+    (typeof rawName !== "string" || rawName.length > MAX_POLICY_NAME || CONTROL_CHARS.test(rawName))
+  ) {
+    return { error: `name must be text of at most ${MAX_POLICY_NAME} characters on one line` };
+  }
+  const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : "policy";
   const action = body["action"];
   if (action !== "monitor" && action !== "warn" && action !== "block") {
     return { error: "action must be monitor, warn or block" };
+  }
+  if (body["enabled"] !== undefined && typeof body["enabled"] !== "boolean") {
+    return { error: "enabled must be true or false" };
   }
 
   const rawScope = body["scope"] as Record<string, unknown> | undefined;
   const scopeKind = rawScope?.["kind"];
   let scope: Parameters<CostGridRepository["createPolicy"]>[1]["scope"];
+  const agentId = identifier(rawScope?.["agentId"]);
+  const department = identifier(rawScope?.["department"]);
 
   if (scopeKind === "tenant") {
     scope = { kind: "tenant" };
-  } else if (scopeKind === "agent" && typeof rawScope?.["agentId"] === "string") {
-    scope = { kind: "agent", agentId: rawScope["agentId"] };
-  } else if (scopeKind === "department" && typeof rawScope?.["department"] === "string") {
-    scope = { kind: "department", department: rawScope["department"] };
+  } else if (scopeKind === "agent" && agentId !== undefined) {
+    scope = { kind: "agent", agentId };
+  } else if (scopeKind === "department" && department !== undefined) {
+    scope = { kind: "department", department };
   } else {
     return { error: "scope must be {kind:'tenant'|'agent'|'department'} with its identifier" };
   }
@@ -550,14 +611,15 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
     if (ruleKind === "budget") {
       const window = rawRule?.["window"];
       if (window !== "day" && window !== "month") return { error: "window must be day or month" };
-      if (typeof rawRule?.["limitUsd"] !== "string") {
-        return { error: "budget rule needs limitUsd as a decimal string" };
+      const limitUsd = rawRule?.["limitUsd"];
+      if (typeof limitUsd !== "string" || !LIMIT_USD.test(limitUsd.trim()) || usd(limitUsd) <= 0n) {
+        return { error: "budget rule needs limitUsd as a positive decimal string, like \"250.00\"" };
       }
-      const threshold = rawRule["threshold"];
-      if (threshold !== undefined && (typeof threshold !== "number" || threshold <= 0 || threshold > 1)) {
+      const threshold = rawRule?.["threshold"];
+      if (threshold !== undefined && (typeof threshold !== "number" || !(threshold > 0 && threshold <= 1))) {
         return { error: "threshold must be a number in (0, 1]" };
       }
-      const fallbackModel = rawRule["fallbackModel"];
+      const fallbackModel = rawRule?.["fallbackModel"];
       if (fallbackModel !== undefined) {
         if (typeof fallbackModel !== "string") return { error: "fallbackModel must be a model id" };
         // Rejected here rather than at request time: a typo would otherwise sit
@@ -576,7 +638,7 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
           rule: {
             kind: "budget",
             window,
-            limit: usd(rawRule["limitUsd"]),
+            limit: usd(limitUsd),
             ...(typeof threshold === "number" ? { threshold } : {}),
             ...(typeof fallbackModel === "string" ? { fallbackModel } : {}),
           },
@@ -586,8 +648,13 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
 
     if (ruleKind === "model-allowlist" || ruleKind === "model-denylist") {
       const models = rawRule?.["models"];
-      if (!Array.isArray(models) || models.length === 0 || !models.every((m) => typeof m === "string")) {
-        return { error: `${ruleKind} needs a non-empty array of model ids` };
+      if (
+        !Array.isArray(models) ||
+        models.length === 0 ||
+        models.length > MAX_MODELS ||
+        !models.every((m) => identifier(m) !== undefined)
+      ) {
+        return { error: `${ruleKind} needs a non-empty array of at most ${MAX_MODELS} model ids` };
       }
       return {
         policy: {
@@ -602,8 +669,8 @@ function parsePolicyBody(body: Record<string, unknown>): ParsedPolicy {
 
     if (ruleKind === "max-output-tokens") {
       const limit = rawRule?.["limit"];
-      if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) {
-        return { error: "max-output-tokens needs a positive integer limit" };
+      if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > MAX_OUTPUT_TOKENS) {
+        return { error: `max-output-tokens needs an integer limit between 1 and ${MAX_OUTPUT_TOKENS}` };
       }
       return {
         policy: {

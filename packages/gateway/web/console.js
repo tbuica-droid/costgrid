@@ -70,6 +70,8 @@ function renderAuth() {
         ${signingUp ? field("Your name", "name") : ""}
         ${signingUp ? field("Organisation", "organisation") : ""}
         ${field("Email", "email", "email")}
+        <!-- Left empty by people; a bot that fills every field is refused by the server. -->
+        <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px" />
         ${field("Password", "password", "password", signingUp ? 'minlength="12"' : "")}
         ${signingUp ? '<p class="kpi-sub" style="margin:-6px 0 14px">At least 12 characters.</p>' : ""}
         ${button(signingUp ? "Create account" : "Sign in", 'type="submit"')}

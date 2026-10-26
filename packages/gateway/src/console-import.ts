@@ -13,6 +13,8 @@ import { importerFor, IMPORTERS } from "./importers/index.js";
  * in the middle of settings pages.
  */
 
+const MAX_KEY_CHARS = 512;
+
 export interface ImportDeps {
   readonly accounts: AccountsRepository;
   readonly imports: ImportsRepository;
@@ -53,11 +55,15 @@ export function registerImport(app: FastifyInstance, deps: ImportDeps): void {
     if (!actor) return;
 
     const importer = importerFor(provider);
-    if (!importer) return reply.code(400).send({ error: `unknown provider: ${provider}` });
+    if (!importer) return reply.code(400).send({ error: "unknown provider" });
 
     const body = request.body as Record<string, unknown> | undefined;
     const adminKey = typeof body?.["adminKey"] === "string" ? body["adminKey"].trim() : "";
     if (adminKey === "") return reply.code(400).send({ error: "adminKey is required" });
+    // The same bounds as connecting a key. Never echoed: the value is a credential.
+    if (adminKey.length > MAX_KEY_CHARS || /\s/.test(adminKey)) {
+      return reply.code(400).send({ error: `adminKey must be one key of at most ${MAX_KEY_CHARS} characters` });
+    }
 
     const days = typeof body?.["days"] === "number" ? body["days"] : 90;
     if (!Number.isInteger(days) || days < 1 || days > 365) {

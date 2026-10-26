@@ -101,7 +101,8 @@ function parseScope(raw: unknown): PolicyScope | string {
 }
 
 function positiveUsd(raw: unknown): Nanodollars | string {
-  if (typeof raw !== "string" || !/^\d+(\.\d{1,6})?$/.test(raw.trim())) {
+  // Nine whole digits is a billion dollars, and keeps the nanodollar figure inside SQLite's integer.
+  if (typeof raw !== "string" || !/^\d{1,9}(\.\d{1,6})?$/.test(raw.trim())) {
     return "the amount must be a number of dollars, like 250 or 12.50";
   }
   const amount = usd(raw.trim());
@@ -149,7 +150,7 @@ export function parseLimit(body: Record<string, unknown>): PolicyRule | string {
       rule.effort = effort;
     }
     if (budget !== undefined && budget !== "") {
-      if (typeof budget !== "number" || !Number.isInteger(budget) || budget < 1) {
+      if (typeof budget !== "number" || !Number.isInteger(budget) || budget < 1 || budget > 10_000_000) {
         return "the thinking budget must be a whole number of tokens";
       }
       rule.budgetTokens = budget;
@@ -160,6 +161,15 @@ export function parseLimit(body: Record<string, unknown>): PolicyRule | string {
     return rule;
   }
   return "that kind of limit cannot be set from here";
+}
+
+/**
+ * A delivery error with any address taken out. The webhook address is a
+ * credential (whoever has it can post to the channel), and a fetch error can
+ * quote it ("Failed to parse URL from https://hooks…").
+ */
+export function withoutAddress(message: string): string {
+  return message.replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, "[address]").slice(0, 300);
 }
 
 function text(raw: unknown, max: number): string | undefined {
@@ -203,7 +213,16 @@ export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
       rules: entries.map((e) => ({ ...e, rule: ruleView(e.rule) })),
       agents,
       alertSettings: alerts.settings(tenantId),
-      alerts: alerts.recent(tenantId, 30),
+      alerts: alerts.recent(tenantId, 30).map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        subject: a.subject,
+        message: a.message,
+        occurredAt: a.occurredAt,
+        deliveredAt: a.deliveredAt,
+        attempts: a.attempts,
+        lastError: a.lastError === null ? null : withoutAddress(a.lastError),
+      })),
       measured: measured.forPolicies(tenantId, entries).map(measuredView),
       models: listModelPrices()
         .filter((m) => !m.retired)
@@ -407,6 +426,10 @@ export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
     });
     if (stored === undefined) return reply.code(409).send({ error: "try again" });
     const result = await alerter.deliver(stored);
-    return { ...result, webhookConfigured: alerts.settings(tenantId).webhookConfigured };
+    return {
+      delivered: result.delivered,
+      ...(result.error !== undefined ? { error: withoutAddress(result.error) } : {}),
+      webhookConfigured: alerts.settings(tenantId).webhookConfigured,
+    };
   });
 }

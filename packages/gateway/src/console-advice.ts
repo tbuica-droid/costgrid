@@ -136,6 +136,9 @@ export function registerAdvice(app: FastifyInstance, deps: AdviceDeps): void {
     const agentId = typeof body?.["agentId"] === "string" ? body["agentId"].trim() : "";
     const tool = typeof body?.["tool"] === "string" ? body["tool"].trim() : "";
     if (agentId === "" || tool === "") return bad(reply, "agentId and tool are required");
+    if (agentId.length > 128 || tool.length > 128 || /[\u0000-\u001f\u007f]/.test(agentId + tool)) {
+      return bad(reply, "agentId and tool must each be at most 128 characters on one line");
+    }
 
     const id = repository.createPolicy(tenantId, {
       name: `deny ${tool}`,
