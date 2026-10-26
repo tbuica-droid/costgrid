@@ -231,7 +231,9 @@ export function registerConnect(app: FastifyInstance, deps: ConnectDeps): void {
 
   // --------------------------------------------------------- usage file
 
-  app.post("/console/:tenantId/connect/:provider/usage-file", async (request: ConsoleRequest, reply) => {
+  // The one console route allowed a large body: the file, as JSON text, where
+  // escaping can double it. Every other console route keeps the 1 MiB default.
+  app.post("/console/:tenantId/connect/:provider/usage-file", { bodyLimit: 2 * MAX_FILE_CHARS }, async (request: ConsoleRequest, reply) => {
     const params = request.params as { tenantId: string; provider: string };
     const actor = requireRole(request, reply, params.tenantId, "owner");
     if (!actor) return;

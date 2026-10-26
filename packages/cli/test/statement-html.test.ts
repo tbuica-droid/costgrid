@@ -134,6 +134,29 @@ describe("the statement as a document", () => {
     expect(html).toContain("match your invoice");
   });
 
+  it("escapes every value it prints, including a rate's source and a budget's window", () => {
+    const html = render({
+      rates: [{ provider: "anthropic", discountPercent: 18, source: "<img src=x onerror=alert(1)>" }],
+      byAgent: [{ key: "<script>alert('a')</script>", cost: usd("1.00"), calls: 1, share: 1, previousCost: 0n, change: undefined }],
+      budgets: [
+        {
+          policyId: "p1",
+          policyName: "cap",
+          scope: "everything",
+          window: "<b>month</b>" as "month",
+          action: "block",
+          limit: usd("10.00"),
+          actual: usd("1.00"),
+        } as Statement["budgets"][number],
+      ],
+    });
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<b>month</b>");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(html).toContain("&lt;script&gt;alert(&#39;a&#39;)&lt;/script&gt;");
+  });
+
   it("keeps imported provider totals apart from metered ones", () => {
     const html = render({
       imported: { catalogCost: usd("100.00"), reportedCost: usd("90.00"), requests: 500 },

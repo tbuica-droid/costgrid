@@ -88,20 +88,27 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
     const { tenantId } = request.params as { tenantId: string };
     if (!requireRole(request, reply, tenantId, "owner")) return;
 
-    const query = request.query as Record<string, string | undefined>;
-    const number = (value: string | undefined): number | undefined => {
+    const query = request.query as Record<string, unknown>;
+    // Refused rather than ignored: a filter that silently fell away would hand
+    // back the whole log as if it were the answer to the question asked.
+    const number = (value: unknown): number | undefined | null => {
       if (value === undefined) return undefined;
       const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : undefined;
+      return typeof value === "string" && value !== "" && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
     };
+    const from = number(query["from"]);
+    const to = number(query["to"]);
+    const limit = number(query["limit"]);
+    if (from === null || to === null || limit === null) {
+      return reply.code(400).send({ error: "from, to and limit must be whole numbers" });
+    }
+    const action = query["action"];
+    if (action !== undefined && (typeof action !== "string" || !/^[a-z0-9.-]{1,64}$/.test(action))) {
+      return reply.code(400).send({ error: "action must be an audit action, like policy.created" });
+    }
 
     return {
-      entries: audit.list(tenantId, {
-        from: number(query["from"]),
-        to: number(query["to"]),
-        action: query["action"],
-        limit: number(query["limit"]),
-      }),
+      entries: audit.list(tenantId, { from, to, action, limit }),
       head: audit.head(tenantId),
     };
   });

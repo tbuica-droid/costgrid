@@ -40,7 +40,10 @@ function money(n: Nanodollars, dp = 2): string {
 }
 
 function esc(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 
 /** A signed change, coloured by what it means rather than by its sign. */
@@ -187,7 +190,7 @@ export function renderStatementHtml(s: Statement, options: StatementHtmlOptions)
           ${s.budgets
             .map(
               (b) => `<tr>
-            <td>${esc(b.policyName)} <span class="muted">${esc(b.scope)}, per ${b.window}</span></td>
+            <td>${esc(b.policyName)} <span class="muted">${esc(b.scope)}, per ${esc(b.window)}</span></td>
             <td class="num">${money(b.limit)}</td>
             <td class="num">${b.used === undefined ? "&mdash;" : `${(b.used * 100).toFixed(0)}%`}</td>
             <td class="num">${b.used !== undefined && b.used > 1 ? '<span class="over">over</span>' : '<span class="saved">within</span>'}${b.fallbackModel ? `<span class="muted">, falls back to ${esc(b.fallbackModel)}</span>` : ""}</td>
@@ -306,7 +309,7 @@ ${
     ? `<section>
   <h2>What these figures rest on</h2>
   <ul class="note" style="list-style:disc;padding-left:32px;border-left:0">
-    ${caveats.map((c) => `<li style="margin-bottom:6px">${c}</li>`).join("")}
+    ${caveats.map((c) => `<li style="margin-bottom:6px">${esc(c)}</li>`).join("")}
   </ul>
 </section>`
     : ""

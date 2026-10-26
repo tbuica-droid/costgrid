@@ -32,6 +32,25 @@ import { ADAPTERS } from "./providers/index.js";
 
 const SESSION_COOKIE = "costgrid_session";
 
+/** The longest each typed field may be. A password hash or a stored name has no use for more. */
+const MAX_CHARS = {
+  email: 254,
+  name: 80,
+  organisation: 80,
+  password: 1024,
+  apiKey: 512,
+  baseUrl: 512,
+} as const;
+
+/** Which field is over its length, as a message; undefined when none is. Never echoes a value. */
+function tooLongField(fields: Partial<Record<keyof typeof MAX_CHARS, string>>): string | undefined {
+  for (const [field, value] of Object.entries(fields)) {
+    const max = MAX_CHARS[field as keyof typeof MAX_CHARS];
+    if (value !== undefined && value.length > max) return `${field} must be at most ${max} characters`;
+  }
+  return undefined;
+}
+
 export interface ConsoleDeps {
   readonly config: GatewayConfig;
   readonly accounts: AccountsRepository;
@@ -154,6 +173,8 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
         .code(400)
         .send({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     }
+    const tooLong = tooLongField({ email, name, password, organisation });
+    if (tooLong !== undefined) return reply.code(400).send({ error: tooLong });
 
     let created: { user: User; tenantId: string };
     try {
@@ -184,6 +205,10 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     const body = request.body as Record<string, unknown> | undefined;
     const email = typeof body?.["email"] === "string" ? body["email"] : "";
     const password = typeof body?.["password"] === "string" ? body["password"] : "";
+    // The same message as a wrong password: a length check must not say which part was wrong.
+    if (tooLongField({ email, password }) !== undefined) {
+      return reply.code(401).send({ error: "email or password is incorrect" });
+    }
 
     // An organisation that has turned on single sign-on has decided passwords
     // are not an acceptable way in, and leaving this path open would make that
@@ -288,6 +313,8 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     const baseUrl = typeof body?.["baseUrl"] === "string" ? body["baseUrl"].trim() : undefined;
 
     if (apiKey === "") return reply.code(400).send({ error: "apiKey is required" });
+    const tooLong = tooLongField({ apiKey, ...(baseUrl !== undefined ? { baseUrl } : {}) });
+    if (tooLong !== undefined) return reply.code(400).send({ error: tooLong });
     if (baseUrl !== undefined && baseUrl !== "") {
       try {
         const parsed = new URL(baseUrl);
@@ -350,6 +377,8 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
     const body = request.body as Record<string, unknown> | undefined;
     const name = typeof body?.["name"] === "string" ? body["name"].trim() : "";
     if (name === "") return reply.code(400).send({ error: "name is required" });
+    const tooLong = tooLongField({ name });
+    if (tooLong !== undefined) return reply.code(400).send({ error: tooLong });
 
     const created = repository.createApiKey(tenantId, name);
     audit.record(tenantId, {
@@ -422,7 +451,7 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
 
     const body = request.body as Record<string, unknown> | undefined;
     const plan = typeof body?.["plan"] === "string" ? body["plan"] : "";
-    if (!isPlanId(plan)) return reply.code(400).send({ error: `unknown plan: ${plan}` });
+    if (!isPlanId(plan)) return reply.code(400).send({ error: "unknown plan" });
 
     // No payment processor is wired up: this records the intent, and an
     // operator collects. Charging a card is a real-world action that belongs

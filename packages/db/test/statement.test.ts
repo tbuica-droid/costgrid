@@ -285,6 +285,23 @@ describe("monthly statement", () => {
       expect(csv).toContain('department,"Sales, ""EMEA""",1,30.000000');
     });
 
+    it("writes a name that looks like a formula as text, and leaves negative numbers alone", () => {
+      // An agent or team name is whoever-configured-it's text; a spreadsheet
+      // must show it, not run it.
+      record(SEPT, { department: '=HYPERLINK("https://evil.test","x")' });
+      record(SEPT, { department: "@SUM(A1)", agent: "+cmd" });
+      record(SEPT, { department: "-2+3" });
+
+      const csv = statementToCsv(statement());
+      expect(csv).toContain(`department,"'=HYPERLINK(""https://evil.test"",""x"")",1,`);
+      expect(csv).toContain("department,'@SUM(A1),1,");
+      expect(csv).toContain("department,'-2+3,1,");
+      expect(csv).toContain("agent,'+cmd,1,");
+      expect(csv).not.toMatch(/(^|,)[=+@]/m);
+      // A change that went down is still a number a spreadsheet can sum.
+      expect(statementToCsv({ ...statement(), change: -0.25 })).toContain(",-25.0\n");
+    });
+
     it("keeps sub-cent lines visible", () => {
       // Six decimals, because rounding a $0.004 agent to 0.00 would make the
       // rows stop adding up to the total.

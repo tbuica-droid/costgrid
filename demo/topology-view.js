@@ -218,7 +218,7 @@ export function drawTopology(mount, panel, topo, helpers) {
       ids.length === 0 ? '<span style="color:var(--muted)">none</span>' : ids.map(escapeHtml).join(", ");
 
     let html = `<div style="font-size:16px;font-weight:700">${escapeHtml(n.id)}</div>
-      <div class="rail" style="margin:4px 0 14px">${n.kind}${
+      <div class="rail" style="margin:4px 0 14px">${escapeHtml(n.kind)}${
         n.department ? ` · ${escapeHtml(n.department)}` : ""
       }</div>`;
     if (n.kind !== "tool") {
