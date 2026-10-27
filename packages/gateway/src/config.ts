@@ -103,6 +103,12 @@ export interface GatewayConfig {
    */
   readonly maxConcurrentPerTenant: number;
   /**
+   * Run the console's slowest reports on a worker thread with a read-only
+   * connection, so they never pause forwarding calls. On by default for a
+   * server; off for the desktop app, where one person is the only reader.
+   */
+  readonly readWorker?: boolean | undefined;
+  /**
    * Bearer token for `/metrics`. Unset, the metrics are served only to this
    * machine and never in hosted mode.
    */
@@ -387,6 +393,7 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     backupDir: optional("COSTGRID_BACKUP_DIR") ?? join(dirname(databasePath), "backups"),
     backupKeep: integer("COSTGRID_BACKUP_KEEP", 7),
     maxConcurrentPerTenant: integer("COSTGRID_MAX_CONCURRENT_PER_TENANT", hosted ? 64 : 0),
+    readWorker: boolean("COSTGRID_READ_WORKER", !desktop),
     metricsToken: metricsToken(),
     providerKeys,
     providerBaseUrls,

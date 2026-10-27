@@ -38,6 +38,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alerts.js";
 import { registerApi } from "./api.js";
 import { Metrics, registerMetrics } from "./metrics.js";
+import { ReadPool } from "./read-pool.js";
 import { VERSION } from "./version.js";
 
 /**
@@ -457,7 +458,18 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   // The dashboard API and the proxy share a process so a self-hosted deploy is
   // one command. In a multi-tenant hosted setting these would be separate
   // services — reporting load must never contend with the metering path.
+  // The console's slow reports run on their own thread with a read-only
+  // connection, so they never hold up forwarding a call (read-tasks.ts).
+  // Some tests build a server around repositories alone, with no database
+  // handle; their reports run in-process as before.
+  const reads =
+    deps.db === undefined ? undefined : new ReadPool(deps.db, config.readWorker === true ? config.databasePath : undefined);
+  app.addHook("onClose", async () => {
+    await reads?.close();
+  });
+
   registerApi(app, {
+    reads,
     repository,
     analytics,
     imports,
@@ -487,6 +499,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerKeySafety(app, { db: deps.db, accounts: accounts! });
     registerAgents(app, { accounts: accounts!, agents: new AgentsRepository(deps.db) });
     registerOutcomes(app, {
+      reads,
       db: deps.db,
       accounts: accounts!,
       settings: outcomeSettings,

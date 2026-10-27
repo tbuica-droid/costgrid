@@ -20,6 +20,7 @@ import {
   Retention,
   RunOutcomes,
 } from "@costgrid/db";
+import type { ReadPool } from "./read-pool.js";
 import type { FastifyInstance } from "fastify";
 import { type ConsoleRequest, createGuards } from "./console.js";
 import { bodyOf, by } from "./console-fields.js";
@@ -38,6 +39,8 @@ export interface OutcomeDeps {
   readonly settings: OutcomeSettingsRepository;
   /** Whether this install has a key to make one-way codes with. */
   readonly fingerprintAvailable: boolean;
+  /** Runs the outcomes report off the proxy's thread; in-process without one. */
+  readonly reads?: ReadPool | undefined;
 }
 
 const DAY_MS = 86_400_000;
@@ -146,7 +149,9 @@ export function registerOutcomes(app: FastifyInstance, deps: OutcomeDeps): void 
     }
 
     const now = Date.now();
-    const report = outcomes.forTenant(tenantId, { from: now - days * DAY_MS, to: now + 1 }, now);
+    const range = { from: now - days * DAY_MS, to: now + 1 };
+    const report =
+      deps.reads === undefined ? outcomes.forTenant(tenantId, range, now) : await deps.reads.run("outcomes", tenantId, range, now);
     const callDays = retention.settingsOf(tenantId).callDays;
     return {
       range: { from: new Date(now - days * DAY_MS).toISOString().slice(0, 10), to: new Date(now).toISOString().slice(0, 10) },

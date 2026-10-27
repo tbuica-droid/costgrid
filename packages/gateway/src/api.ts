@@ -29,6 +29,7 @@ import {
   jobsView,
   type RunOutcomes,
 } from "@costgrid/db";
+import type { ReadPool } from "./read-pool.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 /**
@@ -51,6 +52,8 @@ export interface ApiDeps {
   readonly runOutcomes: RunOutcomes;
   /** Resolves the caller's tenant, or undefined when unauthenticated. */
   readonly tenantOf: (request: FastifyRequest) => string | undefined;
+  /** Runs the slowest reads off the proxy's thread; in-process without one. */
+  readonly reads?: ReadPool | undefined;
 }
 
 function money(value: Nanodollars): string {
@@ -327,7 +330,8 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
    */
   app.get("/api/topology", async (request) => {
     const range = rangeFor(parseDays(request));
-    const topo = analytics.topology(tenant(request), range);
+    const topo =
+      deps.reads === undefined ? analytics.topology(tenant(request), range) : await deps.reads.run("topology", tenant(request), range);
     return {
       nodes: topo.nodes.map((n) => ({
         id: n.id,
@@ -375,7 +379,9 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
   });
 
   app.get("/api/agents", async (request) => {
-    const rows = analytics.agentDetail(tenant(request), rangeFor(parseDays(request)));
+    const range = rangeFor(parseDays(request));
+    const rows =
+      deps.reads === undefined ? analytics.agentDetail(tenant(request), range) : await deps.reads.run("agentDetail", tenant(request), range);
     return rows.map((r) => ({
       agentId: r.agentId,
       department: r.department,
