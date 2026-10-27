@@ -1,0 +1,98 @@
+name: CI
+
+# Every push and pull request is built, tested and packaged the way it ships,
+# so a change that breaks the build, a test, the design tokens or the server
+# image is caught before it reaches main.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The desktop app's Electron binary is only needed to run the app, not to
+  # build or test it.
+  ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # tsc --build is incremental; the cache saves recompiling what didn't change.
+      - uses: actions/cache@v4
+        with:
+          path: packages/*/tsconfig.tsbuildinfo
+          key: tsbuild-${{ runner.os }}-${{ github.sha }}
+          restore-keys: tsbuild-${{ runner.os }}-
+      - name: Build
+        run: npm run build
+      - name: Unit and integration tests
+        run: npm test
+      - name: End-to-end smoke test
+        run: node scripts/e2e-smoke.mjs
+
+  design-tokens:
+    name: Design tokens in sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: design-system/package-lock.json
+      - name: Build the design system
+        working-directory: design-system
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Check the console and demo use the current tokens
+        run: npm run check-design-tokens
+
+  image:
+    name: Server image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: costgrid:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start it and check it answers
+        run: |
+          docker run -d --name cg -p 8787:8787 \
+            -e ANTHROPIC_API_KEY=sk-ant-ci-not-a-real-key \
+            -e COSTGRID_ALLOW_ANONYMOUS=true costgrid:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/ready; then exit 0; fi
+            sleep 1
+          done
+          docker logs cg
+          exit 1

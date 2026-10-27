@@ -4,7 +4,7 @@
 # no source — a smaller surface for something that holds customers' provider
 # credentials.
 
-FROM node:20-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 # better-sqlite3 compiles a native addon; these are build-only.
@@ -17,13 +17,17 @@ COPY packages/core/package.json    packages/core/
 COPY packages/db/package.json      packages/db/
 COPY packages/gateway/package.json packages/gateway/
 COPY packages/cli/package.json     packages/cli/
-RUN npm ci
+COPY packages/desktop/package.json packages/desktop/
+# Only the server's workspaces: the desktop app's Electron is hundreds of
+# megabytes the image never runs.
+RUN npm ci --workspace packages/gateway --workspace packages/cli --include-workspace-root
 
 COPY packages ./packages
-RUN npm run build && npm prune --omit=dev
+RUN npx tsc --build packages/gateway packages/cli \
+ && npm prune --omit=dev --workspace packages/gateway --workspace packages/cli --include-workspace-root
 
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \

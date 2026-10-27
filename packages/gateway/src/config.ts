@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { Provider } from "@costgrid/core";
 import { validateWebhookUrl } from "@costgrid/db";
 import { readMasterKey } from "./keychain.js";
@@ -88,6 +88,19 @@ export interface GatewayConfig {
   readonly anchorKey: string | undefined;
   /** Minutes between anchors. A heartbeat, so silence is itself a signal. */
   readonly anchorIntervalMinutes: number;
+  /**
+   * Where the daily backup goes, and how many days of them to keep. Defaults
+   * to a `backups` folder beside the database, a week deep. A backup on the
+   * same disk survives a bad migration or a mistaken delete, not a dead disk:
+   * hosted deployments should also replicate off the machine (HOSTING.md).
+   */
+  readonly backupDir: string;
+  readonly backupKeep: number;
+  /**
+   * Bearer token for `/metrics`. Unset, the metrics are served only to this
+   * machine and never in hosted mode.
+   */
+  readonly metricsToken?: string | undefined;
   readonly logLevel: string;
   /**
    * Write the log to a file instead of standard output.
@@ -135,6 +148,14 @@ function providerBaseUrl(name: string): string | undefined {
     throw new Error(`${name} must be https (http is allowed only for localhost), got ${JSON.stringify(raw)}`);
   }
   return raw;
+}
+
+function metricsToken(): string | undefined {
+  const token = optional("COSTGRID_METRICS_TOKEN");
+  if (token !== undefined && token.length < 24) {
+    throw new Error("COSTGRID_METRICS_TOKEN must be at least 24 characters; generate one with: openssl rand -hex 24");
+  }
+  return token;
 }
 
 function trustProxy(): boolean | string | undefined {
@@ -336,6 +357,10 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     );
   }
 
+  const databasePath =
+    process.env["COSTGRID_DB"]?.trim() ||
+    (desktop ? join(appDataDir(), "CostGrid", "costgrid.db") : "./costgrid.db");
+
   return {
     hosted,
     desktop,
@@ -352,9 +377,10 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     host,
     // The desktop database lives with the app's other data, not in whatever
     // folder the gateway happened to be started from.
-    databasePath:
-      process.env["COSTGRID_DB"]?.trim() ||
-      (desktop ? join(appDataDir(), "CostGrid", "costgrid.db") : "./costgrid.db"),
+    databasePath,
+    backupDir: optional("COSTGRID_BACKUP_DIR") ?? join(dirname(databasePath), "backups"),
+    backupKeep: integer("COSTGRID_BACKUP_KEEP", 7),
+    metricsToken: metricsToken(),
     providerKeys,
     providerBaseUrls,
     upstreamTimeoutMs: integer("COSTGRID_UPSTREAM_TIMEOUT_MS", 15 * 60 * 1000),

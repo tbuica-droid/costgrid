@@ -28,6 +28,7 @@ import {
   AgentsRepository,
   type ImportsRepository,
   KeyFactsRepository,
+  notReadyReason,
   OutcomeSettingsRepository,
   RunOutcomes,
   SourcesRepository,
@@ -36,6 +37,14 @@ import {
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { type AlertNotice, Alerter, decisionAlerts, RunawayWatch } from "./alerts.js";
 import { registerApi } from "./api.js";
+import { Metrics, registerMetrics } from "./metrics.js";
+import { VERSION } from "./version.js";
+
+/**
+ * Ours, not `x-request-id`: providers send their own `x-request-id`, which the
+ * proxy passes through because their support desk asks for it.
+ */
+export const REQUEST_ID_HEADER = "x-costgrid-request-id";
 import { readCookie, registerConsole, sameOrigin, SESSION_COOKIE } from "./console.js";
 import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
@@ -110,6 +119,13 @@ const ALERTERS = new WeakMap<FastifyInstance, Alerter>();
 /** The alerter a server raises alerts through; undefined when it was built without an alert store. */
 export function alerterOf(app: FastifyInstance): Alerter | undefined {
   return ALERTERS.get(app);
+}
+
+const METRICS = new WeakMap<FastifyInstance, Metrics>();
+
+/** Each server's metrics, so the jobs in `start.ts` can count their failures. */
+export function metricsOf(app: FastifyInstance): Metrics | undefined {
+  return METRICS.get(app);
 }
 
 interface Caller {
@@ -319,8 +335,28 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     bodyLimit: 64 * 1024 * 1024,
     // Off unless configured: see GatewayConfig.trustProxy.
     trustProxy: config.trustProxy ?? false,
+    // Fastify turns Node's slow-client guard off; this puts it back. A client
+    // gets five minutes to finish *sending* its request (a 64MB body on a
+    // slow link included). How long the answer takes is not limited here:
+    // that is upstreamTimeoutMs, and a long stream is legitimate.
+    requestTimeout: 5 * 60 * 1000,
+    // Our own id for each request, echoed as x-costgrid-request-id and on
+    // every log line, so a customer's report can be found in the log. A
+    // caller's own id is kept when it is a sane token; anything else is
+    // replaced rather than written into the log.
+    requestIdHeader: false,
+    genReqId: (request) => {
+      const theirs = request.headers["x-costgrid-request-id"];
+      return typeof theirs === "string" && /^[A-Za-z0-9._:-]{8,128}$/.test(theirs) ? theirs : randomUUID();
+    },
   });
   registerSecurityHeaders(app, config);
+  const metrics = new Metrics();
+  METRICS.set(app, metrics);
+  registerMetrics(app, metrics, { token: config.metricsToken, hosted: config.hosted });
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header(REQUEST_ID_HEADER, request.id);
+  });
 
   const alerter =
     deps.alerts === undefined
@@ -374,6 +410,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       write();
     } catch (error) {
       meteringFailures++;
+      metrics.meteringFailures.inc();
       const reason = error instanceof Error ? error.message : String(error);
       lastMeteringFailure = { at: Date.now(), reason };
       app.log.error(
@@ -390,7 +427,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     // refusing every call, which is the trade this whole guard exists to
     // avoid. Monitoring should alarm on meteringFailures, not on status.
     status: "ok",
-    version: "0.1.0",
+    version: VERSION,
     hosted: config.hosted,
     /** Rows that could not be written. Non-zero means figures are understated. */
     meteringFailures,
@@ -403,6 +440,16 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       (a) => ({ id: a.id, path: a.path }),
     ),
   }));
+
+  // Separate from /health on purpose: /health says the process is alive (a
+  // restart won't help if it isn't), /ready says it can take traffic now (a
+  // load balancer should wait). A schema behind this build is "not ready",
+  // never "dead".
+  app.get("/ready", async (_request, reply) => {
+    const reason = notReadyReason(deps.db);
+    if (reason !== undefined) return reply.code(503).send({ ready: false, reason });
+    return { ready: true, version: VERSION };
+  });
 
   // The dashboard API and the proxy share a process so a self-hosted deploy is
   // one command. In a multi-tenant hosted setting these would be separate
@@ -762,6 +809,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       let upstream: Response;
+      metrics.forwarded(adapter.id, reply.elapsedTime / 1000);
       try {
         upstream = await doFetch(upstreamUrl, {
           method: "POST",
@@ -771,6 +819,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        metrics.upstreamError(adapter.id, error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network");
         meter("upstream-error", () =>
           repository.recordCall({
             ...baseRecord,
@@ -790,6 +839,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       }
 
+      if (upstream.status >= 500) metrics.upstreamError(adapter.id, "5xx");
       for (const name of adapter.forwardedResponseHeaders) {
         const value = upstream.headers.get(name);
         if (value !== null) reply.header(name, value);
@@ -1129,6 +1179,7 @@ async function streamThrough(
   const decoder = new TextDecoder();
 
   reply.raw.writeHead(upstream.status, {
+    [REQUEST_ID_HEADER]: reply.request.id,
     "content-type": upstream.headers.get("content-type") ?? "text/event-stream",
     "cache-control": "no-cache",
     connection: "keep-alive",

@@ -258,7 +258,11 @@ describe("Postgres", () => {
       //                 foreign_keys. Not queries and not a translation
       //                 problem. WAL and synchronous are SQLite storage
       //                 concerns with no counterpart, and Postgres enforces
-      //                 foreign keys unconditionally.
+      //                 foreign keys unconditionally. Also sqlite_master,
+      //                 to tell a brand-new database from one with data to
+      //                 back up before migrating, and VACUUM INTO for the
+      //                 backup itself: on Postgres both belong to pg_dump and
+      //                 the platform's snapshots, not to this file.
       //   retention.ts  Schema introspection, so erasure can prove it covers
       //                 every table carrying a tenant id. Needs an
       //                 information_schema equivalent.
@@ -268,6 +272,7 @@ describe("Postgres", () => {
       expect(described).toEqual([
         "analytics.ts: SQLite date function",
         "database.ts: PRAGMA",
+        "database.ts: sqlite_master",
         "retention.ts: PRAGMA",
         "retention.ts: sqlite_master",
       ]);

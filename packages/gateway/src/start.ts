@@ -16,6 +16,7 @@ import {
   ControlRepository,
   openDatabase,
   Retention,
+  rotateBackup,
   SourcesRepository,
 } from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
@@ -28,7 +29,7 @@ import { AdminKeySync } from "./connect-sync.js";
 import { KeyControl } from "./key-control.js";
 import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
-import { alerterOf, assertToolPoliciesEnforceable, createServer } from "./server.js";
+import { alerterOf, assertToolPoliciesEnforceable, createServer, metricsOf } from "./server.js";
 
 /** How often stored admin keys are used to bring imported usage up to date. */
 const ADMIN_KEY_SYNC_MS = 6 * 60 * 60 * 1000;
@@ -131,11 +132,35 @@ export async function startGateway(
       // Never take the gateway down over housekeeping. A failed purge means
       // data is kept longer than asked, which is the safe direction to fail in.
       app.log.error({ err: error }, "retention policy could not be applied");
+      metricsOf(app)?.jobFailed("retention");
     }
   };
   const purge = setInterval(applyRetention, 24 * 60 * 60 * 1000);
   purge.unref();
   timers.push(purge);
+
+  // A daily copy beside the database, a week deep by default. Synchronous
+  // (VACUUM INTO), so two runs can never overlap; a failure is logged and the
+  // gateway carries on, since losing a backup must not stop the metering.
+  if (config.databasePath !== ":memory:") {
+    const backup = (): void => {
+      try {
+        const written = rotateBackup(db, config.backupDir, config.backupKeep);
+        app.log.info({ backup: written, keep: config.backupKeep }, "database backed up");
+      } catch (error) {
+        app.log.error({ err: error, dir: config.backupDir }, "the daily database backup failed");
+        metricsOf(app)?.jobFailed("backup");
+      }
+    };
+    // A minute after start, not during it: copying a large database would
+    // delay the gateway answering its first calls.
+    const first = setTimeout(backup, 60_000);
+    first.unref();
+    timers.push(first);
+    const backingUp = setInterval(backup, 24 * 60 * 60 * 1000);
+    backingUp.unref();
+    timers.push(backingUp);
+  }
 
   // Stored admin keys exist only where there is a keychain to keep them in.
   // Each run reminds owners of keys about to expire, then syncs the rest. A
@@ -167,6 +192,7 @@ export async function startGateway(
           keySync.remindExpiring();
         } catch (error) {
           app.log.error({ err: error }, "admin key expiry reminders could not be checked");
+          metricsOf(app)?.jobFailed("expiry-reminders");
         }
       }
       const capped = new Set(control.tenantsWithCaps());
@@ -176,6 +202,7 @@ export async function startGateway(
         .then(() => keyControl.checkCaps())
         .catch((error: unknown) => {
           app.log.error({ err: error }, "the admin key sync or cap check failed");
+          metricsOf(app)?.jobFailed("key-sync");
         });
     };
     syncKeys();
@@ -200,6 +227,7 @@ export async function startGateway(
     const anchor = (): void => {
       void sender.run().catch((error: unknown) => {
         app.log.error({ err: error }, "the audit anchor run failed");
+        metricsOf(app)?.jobFailed("anchor");
       });
     };
     anchor();

@@ -1,3 +1,5 @@
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import Database from "better-sqlite3";
 import { MIGRATIONS } from "./schema.js";
 
@@ -26,7 +28,17 @@ export function openDatabase({ path, readonly = false }: OpenOptions): Db {
   }
   db.pragma("foreign_keys = ON");
 
-  if (!readonly) migrate(db);
+  if (!readonly) {
+    // Migrations only go forward, so the way back from a bad one is the copy
+    // taken just before it. Only an existing database with something to lose
+    // gets one; a brand-new or in-memory database does not.
+    const pending = pendingMigrations(db);
+    if (pending.length > 0 && path !== ":memory:" && appliedMigrations(db).size > 0) {
+      const latest = pending[pending.length - 1]!;
+      snapshotDatabase(db, `${path}.before-migration-${latest}.bak`);
+    }
+    migrate(db);
+  }
   return db;
 }
 
@@ -41,6 +53,71 @@ export function openDatabase({ path, readonly = false }: OpenOptions): Db {
  */
 export async function backupDatabase(db: Db, destination: string): Promise<void> {
   await db.backup(destination);
+}
+
+/**
+ * The same consistent copy, synchronously, for the places that cannot wait:
+ * just before a migration, and from a timer that must not overlap itself.
+ * Overwrites `destination`.
+ */
+export function snapshotDatabase(db: Db, destination: string): void {
+  rmSync(destination, { force: true });
+  db.prepare("VACUUM INTO ?").run(destination);
+}
+
+const BACKUP_PREFIX = "costgrid-";
+const BACKUP_SUFFIX = ".db";
+
+/**
+ * Today's backup into `dir`, keeping the newest `keep` and deleting older
+ * ones. One file per UTC day, so running it twice a day replaces rather
+ * than piles up. Returns the path written.
+ */
+export function rotateBackup(db: Db, dir: string, keep: number, at = new Date()): string {
+  if (!Number.isInteger(keep) || keep < 1) throw new RangeError(`keep must be at least 1, got ${keep}`);
+  mkdirSync(dir, { recursive: true });
+  const day = at.toISOString().slice(0, 10);
+  const destination = join(dir, `${BACKUP_PREFIX}${day}${BACKUP_SUFFIX}`);
+  snapshotDatabase(db, destination);
+  const backups = readdirSync(dir)
+    .filter((f) => f.startsWith(BACKUP_PREFIX) && f.endsWith(BACKUP_SUFFIX))
+    .sort();
+  for (const old of backups.slice(0, Math.max(0, backups.length - keep))) rmSync(join(dir, old), { force: true });
+  return destination;
+}
+
+function appliedMigrations(db: Db): Set<number> {
+  const table = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();
+  if (table === undefined) return new Set();
+  return new Set(
+    db
+      .prepare("SELECT version FROM schema_migrations")
+      .all()
+      .map((row) => (row as { version: number }).version),
+  );
+}
+
+/** Migration versions this build knows that the database has not had yet, in order. */
+export function pendingMigrations(db: Db): number[] {
+  const applied = appliedMigrations(db);
+  return MIGRATIONS.filter((m) => !applied.has(m.version)).map((m) => m.version);
+}
+
+/**
+ * Whether this database can take traffic: open for writing, schema current.
+ * `undefined` when it can, otherwise the reason in a sentence.
+ */
+export function notReadyReason(db: Db): string | undefined {
+  if (!db.open) return "the database is closed";
+  if (db.readonly) return "the database is open read-only";
+  try {
+    db.prepare("SELECT 1").get();
+  } catch {
+    return "the database does not answer";
+  }
+  const pending = pendingMigrations(db);
+  if (pending.length > 0) return `${pending.length} database migration(s) not applied`;
+  return undefined;
 }
 
 export function migrate(db: Db): void {
