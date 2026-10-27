@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import type Database from "better-sqlite3";
 import type {
   EnforcementAction,
   Nanodollars,
@@ -136,21 +137,36 @@ export function windowBounds(at: number): { dayStart: number; monthStart: number
 export class CostGridRepository {
   readonly #db: Db;
 
+  /**
+   * Statements compiled once and reused. Several of these run on every
+   * proxied call (recording it, checking budgets), and compiling the SQL each
+   * time was most of what recording a call cost.
+   */
+  readonly #statements = new Map<string, Database.Statement>();
+
   constructor(db: Db) {
     this.#db = db;
+  }
+
+  #prepare(sql: string): Database.Statement {
+    let statement = this.#statements.get(sql);
+    if (statement === undefined) {
+      statement = this.#db.prepare(sql);
+      this.#statements.set(sql, statement);
+    }
+    return statement;
   }
 
   // ---------------------------------------------------------------- tenants
 
   createTenant(name: string, id: string = randomUUID()): string {
-    this.#db
-      .prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
+    this.#prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
       .run(id, name, Date.now());
     return id;
   }
 
   getTenant(id: string): { id: string; name: string } | undefined {
-    return this.#db.prepare("SELECT id, name FROM tenants WHERE id = ?").get(id) as
+    return this.#prepare("SELECT id, name FROM tenants WHERE id = ?").get(id) as
       | { id: string; name: string }
       | undefined;
   }
@@ -167,8 +183,7 @@ export class CostGridRepository {
     const id = randomUUID();
     const prefix = plaintext.slice(0, API_KEY_PREFIX.length + 6);
 
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO api_keys (id, tenant_id, name, key_hash, key_prefix, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
@@ -189,8 +204,7 @@ export class CostGridRepository {
     if (!plaintext.startsWith(API_KEY_PREFIX)) return undefined;
 
     const digest = hashKey(plaintext);
-    const row = this.#db
-      .prepare(
+    const row = this.#prepare(
         `SELECT id, tenant_id AS tenantId, name, key_hash AS keyHash
          FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL`,
       )
@@ -213,8 +227,7 @@ export class CostGridRepository {
     createdAt: number;
     revokedAt: number | null;
   }[] {
-    return this.#db
-      .prepare(
+    return this.#prepare(
         `SELECT id, name, key_prefix AS prefix, created_at AS createdAt, revoked_at AS revokedAt
          FROM api_keys WHERE tenant_id = ? ORDER BY created_at DESC`,
       )
@@ -228,7 +241,7 @@ export class CostGridRepository {
   }
 
   revokeApiKey(id: string): void {
-    this.#db.prepare("UPDATE api_keys SET revoked_at = ? WHERE id = ?").run(Date.now(), id);
+    this.#prepare("UPDATE api_keys SET revoked_at = ? WHERE id = ?").run(Date.now(), id);
   }
 
   // ----------------------------------------------------------------- agents
@@ -236,8 +249,7 @@ export class CostGridRepository {
   /** Register an agent on first sight, so metering never drops an unknown caller. */
   touchAgent(tenantId: string, agentId: string, department: string): void {
     const now = Date.now();
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO agents (id, tenant_id, department, created_at, first_seen_at, last_seen_at)
          VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT (tenant_id, id) DO UPDATE SET
@@ -258,8 +270,7 @@ export class CostGridRepository {
     this.#db.transaction(() => {
       this.#insertCall(call);
       if (call.outcome !== "ok") return;
-      this.#db
-        .prepare(
+      this.#prepare(
           `INSERT INTO spend_daily (tenant_id, day_start, agent_id, department, cost_total)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT (tenant_id, day_start, agent_id, department)
@@ -270,8 +281,7 @@ export class CostGridRepository {
   }
 
   #insertCall(call: CallRecord): void {
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO calls (
            id, tenant_id, agent_id, department, provider, model,
            started_at, duration_ms, streamed,
@@ -365,8 +375,7 @@ export class CostGridRepository {
     // runs before each proxied call, and its cost must not grow with traffic.
     // Calls are bucketed by UTC day and both windows start at midnight UTC,
     // so the figure is the same one the old sum over `calls` gave.
-    const query = this.#db
-      .prepare(
+    const query = this.#prepare(
         `SELECT COALESCE(SUM(cost_total), 0) AS total
          FROM spend_daily
          WHERE tenant_id = ? AND day_start >= ?${filter}`,
@@ -393,8 +402,7 @@ export class CostGridRepository {
    * — which is most agent loops — are exact.
    */
   runStats(tenantId: string, runId: string, parentRunId?: string): RunStats {
-    const row = this.#db
-      .prepare(
+    const row = this.#prepare(
         `SELECT COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS spend,
                 COALESCE(SUM(CASE WHEN outcome != 'blocked' THEN 1 ELSE 0 END), 0)    AS steps
          FROM calls
@@ -405,8 +413,7 @@ export class CostGridRepository {
 
     let depth = 0;
     if (parentRunId !== undefined) {
-      const parent = this.#db
-        .prepare(
+      const parent = this.#prepare(
           `SELECT run_depth AS depth FROM calls
            WHERE tenant_id = ? AND run_id = ?
            ORDER BY started_at LIMIT 1`,
@@ -434,7 +441,7 @@ export class CostGridRepository {
    * `policy list` reports run coverage so the gap is visible.
    */
   delegationChain(tenantId: string, parentRunId: string, maxHops = 32): string[] {
-    const lookup = this.#db.prepare(
+    const lookup = this.#prepare(
       `SELECT agent_id AS agentId, parent_run_id AS parentRunId
        FROM calls
        WHERE tenant_id = ? AND run_id = ?
@@ -483,11 +490,11 @@ export class CostGridRepository {
   }): void {
     if (input.invoked.length === 0 && input.granted.length === 0) return;
 
-    const insertInvocation = this.#db.prepare(
+    const insertInvocation = this.#prepare(
       `INSERT INTO tool_invocations (id, tenant_id, call_id, run_id, agent_id, tool_name, occurred_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     );
-    const upsertGrant = this.#db.prepare(
+    const upsertGrant = this.#prepare(
       `INSERT INTO tool_grants (tenant_id, agent_id, tool_name, first_seen, last_seen)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT (tenant_id, agent_id, tool_name)
@@ -514,8 +521,7 @@ export class CostGridRepository {
 
   /** The negotiated rate in force for a provider, if any. */
   rateOverride(tenantId: string, provider: string): StoredRateOverride | undefined {
-    const row = this.#db
-      .prepare(
+    const row = this.#prepare(
         `SELECT provider, numerator, denominator, source,
                 evidence_from AS evidenceFrom, evidence_to AS evidenceTo,
                 evidence_reported AS evidenceReported, evidence_catalog AS evidenceCatalog,
@@ -529,8 +535,7 @@ export class CostGridRepository {
   }
 
   listRateOverrides(tenantId: string): StoredRateOverride[] {
-    const rows = this.#db
-      .prepare(
+    const rows = this.#prepare(
         `SELECT provider, numerator, denominator, source,
                 evidence_from AS evidenceFrom, evidence_to AS evidenceTo,
                 evidence_reported AS evidenceReported, evidence_catalog AS evidenceCatalog,
@@ -543,8 +548,7 @@ export class CostGridRepository {
   }
 
   setRateOverride(tenantId: string, override: StoredRateOverride, at = Date.now()): void {
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO rate_overrides (
            tenant_id, provider, numerator, denominator, source,
            evidence_from, evidence_to, evidence_reported, evidence_catalog, updated_at
@@ -574,8 +578,7 @@ export class CostGridRepository {
   }
 
   clearRateOverride(tenantId: string, provider: string): boolean {
-    const result = this.#db
-      .prepare("DELETE FROM rate_overrides WHERE tenant_id = ? AND provider = ?")
+    const result = this.#prepare("DELETE FROM rate_overrides WHERE tenant_id = ? AND provider = ?")
       .run(tenantId, provider);
     return result.changes > 0;
   }
@@ -602,8 +605,7 @@ export class CostGridRepository {
           ? policy.scope.department
           : null;
 
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO policies (
            id, tenant_id, name, scope_kind, scope_value, rule_json, action, enabled, created_at,
            owner, reason, live_since
@@ -635,8 +637,7 @@ export class CostGridRepository {
    * at a moment when nothing is serving traffic yet.
    */
   toolPolicyNames(): string[] {
-    const rows = this.#db
-      .prepare(
+    const rows = this.#prepare(
         `SELECT name FROM policies
          WHERE enabled = 1
            AND (rule_json LIKE '%"tool-denylist"%' OR rule_json LIKE '%"tool-allowlist"%')
@@ -664,8 +665,7 @@ export class CostGridRepository {
     label?: string | undefined;
     at: number;
   }): void {
-    this.#db
-      .prepare(
+    this.#prepare(
         `INSERT INTO outcomes (tenant_id, run_id, succeeded, label, reported_at)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(tenant_id, run_id) DO UPDATE SET
@@ -683,8 +683,7 @@ export class CostGridRepository {
   }
 
   listPolicies(tenantId: string): Policy[] {
-    const rows = this.#db
-      .prepare(
+    const rows = this.#prepare(
         `SELECT id, name, scope_kind AS scopeKind, scope_value AS scopeValue,
                 rule_json AS ruleJson, action, enabled
          FROM policies WHERE tenant_id = ? ORDER BY created_at`,
@@ -718,8 +717,7 @@ export class CostGridRepository {
    */
   setPolicyEnabled(id: string, enabled: boolean, at = Date.now()): void {
     if (enabled) {
-      this.#db
-        .prepare(
+      this.#prepare(
           `UPDATE policies
            SET enabled = 1,
                live_since = CASE WHEN action != 'monitor' AND enabled = 0 THEN ? ELSE live_since END
@@ -728,7 +726,7 @@ export class CostGridRepository {
         .run(at, id);
       return;
     }
-    this.#db.prepare("UPDATE policies SET enabled = 0 WHERE id = ?").run(id);
+    this.#prepare("UPDATE policies SET enabled = 0 WHERE id = ?").run(id);
   }
 
   // ------------------------------------------------------------- violations
@@ -741,7 +739,7 @@ export class CostGridRepository {
   ): void {
     if (violations.length === 0) return;
 
-    const insert = this.#db.prepare(
+    const insert = this.#prepare(
       `INSERT INTO violations (id, tenant_id, call_id, policy_id, policy_name, action, reason, occurred_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );

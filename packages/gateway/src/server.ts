@@ -403,6 +403,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
    * fails is that the disk is full or read only, and a fallback that writes to
    * that same disk fails for the same reason while looking like a safety net.
    */
+  /** Proxied calls in progress, per tenant: see maxConcurrentPerTenant. */
+  const inFlight = new Map<string, number>();
   let meteringFailures = 0;
   let lastMeteringFailure: { at: number; reason: string } | undefined;
 
@@ -559,6 +561,31 @@ export function createServer(deps: ServerDeps): FastifyInstance {
               `Rate limit of ${limit.limit} requests/minute exceeded for the ` +
               `${plan.name} plan. Retry in ${limit.retryAfterSeconds}s.`,
           },
+        });
+      }
+
+      // --- Calls in flight at once, hosted only ----------------------------
+      // The per-minute limit counts arrivals; a long stream holds a socket and
+      // an upstream connection for minutes, so one organisation could still
+      // hold most of the server. Released when the answer ends or the caller
+      // goes away, whichever happens first.
+      if (config.maxConcurrentPerTenant > 0) {
+        const running = inFlight.get(caller.tenantId) ?? 0;
+        if (running >= config.maxConcurrentPerTenant) {
+          reply.header("retry-after", "1");
+          return reply.code(429).send({
+            type: "error",
+            error: {
+              type: "rate_limit_error",
+              message: `More than ${config.maxConcurrentPerTenant} calls in progress at once for this organisation. Retry when one finishes.`,
+            },
+          });
+        }
+        inFlight.set(caller.tenantId, running + 1);
+        reply.raw.once("close", () => {
+          const left = (inFlight.get(caller.tenantId) ?? 1) - 1;
+          if (left <= 0) inFlight.delete(caller.tenantId);
+          else inFlight.set(caller.tenantId, left);
         });
       }
 

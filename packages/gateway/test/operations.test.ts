@@ -148,3 +148,47 @@ describe("/metrics", () => {
     expect(right.statusCode).toBe(200);
   });
 });
+
+describe("calls in progress at once", () => {
+  it("refuses a call over the organisation's limit, and frees the slot when one ends", async () => {
+    const db = openDatabase({ path: ":memory:" });
+    new CostGridRepository(db).createTenant("Local", "local");
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let first = true;
+    app = createServer({
+      config: { ...CONFIG, maxConcurrentPerTenant: 1 },
+      db,
+      repository: new CostGridRepository(db),
+      analytics: new Analytics(db),
+      accounts: undefined,
+      imports: new ImportsRepository(db),
+      fetchImpl: (async () => {
+        if (first) {
+          first = false;
+          await held;
+        }
+        return new Response(JSON.stringify(MESSAGE), { status: 200, headers: { "content-type": "application/json" } });
+      }) as unknown as typeof fetch,
+    });
+    const call = () =>
+      app!.inject({
+        method: "POST",
+        url: "/v1/messages",
+        headers: { "content-type": "application/json" },
+        payload: { model: "claude-sonnet-4-5", max_tokens: 10, messages: [{ role: "user", content: "hi" }] },
+      });
+
+    const slow = call();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const refused = await call();
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ error: { type: "rate_limit_error" } });
+
+    release();
+    expect((await slow).statusCode).toBe(200);
+    expect((await call()).statusCode).toBe(200);
+  });
+});

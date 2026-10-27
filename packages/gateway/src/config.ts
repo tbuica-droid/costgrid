@@ -97,6 +97,12 @@ export interface GatewayConfig {
   readonly backupDir: string;
   readonly backupKeep: number;
   /**
+   * Most proxied calls one organisation may have in progress at once; 0 for
+   * no limit. Hosted defaults to 64, everything else to no limit: on a
+   * desktop or a self-hosted gateway the only caller is its owner.
+   */
+  readonly maxConcurrentPerTenant: number;
+  /**
    * Bearer token for `/metrics`. Unset, the metrics are served only to this
    * machine and never in hosted mode.
    */
@@ -380,6 +386,7 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     databasePath,
     backupDir: optional("COSTGRID_BACKUP_DIR") ?? join(dirname(databasePath), "backups"),
     backupKeep: integer("COSTGRID_BACKUP_KEEP", 7),
+    maxConcurrentPerTenant: integer("COSTGRID_MAX_CONCURRENT_PER_TENANT", hosted ? 64 : 0),
     metricsToken: metricsToken(),
     providerKeys,
     providerBaseUrls,
