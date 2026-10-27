@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { writeFileSync } from "node:fs";
 import {
+  deriveMasterKey,
   deriveRate,
   discountPercent,
   findModelPrice,
@@ -26,6 +27,8 @@ import {
   trailingWindow,
   RunOutcomes,
   jobsView,
+  rekeySecrets,
+  snapshotDatabase,
 } from "@costgrid/db";
 import {
   ask,
@@ -48,6 +51,9 @@ Usage:
   costgrid key create <agent-name>        Create an API key (shown once, never again)
   costgrid key revoke <key-id>            Revoke a key
   costgrid report [--days N]              Spend report for the last N days (default 30)
+  costgrid rotate-master-key              Re-encrypt every stored secret under
+                                          COSTGRID_NEW_MASTER_KEY. Gateway stopped
+                                          first; restart it with the new key after.
   costgrid autopilot [status|monitor|apply|off|run|undo]
                                           Let CostGrid act on its own findings,
                                           inside limits you set. Off by default.
@@ -349,6 +355,24 @@ async function main(): Promise<void> {
       // which is always the most recent calls. This checkpoints properly.
       await backupDatabase(db, destination);
       console.log(`Wrote a consistent copy to ${destination}.`);
+      break;
+    }
+
+    case "rotate-master-key": {
+      // Run with the gateway stopped: it holds the old key in memory and would
+      // fail to read anything written under the new one until restarted.
+      const current = process.env["COSTGRID_MASTER_KEY"] ?? fail("set COSTGRID_MASTER_KEY to the key in use now");
+      const next = process.env["COSTGRID_NEW_MASTER_KEY"] ?? fail("set COSTGRID_NEW_MASTER_KEY to the new key (openssl rand -base64 48)");
+      const safety = `${dbPath}.before-key-rotation-${new Date().toISOString().slice(0, 10)}.bak`;
+      snapshotDatabase(db, safety);
+      const counts = rekeySecrets(db, deriveMasterKey(current), deriveMasterKey(next));
+      recordCli(db, tenantId, "master-key.rotated", "master-key", { ...counts });
+      console.log(
+        `Re-encrypted ${counts.provider_credentials} provider key(s), ${counts.sso_connections} single sign-on ` +
+          `secret(s) and ${counts.alert_settings} alert address(es) under the new key.`,
+      );
+      console.log(`A copy from before the change is at ${safety}; delete it once the gateway runs on the new key,`);
+      console.log("since it still opens with the old one. Now set COSTGRID_MASTER_KEY to the new key and restart.");
       break;
     }
 
