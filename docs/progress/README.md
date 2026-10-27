@@ -295,3 +295,64 @@ An audit of the twelve sources the project was meant to be built on found the pr
 ## Back to champagne, with a golden problem section (25 October 2026)
 
 Lavender was tried and reverted: champagne gold is the accent again across the design system, app, demo and website. The website's problem section now sits on two soft champagne glows over a warm black, with its inner panels, lines and outlines warmed to match.
+
+## Security hardening (26 October 2026)
+
+A 19-point security checklist, audited and fixed. Headline fixes:
+- Only owners can change policies through the dashboard API.
+- A new session is issued at every sign-in.
+- SSO sign-in is tied to the browser that started it.
+- Sign-in, sign-up and SSO starts are rate limited.
+- Bot-trap fields on the website and console sign-in.
+- Body size limits and input validation on every route.
+- Escaping gaps in the dashboard and statements closed.
+- Spreadsheet formula injection in CSV exports closed.
+- Security headers and HSTS on the app and website.
+- Provider URLs must be https.
+- Secrets kept out of error messages and logs.
+- `npm audit` from 9 findings to 0, with a weekly scan and Dependabot.
+
+No secret was ever committed.
+
+## Running it in production (27 October 2026)
+
+**What changed**
+- **CI on every push:** build, 1,040+ tests, the end-to-end smoke test, the design-token check, and building and starting the server image. The image now uses Node 22 (what the app requires) and leaves out the desktop app. Every package carries version 2.0.0, which `/health` reports.
+- **Budgets no longer slow down as traffic grows.** They read running totals kept up as each call is recorded, instead of adding up every call of the month before each call. Recording a call reuses compiled SQL and is about 8x faster.
+- **Heavy console reports run on their own thread.** The outcomes report, agent map and agent detail no longer pause forwarding calls while they run. On 200,000 calls a month the outcomes report took about 3 seconds.
+- **Backups:**
+  - A daily automatic backup, kept a week.
+  - A copy taken before every database migration.
+  - `costgrid rotate-master-key` to change the master key safely.
+- **Observability:**
+  - `/ready` reports whether the server can take traffic; `/health` reports whether it is alive.
+  - `/metrics` in Prometheus format, including the latency CostGrid adds.
+  - A request id on every response and log line.
+- **Hosted safety:**
+  - An organisation's SSO provider, webhook and provider address can't point at internal addresses.
+  - SSO calls time out.
+  - Alert webhooks are retried with backoff.
+  - A limit of 64 calls in progress per organisation.
+  - A slow-client timeout.
+- **The desktop app tells people when a new version is out.** Installing it automatically needs an Apple Developer ID.
+- **`npm run soak`** runs hours of paced traffic and checks for failures and memory growth.
+- **New docs:**
+  - `docs/OPERATIONS.md`: targets (SLOs), alert rules, runbooks, incidents and the postmortem template.
+  - `docs/HOSTING.md` now covers backups, replication, egress, a WAF and monitoring.
+
+**How it was checked**
+- All tests pass.
+- The smoke test passes from source.
+- The compiled server was started and its worker-backed routes, `/ready` and `/metrics` were hit.
+- The image's install, build and start steps were run in a clean copy. Docker Hub rate-limited this machine, so the image itself is built only in CI.
+- A two-minute soak: 7,155 calls, no failures, flat memory.
+- Timings measured on a 200,000-call database.
+
+**Needs your decision or action:**
+- An Apple Developer ID, for real auto-updates.
+- For a hosted launch:
+  - Litestream or equivalent off-machine replication
+  - a WAF in front
+  - egress rules
+  - a secrets manager for the master key
+  - naming who is on call
