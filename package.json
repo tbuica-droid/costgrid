@@ -27,7 +27,8 @@
     "check-design-tokens": "node scripts/sync-design-tokens.mjs --check",
     "emit-postgres-schema": "npm run build --silent && node scripts/emit-postgres-schema.mjs",
     "bench": "node scripts/bench-latency.mjs",
-    "bench:live": "node --env-file=.env scripts/bench-latency.mjs --live"
+    "bench:live": "node --env-file=.env scripts/bench-latency.mjs --live",
+    "soak": "npm run build --silent && node scripts/soak.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
