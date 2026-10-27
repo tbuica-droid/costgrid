@@ -8,6 +8,7 @@ import {
 } from "@costgrid/db";
 import { hashPassword } from "@costgrid/core";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { guardedFetch } from "./outbound-guard.js";
 import type { GatewayConfig } from "./config.js";
 import {
   type ConsoleRequest,
@@ -110,7 +111,9 @@ export function registerSecurity(app: FastifyInstance, deps: SecurityDeps): void
   const { accounts, config } = deps;
   const { audit, retention, sso } = accounts;
   const { requireRole } = createGuards(accounts);
-  const doFetch = deps.fetchImpl ?? fetch;
+  // In hosted mode the sign-in provider's addresses are typed in by a
+  // customer, so each call is checked against this server's own network.
+  const doFetch = deps.fetchImpl ?? (config.hosted ? guardedFetch() : fetch);
   const startLimiter = new RateLimiter(AUTH_WINDOW_MS);
 
   // ------------------------------------------------------------- audit log

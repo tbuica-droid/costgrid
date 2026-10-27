@@ -20,6 +20,7 @@ import {
 } from "@costgrid/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayConfig } from "./config.js";
+import { assertPublicUrl } from "./outbound-guard.js";
 import { ADAPTERS } from "./providers/index.js";
 import { AUTH_LIMITS, AUTH_WINDOW_MS, type RateLimitDecision, RateLimiter } from "./ratelimit.js";
 
@@ -381,6 +382,15 @@ export function registerConsole(app: FastifyInstance, deps: ConsoleDeps): void {
         }
       } catch {
         return reply.code(400).send({ error: "baseUrl is not a valid URL" });
+      }
+      // Every call this organisation makes goes to it, so in hosted mode it
+      // must not name this server's own network (see outbound-guard.ts).
+      if (config.hosted && deps.fetchImpl === undefined) {
+        try {
+          await assertPublicUrl(baseUrl);
+        } catch (error) {
+          return reply.code(400).send({ error: error instanceof Error ? error.message : "baseUrl is not allowed" });
+        }
       }
     }
 

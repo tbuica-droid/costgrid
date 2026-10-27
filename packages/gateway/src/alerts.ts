@@ -14,6 +14,7 @@ import {
   trailingWindow,
 } from "@costgrid/db";
 import type { FastifyBaseLogger } from "fastify";
+import { assertPublicUrl } from "./outbound-guard.js";
 
 /**
  * Telling a person when a limit fires, without slowing a single call.
@@ -41,7 +42,27 @@ export interface AlerterDeps {
   readonly envWebhookUrl?: string | undefined;
   /** Desktop: show it on this computer. */
   readonly onAlert?: ((notice: AlertNotice) => void) | undefined;
+  /**
+   * Hosted: an organisation's own webhook address is checked against this
+   * server's network before each delivery (see outbound-guard.ts). The
+   * operator's address from the environment is trusted as typed.
+   */
+  readonly guardTenantWebhooks?: boolean | undefined;
+  /**
+   * Waits between delivery attempts. A receiver that is down or busy (a
+   * network error, 429 or 5xx) gets these retries; one that refuses (any
+   * other 4xx) does not. Defaults to two retries, after 2 and 8 seconds.
+   */
+  readonly retryDelaysMs?: readonly number[] | undefined;
 }
+
+class Refused extends Error {}
+
+const DEFAULT_RETRY_DELAYS_MS = [2_000, 8_000];
+/** The longest a receiver's Retry-After is honoured; beyond it, retry on our own schedule. */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 const TITLES: Record<StoredAlert["kind"], string> = {
   "budget-warning": "Budget limit reached",
@@ -68,6 +89,35 @@ export class Alerter {
   constructor(deps: AlerterDeps) {
     this.#deps = deps;
     this.#fetch = deps.fetchImpl ?? fetch;
+  }
+
+  /** One POST, retried with backoff while the receiver is unreachable or busy. */
+  async #post(url: string, body: string): Promise<void> {
+    // A stubbed fetch (tests) answers at once, so waiting between its
+    // attempts would only slow the suite; tests that check retrying pass
+    // their own delays.
+    const delays = this.#deps.retryDelaysMs ?? (this.#deps.fetchImpl === undefined ? DEFAULT_RETRY_DELAYS_MS : []);
+    for (let attempt = 0; ; attempt++) {
+      let wait = delays[attempt];
+      try {
+        const response = await this.#fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+          redirect: "error",
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (response.ok) return;
+        const failure = `the receiver answered HTTP ${response.status}`;
+        if (response.status !== 429 && response.status < 500) throw new Refused(failure);
+        if (wait === undefined) throw new Error(failure);
+        const retryAfter = Number(response.headers.get("retry-after"));
+        if (Number.isFinite(retryAfter) && retryAfter > 0) wait = Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS);
+      } catch (error) {
+        if (error instanceof Refused || wait === undefined) throw error;
+      }
+      await sleep(wait);
+    }
   }
 
   /**
@@ -107,8 +157,11 @@ export class Alerter {
     }
 
     let url: string | undefined;
+    let tenantOwned = false;
     try {
-      url = alerts.webhookUrl(alert.tenantId) ?? envWebhookUrl;
+      const own = alerts.webhookUrl(alert.tenantId);
+      tenantOwned = own !== undefined;
+      url = own ?? envWebhookUrl;
     } catch (error) {
       log.error({ err: error }, "could not read the alert address");
     }
@@ -119,13 +172,13 @@ export class Alerter {
 
     const text = `CostGrid: ${title}. ${alert.message}`;
     try {
-      const response = await this.#fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        // `text` is what Slack and most chat webhooks read, `content` is
-        // Discord's name for it, and `costgrid` carries the same facts for a
-        // receiver that wants to route on them.
-        body: JSON.stringify({
+      if (tenantOwned && this.#deps.guardTenantWebhooks === true) await assertPublicUrl(url);
+      // `text` is what Slack and most chat webhooks read, `content` is
+      // Discord's name for it, and `costgrid` carries the same facts for a
+      // receiver that wants to route on them.
+      await this.#post(
+        url,
+        JSON.stringify({
           text,
           content: text,
           costgrid: {
@@ -135,9 +188,7 @@ export class Alerter {
             occurredAt: new Date(alert.occurredAt).toISOString(),
           },
         }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) throw new Error(`the receiver answered HTTP ${response.status}`);
+      );
       alerts.markDelivered(alert.id);
       return { delivered: true };
     } catch (error) {

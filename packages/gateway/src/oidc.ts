@@ -92,6 +92,9 @@ export function secretEquals(a: string, b: string): boolean {
   return timingSafeEqual(left, right);
 }
 
+/** A sign-in waits on these calls; a provider that hangs must not hold it open. */
+const OIDC_TIMEOUT_MS = 15_000;
+
 /**
  * Read a provider's endpoints from its discovery document.
  *
@@ -107,7 +110,7 @@ export async function discover(
   const base = issuer.replace(/\/$/, "");
   const url = `${base}/.well-known/openid-configuration`;
 
-  const response = await fetchImpl(url, { headers: { accept: "application/json" } });
+  const response = await fetchImpl(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(OIDC_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`could not read ${url}: the provider returned ${response.status}`);
   }
@@ -176,6 +179,7 @@ export async function exchangeCode(
       accept: "application/json",
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(OIDC_TIMEOUT_MS),
   });
 
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -201,7 +205,7 @@ interface Jwk extends Record<string, unknown> {
 }
 
 async function fetchKeys(jwksUrl: string, fetchImpl: typeof fetch): Promise<Jwk[]> {
-  const response = await fetchImpl(jwksUrl, { headers: { accept: "application/json" } });
+  const response = await fetchImpl(jwksUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(OIDC_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`could not read the provider's signing keys: ${response.status}`);
   }

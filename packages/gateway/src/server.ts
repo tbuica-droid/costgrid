@@ -367,6 +367,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           fetchImpl: deps.fetchImpl,
           envWebhookUrl: config.alertWebhookUrl,
           onAlert: deps.onAlert,
+          guardTenantWebhooks: config.hosted && deps.fetchImpl === undefined,
         });
   if (alerter !== undefined) ALERTERS.set(app, alerter);
   const runaway = new RunawayWatch(deps.db);
