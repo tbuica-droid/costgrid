@@ -250,7 +250,26 @@ export class CostGridRepository {
 
   // ------------------------------------------------------------------ calls
 
+  /**
+   * Records a call, and adds what went through to the running totals budgets
+   * read, in one transaction so the two cannot disagree.
+   */
   recordCall(call: CallRecord): void {
+    this.#db.transaction(() => {
+      this.#insertCall(call);
+      if (call.outcome !== "ok") return;
+      this.#db
+        .prepare(
+          `INSERT INTO spend_daily (tenant_id, day_start, agent_id, department, cost_total)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (tenant_id, day_start, agent_id, department)
+           DO UPDATE SET cost_total = spend_daily.cost_total + excluded.cost_total`,
+        )
+        .run(call.tenantId, windowBounds(call.startedAt).dayStart, call.agentId, call.department, call.cost.total);
+    })();
+  }
+
+  #insertCall(call: CallRecord): void {
     this.#db
       .prepare(
         `INSERT INTO calls (
@@ -342,11 +361,15 @@ export class CostGridRepository {
       scopeParams.push(scope.department);
     }
 
+    // From the running totals, not a sum over every call this month: this
+    // runs before each proxied call, and its cost must not grow with traffic.
+    // Calls are bucketed by UTC day and both windows start at midnight UTC,
+    // so the figure is the same one the old sum over `calls` gave.
     const query = this.#db
       .prepare(
         `SELECT COALESCE(SUM(cost_total), 0) AS total
-         FROM calls
-         WHERE tenant_id = ? AND outcome = 'ok' AND started_at >= ?${filter}`,
+         FROM spend_daily
+         WHERE tenant_id = ? AND day_start >= ?${filter}`,
       )
       // Money is read as bigint so a large aggregate cannot silently lose
       // precision past 2^53 nanodollars (~$9M).

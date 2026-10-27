@@ -162,6 +162,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   // Milliseconds since the epoch. Passed int4 in 1970.
   created_at: "BIGINT",
   started_at: "BIGINT",
+  day_start: "BIGINT",
   occurred_at: "BIGINT",
   updated_at: "BIGINT",
   revoked_at: "BIGINT",

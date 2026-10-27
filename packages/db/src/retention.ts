@@ -85,6 +85,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const TENANT_TABLES = [
   "calls",
+  "spend_daily",
   "violations",
   "tool_invocations",
   "tool_grants",
@@ -245,6 +246,13 @@ export class Retention {
         calls = this.#db
           .prepare("DELETE FROM calls WHERE tenant_id = ? AND started_at < ?")
           .run(tenantId, cutoff).changes;
+        // The running totals behind budgets go with the calls, but never
+        // inside the current month: a budget must not forget money already
+        // spent because the detail was purged early.
+        const monthStart = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
+        this.#db
+          .prepare("DELETE FROM spend_daily WHERE tenant_id = ? AND day_start < ?")
+          .run(tenantId, Math.min(cutoff, monthStart));
         toolInvocations = this.#db
           .prepare("DELETE FROM tool_invocations WHERE tenant_id = ? AND occurred_at < ?")
           .run(tenantId, cutoff).changes;
