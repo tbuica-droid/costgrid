@@ -27,7 +27,20 @@ COSTGRID_MASTER_KEY=<48+ random bytes>   # required
 COSTGRID_SECURE_COOKIES=true             # defaults to true when hosted
 COSTGRID_DB=/data/costgrid.db
 COSTGRID_HOST=0.0.0.0
+COSTGRID_TRUST_PROXY=true                # or the proxy's addresses; see Deploying
+COSTGRID_PUBLIC_URL=https://costgrid.example.com
+COSTGRID_METRICS_TOKEN=<24+ random chars> # to scrape /metrics from elsewhere
 ```
+
+Optional, with their defaults:
+
+| Variable | Default | What it does |
+|---|---|---|
+| `COSTGRID_BACKUP_DIR` | `backups/` beside the database | Where the daily backup goes |
+| `COSTGRID_BACKUP_KEEP` | `7` | Days of backups kept |
+| `COSTGRID_MAX_CONCURRENT_PER_TENANT` | `64` hosted, no limit otherwise | Calls one organisation may have in progress at once |
+| `COSTGRID_READ_WORKER` | on, off for the desktop app | Run the slowest console reports on their own thread |
+| `COSTGRID_UPSTREAM_TIMEOUT_MS` | 15 minutes | Longest a provider call may take |
 
 Generate the master key once:
 
@@ -45,11 +58,22 @@ It decrypts every tenant's provider credentials. Three consequences:
 - **Leaking it, together with a database dump, exposes every tenant's provider
   key.** Either alone is not enough. That is the point of holding it outside
   the database.
-- **Changing it does not re-encrypt anything.** There is no key-rotation path
-  in this release, so rotating means asking every tenant to re-enter their key.
+- **Changing it is a command, not a redeploy.** With the gateway stopped:
 
-Keep it in a secrets manager, not in the image, not in the repo, not in a
-shell command that lands in history.
+  ```bash
+  COSTGRID_MASTER_KEY=<current> COSTGRID_NEW_MASTER_KEY=<new> \
+    node packages/cli/dist/main.js rotate-master-key
+  ```
+
+  It copies the database first, then re-encrypts every provider key, SSO
+  secret and alert address in one transaction; a wrong current key changes
+  nothing. Start the gateway with the new key, then delete the copy, which
+  still opens with the old one. Do this whenever the old key may have leaked.
+
+Keep it in a secrets manager (AWS Secrets Manager, GCP Secret Manager, Vault,
+or your platform's secret store) and inject it as an environment variable at
+start. Not in the image, not in the repo, not in a shell command that lands in
+history.
 
 ## Deploying
 
@@ -64,13 +88,33 @@ docker run -d --name costgrid \
   costgrid
 ```
 
-The image runs as a non-root user, carries no compiler or test framework, and
-has a healthcheck on `/health`.
+The image runs as a non-root user on Node 22, carries no compiler, test
+framework or desktop app, and has a healthcheck on `/health`. CI builds it and
+starts it on every push.
 
-> Not verified on this machine. Docker was not installed where this was >
-written, so the image has never been built. The compiled entrypoint it runs >
-(`packages/gateway/dist/main.js`) was started directly and serves `/health` >
-and `/console` correctly. Build it once before trusting it.
+**Health and readiness are different questions.** `/health` answers whether
+the process is alive; restart it if not. `/ready` answers whether it can take
+traffic now (database open, schema current) and returns 503 when not; a load
+balancer should wait on it rather than restart. Point a liveness probe at the
+first and a readiness probe at the second.
+
+**Put the data volume on an encrypted disk.** Provider keys and alert
+addresses are encrypted in the database, but call history, agent names and
+spend are not. Every major cloud encrypts block storage at rest; make sure it
+is on.
+
+**Deny egress to private ranges.** In hosted mode CostGrid refuses to call an
+address an organisation typed in (its SSO provider, webhook, or provider
+endpoint) when it resolves to a private, loopback or link-local address, and
+refuses redirects. A name that resolves publicly when checked and privately a
+moment later (DNS rebinding) can still get past that check, so the network
+around the container should also block outbound traffic to 10/8, 172.16/12,
+192.168/16, 169.254/16 and the cloud metadata endpoint.
+
+**Put a WAF and DDoS protection in front.** The gateway rate-limits each
+organisation and every sign-in, but it is one process. Cloudflare, or your
+cloud's load balancer with its firewall, should absorb floods before they
+reach it.
 
 **Terminate TLS in front of it.** Session cookies are `Secure` in hosted mode,
 so plain http will not keep anyone signed in. Which is the correct failure.
@@ -110,6 +154,30 @@ enforceable, and the UI says so.
 
 ### Backups
 
+The gateway backs itself up daily into `COSTGRID_BACKUP_DIR` (by default a
+`backups` folder beside the database), keeping a week, and takes a copy just
+before applying any database migration, since migrations only go forward. A
+failed backup is logged and counted in `costgrid_job_failures_total{job="backup"}`.
+
+Those copies sit on the same disk, so they survive a bad migration or a
+mistaken delete, not a lost volume. **For a dead disk, replicate off the
+machine.** The simplest is [Litestream](https://litestream.io), which streams
+every change to object storage and restores to any point in time:
+
+```yaml
+# litestream.yml, run beside the gateway (sidecar or same container)
+dbs:
+  - path: /data/costgrid.db
+    replicas:
+      - url: s3://your-bucket/costgrid
+```
+
+Restore with `litestream restore -o /data/costgrid.db s3://your-bucket/costgrid`.
+**Test the restore before you need it**, and again after any change to the
+setup: a backup nobody has restored is a hope.
+
+For a one-off copy:
+
 ```bash
 docker exec costgrid node packages/cli/dist/main.js backup /data/backup.db
 ```
@@ -120,6 +188,17 @@ customer is most likely to be asking about.
 
 A backup contains encrypted credentials, not plaintext, but it is still
 customer data. Treat it accordingly.
+
+### Monitoring
+
+`/metrics` serves Prometheus metrics: requests by route and status, the
+latency CostGrid adds before forwarding a call, provider errors, calls served
+but not recorded, background job failures, memory and uptime. Set
+`COSTGRID_METRICS_TOKEN` and scrape with it as a bearer token; without one,
+`/metrics` answers only on this machine and never when hosted. Every response
+carries `x-costgrid-request-id`, which is also on each log line, so a
+customer's report can be found in the log. What to alert on, and the targets,
+are in [OPERATIONS.md](OPERATIONS.md).
 
 ### Price freshness
 

@@ -38,6 +38,8 @@ ENV NODE_ENV=production \
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/package.json ./package.json
+# The price check HOSTING.md tells operators to run on a schedule.
+COPY scripts/verify-pricing.mjs ./scripts/
 
 # The database lives on a volume; losing it loses the billing record.
 RUN mkdir -p /data && chown -R node:node /data
