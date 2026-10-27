@@ -13,6 +13,7 @@ import {
 import { appDataDir, loadConfig, readMasterKey, type RunningGateway, startGateway } from "@costgrid/gateway";
 import { loadMasterKey } from "./master-key.js";
 import { keyringSecretStore } from "./secret-store.js";
+import { findUpdate, installBucket } from "./update-check.js";
 
 /**
  * CostGrid as an app: the gateway running inside this process, and its
@@ -123,9 +124,30 @@ async function boot(): Promise<void> {
     gateway.app.log.info({ secretStore: secretStore !== undefined }, "keychain for admin keys checked");
     origin = gateway.url;
     createWindow();
+    scheduleUpdateCheck();
   } catch (error) {
     fail(error);
   }
+}
+
+/** A minute after start, then daily: see update-check.ts. Each version is announced once a run. */
+function scheduleUpdateCheck(): void {
+  if (!app.isPackaged || process.env["COSTGRID_UPDATE_CHECK"] === "false") return;
+  const bucket = installBucket(join(DATA_DIR, "install-id"));
+  const announced = new Set<string>();
+  const check = async (): Promise<void> => {
+    const update = await findUpdate(app.getVersion(), bucket);
+    if (update === undefined || announced.has(update.version) || !Notification.isSupported()) return;
+    announced.add(update.version);
+    const note = new Notification({
+      title: `CostGrid ${update.version} is available`,
+      body: "Click to download it. Your data stays where it is when you install it.",
+    });
+    note.on("click", () => openOutside(update.url));
+    note.show();
+  };
+  setTimeout(() => void check(), 60_000).unref();
+  setInterval(() => void check(), 24 * 60 * 60 * 1000).unref();
 }
 
 function fail(error: unknown): void {
