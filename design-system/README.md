@@ -1,11 +1,11 @@
 # @costgrid/ui
 
 CostGrid's design system, "Midnight". Dark by default, one champagne accent,
-Plus Jakarta Sans for everything you read.
+Manrope for everything you read.
 
 ## The rules
 
-**Readable first.** One face, Plus Jakarta Sans (400 to 800), for all UI and
+**Readable first.** One face, Manrope (400, 500, 600, 700), for all UI and
 headings. App body text is 14.5px, captions never below 12.5px, and every text
 colour clears 4.5:1 against its background in both themes. Figures are tabular
 everywhere numbers line up.
@@ -63,7 +63,7 @@ together.
 
 ## Fonts
 
-Plus Jakarta Sans (everything) and JetBrains Mono (keys and ids). The dashboard ships
+Manrope (everything) and JetBrains Mono (keys and ids). The dashboard ships
 them with itself (`packages/gateway/web/fonts/`), because the gateway may run
 inside a network that cannot reach a font CDN. Every stack has system
 fallbacks for the moment before they load.
