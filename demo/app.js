@@ -559,7 +559,7 @@ async function renderPolicies() {
         .map(
           (p) => `<tr>
             <td><span class="tag ${p.enabled ? "on" : "off"}">${p.enabled ? "on" : "off"}</span></td>
-            <td><span class="tag ${p.action}">${p.action}</span></td>
+            <td><span class="tag ${escapeHtml(p.action)}">${escapeHtml(p.action)}</span></td>
             <td>${escapeHtml(scopeOf(p.scope))}</td>
             <td>${describe(p.rule)}</td>
             <td class="num">
@@ -579,7 +579,7 @@ async function renderPolicies() {
         .map(
           (v) => `<tr>
             <td class="num" style="text-align:left">${relativeTime(v.occurredAt)}</td>
-            <td><span class="tag ${v.action}">${v.action}</span></td>
+            <td><span class="tag ${escapeHtml(v.action)}">${escapeHtml(v.action)}</span></td>
             <td>${escapeHtml(v.agentId ?? "—")}</td>
             <td>${escapeHtml(v.reason)}</td>
           </tr>`,

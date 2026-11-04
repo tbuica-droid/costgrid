@@ -6,7 +6,7 @@
  * never a fill for a large area. Green, amber and red mean state (on track,
  * needs a look, failing) and always sit next to a word that says so.
  *
- * Readable first: one face, Manrope, for everything anyone reads, at sizes
+ * Readable first: one face, Plus Jakarta Sans, for everything anyone reads, at sizes
  * that hold up on a laptop screen. JetBrains Mono only for keys and ids.
  * Figures are tabular everywhere, because a column of costs that jitters as
  * digits change is a column nobody trusts.
@@ -68,9 +68,9 @@
   --cg-focus:          var(--cg-accent);
 
   /* --- Type -------------------------------------------------------------- */
-  --cg-font-display: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --cg-font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
                      Helvetica, Arial, sans-serif;
-  --cg-font-sans:    "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --cg-font-sans:    "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
                      Helvetica, Arial, sans-serif;
   --cg-font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                      Consolas, monospace;

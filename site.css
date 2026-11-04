@@ -3,14 +3,16 @@
  * Shared by index.html and research.html. Dark on purpose, for every visitor.
  * Fonts are self-hosted (fonts/, SIL OFL 1.1): no third-party requests.
  */
-@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("fonts/manrope-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "Manrope"; font-style: normal; font-weight: 500; font-display: swap;
-  src: url("fonts/manrope-latin-500-normal.woff2") format("woff2"); }
-@font-face { font-family: "Manrope"; font-style: normal; font-weight: 600; font-display: swap;
-  src: url("fonts/manrope-latin-600-normal.woff2") format("woff2"); }
-@font-face { font-family: "Manrope"; font-style: normal; font-weight: 700; font-display: swap;
-  src: url("fonts/manrope-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 800; font-display: swap;
+  src: url("fonts/plus-jakarta-sans-latin-800-normal.woff2") format("woff2"); }
 
 :root {
   color-scheme: dark;
@@ -36,7 +38,7 @@
   --warn: #f2c46e; --warn-bg: #2c2312;
   --bad: #f4948a; --bad-bg: #321a17;
   --shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.8);
-  --font: "Manrope", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font: "Plus Jakarta Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

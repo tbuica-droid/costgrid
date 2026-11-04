@@ -35,11 +35,33 @@
   var signinErr = byId("signinErr");
   var signinLabel = signinBtn.textContent;
 
+  // Cheap bot friction. The real limits live in Supabase (its per-email rate
+  // limit, and CAPTCHA once it is switched on in the dashboard); this only
+  // stops casual scripts and repeat clicks from spamming people's inboxes.
+  var RESEND_WAIT_MS = 60 * 1000;
+  var lastSentAt = 0;
+  try { lastSentAt = Number(sessionStorage.getItem("cg-signin-sent")) || 0; } catch (err) {}
+
   signinForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var email = fieldValue("signinEmail");
     signinErr.textContent = "Enter a valid email address.";
     if (!markInvalid("f-signin", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return;
+    // A filled honeypot means a bot: act as if it worked and send nothing.
+    if (fieldValue("signinWebsite")) {
+      byId("sentEmail").textContent = email;
+      show(signinForm, false);
+      show(byId("signinSent"), true);
+      return;
+    }
+    var wait = lastSentAt + RESEND_WAIT_MS - Date.now();
+    if (wait > 0) {
+      signinErr.textContent = "Please wait " + Math.ceil(wait / 1000) + " seconds before asking for another link.";
+      markInvalid("f-signin", false);
+      return;
+    }
+    lastSentAt = Date.now();
+    try { sessionStorage.setItem("cg-signin-sent", String(lastSentAt)); } catch (err) {}
     signinBtn.disabled = true;
     signinBtn.textContent = "Sending…";
     CG_AUTH.sendLink(email).then(
