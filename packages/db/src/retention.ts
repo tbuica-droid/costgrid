@@ -85,6 +85,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const TENANT_TABLES = [
   "calls",
+  "call_adjustments",
   "spend_daily",
   "violations",
   "tool_invocations",
@@ -117,6 +118,7 @@ const TENANT_TABLES = [
   "agent_caps",
   "key_actions",
   "outcome_settings",
+  "deferred_batches",
   // The local copies only. Anchors already delivered live at the receiver,
   // which is the point of them, and are outside anything this can reach.
   "anchors",
@@ -253,6 +255,9 @@ export class Retention {
         this.#db
           .prepare("DELETE FROM spend_daily WHERE tenant_id = ? AND day_start < ?")
           .run(tenantId, Math.min(cutoff, monthStart));
+        this.#db
+          .prepare("DELETE FROM call_adjustments WHERE tenant_id = ? AND occurred_at < ?")
+          .run(tenantId, cutoff);
         toolInvocations = this.#db
           .prepare("DELETE FROM tool_invocations WHERE tenant_id = ? AND occurred_at < ?")
           .run(tenantId, cutoff).changes;

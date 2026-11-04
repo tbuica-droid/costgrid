@@ -29,7 +29,8 @@ import { AdminKeySync } from "./connect-sync.js";
 import { KeyControl } from "./key-control.js";
 import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
-import { alerterOf, assertToolPoliciesEnforceable, createServer, metricsOf } from "./server.js";
+import { reviewQuickWins } from "./quick-win-review.js";
+import { alerterOf, assertToolPoliciesEnforceable, createServer, deferredOf, metricsOf, readsOf } from "./server.js";
 
 /** How often stored admin keys are used to bring imported usage up to date. */
 const ADMIN_KEY_SYNC_MS = 6 * 60 * 60 * 1000;
@@ -161,6 +162,39 @@ export async function startGateway(
     backingUp.unref();
     timers.push(backingUp);
   }
+
+  // Hourly: switch back any quick win (lower reasoning, caching) that stopped
+  // paying. Measured on the read pool; only the switch itself writes here.
+  const reviewing = setInterval(() => {
+    reviewQuickWins({
+      db,
+      audit: accounts?.audit ?? new AuditLog(db),
+      alerter: alerterOf(app),
+      reads: readsOf(app),
+    })
+      .then((switched) => {
+        if (switched.length > 0) app.log.info({ switched }, "quick wins switched back to a dry run");
+      })
+      .catch((error: unknown) => {
+        app.log.error({ err: error }, "the quick-win review failed; nothing was changed");
+        metricsOf(app)?.jobFailed("quick-win-review");
+      });
+  }, 60 * 60 * 1000);
+  reviewing.unref();
+  timers.push(reviewing);
+
+  // Every five minutes: ask the providers about unfinished batches and price
+  // the finished ones at the batch rate.
+  const batching = setInterval(() => {
+    deferredOf(app)
+      ?.sweep()
+      .catch((error: unknown) => {
+        app.log.error({ err: error }, "the deferred-jobs sweep failed");
+        metricsOf(app)?.jobFailed("deferred-sweep");
+      });
+  }, 5 * 60 * 1000);
+  batching.unref();
+  timers.push(batching);
 
   // Stored admin keys exist only where there is a keychain to keep them in.
   // Each run reminds owners of keys about to expire, then syncs the rest. A

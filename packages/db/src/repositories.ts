@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type Database from "better-sqlite3";
 import type {
+  Adjustment,
   EnforcementAction,
   Nanodollars,
   Policy,
@@ -75,6 +76,8 @@ export interface CallRecord {
   readonly taskSource?: "header" | "fingerprint" | undefined;
   /** How many messages the request carried, so a continuing conversation is told from a retry. */
   readonly turns?: number | undefined;
+  /** Changes adjustment rules made to the request, or would have made in a dry run. */
+  readonly adjustments?: readonly Adjustment[] | undefined;
 }
 
 /** A run's consumption so far, as read on the metering path. */
@@ -269,6 +272,13 @@ export class CostGridRepository {
   recordCall(call: CallRecord): void {
     this.#db.transaction(() => {
       this.#insertCall(call);
+      for (const a of call.adjustments ?? []) {
+        this.#prepare(
+          `INSERT INTO call_adjustments (tenant_id, call_id, policy_id, kind, change, applied, occurred_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (call_id, policy_id) DO NOTHING`,
+        ).run(call.tenantId, call.id, a.policyId, a.kind, a.change, a.applied ? 1 : 0, call.startedAt);
+      }
       if (call.outcome !== "ok") return;
       this.#prepare(
           `INSERT INTO spend_daily (tenant_id, day_start, agent_id, department, cost_total)
@@ -727,6 +737,23 @@ export class CostGridRepository {
       return;
     }
     this.#prepare("UPDATE policies SET enabled = 0 WHERE id = ?").run(id);
+  }
+
+  /**
+   * Change what a rule does when it fires: from a dry run to acting, or back.
+   *
+   * Moving an enabled rule from `monitor` to acting starts its live period, so
+   * the before-and-after measurement is drawn from that moment. Going back to
+   * `monitor` keeps the old `live_since` for the record.
+   */
+  setPolicyAction(id: string, action: EnforcementAction, at = Date.now()): void {
+    this.#prepare(
+        `UPDATE policies
+         SET live_since = CASE WHEN ? != 'monitor' AND action = 'monitor' AND enabled = 1 THEN ? ELSE live_since END,
+             action = ?
+         WHERE id = ?`,
+      )
+      .run(action, at, action, id);
   }
 
   // ------------------------------------------------------------- violations

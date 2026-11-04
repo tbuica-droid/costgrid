@@ -81,11 +81,20 @@ export function agentCommand(
   ];
 }
 
-/** `costgrid policy reasoning <scope> [--effort LEVEL] [--budget TOKENS]`. */
-export function reasoningRule(effort: string | undefined, budget: string | undefined): PolicyRule {
-  const rule: { kind: "max-reasoning"; effort?: (typeof EFFORT_LEVELS)[number]; budgetTokens?: number } = {
-    kind: "max-reasoning",
-  };
+/**
+ * `costgrid policy reasoning <scope> [--effort LEVEL] [--budget TOKENS]`, and
+ * `policy lower-reasoning` with the same flags.
+ */
+export function reasoningRule(
+  effort: string | undefined,
+  budget: string | undefined,
+  kind: "max-reasoning" | "lower-reasoning" = "max-reasoning",
+): PolicyRule {
+  const rule: {
+    kind: "max-reasoning" | "lower-reasoning";
+    effort?: (typeof EFFORT_LEVELS)[number];
+    budgetTokens?: number;
+  } = { kind };
   if (effort !== undefined) {
     if (!isReasoningEffort(effort)) throw new Error(`--effort must be one of ${EFFORT_LEVELS.join(", ")}`);
     rule.effort = effort;
@@ -96,7 +105,7 @@ export function reasoningRule(effort: string | undefined, budget: string | undef
     rule.budgetTokens = tokens;
   }
   if (rule.effort === undefined && rule.budgetTokens === undefined) {
-    throw new Error("policy reasoning needs --effort, --budget, or both");
+    throw new Error(`policy ${kind === "max-reasoning" ? "reasoning" : kind} needs --effort, --budget, or both`);
   }
   return rule;
 }

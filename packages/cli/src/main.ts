@@ -115,6 +115,10 @@ Usage:
   costgrid policy run-depth <scope> <n>   Limit delegation hops from the root run
   costgrid policy reasoning <scope> [--effort LEVEL] [--budget TOKENS] [--action ...]
                                           Cap how much reasoning a request may ask for.
+  costgrid policy lower-reasoning <scope> [--effort LEVEL] [--budget TOKENS] [--action monitor|warn]
+                                          Turn reasoning down instead of refusing.
+  costgrid policy cache <scope> [--action monitor|warn]
+                                          Add cache breakpoints to Claude requests.
   costgrid policy route <scope> <to-model> [--from a,b] [--action monitor|warn|block]
                                           Send matching traffic to a cheaper model.
                                           Start with --action monitor: it is a dry
@@ -181,6 +185,19 @@ function describeRule(rule: Policy["rule"], action: string): string {
           .filter(Boolean)
           .join(", ")
       );
+    case "lower-reasoning":
+      return (
+        "lower reasoning to " +
+        [
+          rule.effort !== undefined ? `effort ${rule.effort}` : undefined,
+          rule.budgetTokens !== undefined ? `${rule.budgetTokens} thinking tokens` : undefined,
+        ]
+          .filter(Boolean)
+          .join(", ") +
+        (action === "monitor" ? "  (dry run)" : "")
+      );
+    case "add-cache":
+      return "cache the unchanging start of each request" + (action === "monitor" ? "  (dry run)" : "");
     case "route":
       return (
         `route ${rule.from?.length ? rule.from.join(",") : "*"} -> ${rule.toModel}` +
@@ -1106,6 +1123,34 @@ async function main(): Promise<void> {
         console.log(`Created policy ${id}.`);
         console.log("Requests that name no effort level or budget are not judged: CostGrid does not");
         console.log("know a provider's default, and will not guess it.");
+        break;
+      }
+
+      if (sub === "lower-reasoning") {
+        const scope = parseScope(argv[2] ?? fail("policy lower-reasoning needs a scope"));
+        let rule;
+        try {
+          rule = reasoningRule(flag(argv, "effort"), flag(argv, "budget"), "lower-reasoning");
+        } catch (error) {
+          fail(error instanceof Error ? error.message : String(error));
+        }
+        const action = parseAction(flag(argv, "action"));
+        const id = createPolicy({ name: "lower reasoning", scope, rule, action, enabled: true });
+        console.log(`Created policy ${id}.`);
+        console.log("Requests asking for more reasoning than this are turned down to it and sent on.");
+        console.log("Requests that name no effort or budget are left alone.");
+        if (action === "monitor") console.log("Dry run: nothing is changed yet, only recorded.");
+        break;
+      }
+
+      if (sub === "cache") {
+        const scope = parseScope(argv[2] ?? fail("policy cache needs a scope"));
+        const action = parseAction(flag(argv, "action"));
+        const id = createPolicy({ name: "add caching", scope, rule: { kind: "add-cache" }, action, enabled: true });
+        console.log(`Created policy ${id}.`);
+        console.log("Claude-format requests that use no caching get cache breakpoints on their");
+        console.log("tools and system prompt. OpenAI caches on its own, so it is not changed.");
+        if (action === "monitor") console.log("Dry run: nothing is changed yet, only recorded.");
         break;
       }
 

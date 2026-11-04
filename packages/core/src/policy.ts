@@ -164,6 +164,27 @@ export type PolicyRule =
     }
   | {
       /**
+       * Lower the reasoning a request asks for, instead of refusing it.
+       *
+       * Where `max-reasoning` refuses a request that asks for too much, this
+       * turns the request down to `effort` (or the thinking budget down to
+       * `budgetTokens`) and forwards it. It never adds reasoning to a request
+       * that named none. See `adjust.ts`.
+       */
+      readonly kind: "lower-reasoning";
+      readonly effort?: ReasoningEffort;
+      readonly budgetTokens?: number;
+    }
+  | {
+      /**
+       * Mark the unchanging start of a Claude-format request for caching.
+       *
+       * Only on requests that use no caching yet. See `adjust.ts`.
+       */
+      readonly kind: "add-cache";
+    }
+  | {
+      /**
        * Send this traffic to a cheaper model than the caller asked for.
        *
        * The only rule that *changes* a request rather than permitting or
@@ -330,7 +351,7 @@ export const ALLOWED: PolicyDecision = {
 
 export const ZERO_SPEND: SpendSnapshot = { day: 0n, month: 0n };
 
-function scopeMatches(scope: PolicyScope, context: RequestContext): boolean {
+export function scopeMatches(scope: PolicyScope, context: RequestContext): boolean {
   switch (scope.kind) {
     case "tenant":
       return true;
@@ -475,7 +496,9 @@ function evaluateRule(
     }
 
     case "route":
-      // Routing is handled separately; it transforms rather than permits.
+    case "lower-reasoning":
+    case "add-cache":
+      // Handled separately (routing, adjust.ts); these transform rather than permit.
       return undefined;
   }
 }

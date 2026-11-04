@@ -33,6 +33,7 @@ import { RESULTS_MIGRATION } from "./schema-results.js";
 import { KEYS_MIGRATION } from "./schema-keys.js";
 import { CONTROL_MIGRATION } from "./schema-control.js";
 import { SPEND_MIGRATION } from "./schema-spend.js";
+import { QUICK_WINS_MIGRATION } from "./schema-quickwins.js";
 
 export interface Migration {
   readonly version: number;
@@ -895,6 +896,7 @@ export const MIGRATIONS: readonly Migration[] = [
   KEYS_MIGRATION,
   CONTROL_MIGRATION,
   SPEND_MIGRATION,
+  QUICK_WINS_MIGRATION,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

@@ -10,6 +10,7 @@ import {
 import type { Db } from "./database.js";
 import type { TimeRange } from "./analytics.js";
 import { Backtester, type BacktestResult } from "./backtest.js";
+import { lowerReasoningProposals } from "./advise-quick-wins.js";
 
 /**
  * Proposals drawn from a fleet's own metered traffic.
@@ -33,6 +34,7 @@ export type ProposalKind =
   | "unguarded-spend"
   | "truncation-waste"
   | "cache-opportunity"
+  | "lower-reasoning"
   | "unused-capability"
   | "long-run"
   | "no-run-context";
@@ -145,6 +147,7 @@ export class Advisor {
       ...this.#unguardedSpend(tenantId, range),
       ...this.#truncationWaste(tenantId, range),
       ...this.#cacheOpportunity(tenantId, range),
+      ...lowerReasoningProposals(this.#db, tenantId, range),
       ...this.#unusedCapability(tenantId, range),
       ...this.#longRuns(tenantId, range),
       ...this.#noRunContext(tenantId, range),
@@ -352,7 +355,8 @@ export class Advisor {
     const rows = this.#db
       .prepare(
         `SELECT agent_id AS agentId, COUNT(*) AS calls, SUM(cost_total) AS cost,
-                SUM(input_tokens) AS inputTokens, SUM(cache_read_tokens) AS cacheReadTokens
+                SUM(input_tokens) AS inputTokens, SUM(cache_read_tokens) AS cacheReadTokens,
+                SUM(CASE WHEN provider IN ('anthropic', 'bedrock', 'vertex') THEN 1 ELSE 0 END) AS claudeCalls
          FROM calls
          WHERE tenant_id = ? AND outcome = 'ok' AND priced = 1
            AND started_at >= ? AND started_at < ?
@@ -366,6 +370,7 @@ export class Advisor {
       cost: bigint;
       inputTokens: bigint;
       cacheReadTokens: bigint;
+      claudeCalls: bigint;
     }[];
 
     const out: Proposal[] = [];
@@ -379,6 +384,9 @@ export class Advisor {
       const hitRate = readable === 0 ? 0 : Number(row.cacheReadTokens) / readable;
       if (hitRate > CACHE_HIT_FLOOR) continue;
 
+      // Claude needs a marker to cache; CostGrid can add it. OpenAI caches
+      // long prompts on its own, so there the finding is all there is.
+      const claude = row.claudeCalls === row.calls;
       out.push({
         kind: "cache-opportunity",
         intent: "finding",
@@ -387,8 +395,12 @@ export class Advisor {
           `${row.calls} call(s) averaging ${Math.round(meanInput).toLocaleString("en-US")} input ` +
           `tokens, with ${(hitRate * 100).toFixed(0)}% of readable input coming from cache. ` +
           "If part of that prompt is the same every time, caching it bills the repeated " +
-          "part at a fraction of the normal rate.",
-        rule: undefined,
+          "part at a fraction of the normal rate." +
+          (claude
+            ? " CostGrid can mark the tools and system prompt for caching, measure it, and switch it " +
+              "back off on its own if the cache writes cost more than the reads save."
+            : ""),
+        rule: claude ? { kind: "add-cache" } : undefined,
         scope: { kind: "agent", agentId: row.agentId },
         backtest: undefined,
         /*
@@ -398,8 +410,7 @@ export class Advisor {
          * the one number that matters.
          */
         weight: row.cost,
-        // The change is a cache_control marker in their request, not a policy.
-        command: undefined,
+        command: claude ? `costgrid policy cache agent:${row.agentId} --action monitor` : undefined,
       });
     }
     return out;

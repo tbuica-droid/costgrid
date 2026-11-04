@@ -4,6 +4,8 @@ import {
   applyRateTo,
   describeReasoning,
   estimateSaving,
+  adjustmentRulesFor,
+  applyAdjustments,
   evaluatePolicies,
   planFor,
   type PolicyScope,
@@ -63,6 +65,7 @@ import { registerSecurity } from "./console-security.js";
 import { registerSetup } from "./console-setup.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
+import { type DeferredJobs, registerDeferred } from "./deferred.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
 import { registerSecurityHeaders } from "./security-headers.js";
@@ -120,6 +123,20 @@ const ALERTERS = new WeakMap<FastifyInstance, Alerter>();
 /** The alerter a server raises alerts through; undefined when it was built without an alert store. */
 export function alerterOf(app: FastifyInstance): Alerter | undefined {
   return ALERTERS.get(app);
+}
+
+const READS = new WeakMap<FastifyInstance, ReadPool>();
+
+/** Each server's read pool, so the jobs in `start.ts` read off the request thread too. */
+export function readsOf(app: FastifyInstance): ReadPool | undefined {
+  return READS.get(app);
+}
+
+const DEFERRED = new WeakMap<FastifyInstance, DeferredJobs>();
+
+/** Each server's deferred jobs, so `start.ts` can check and price batches. */
+export function deferredOf(app: FastifyInstance): DeferredJobs | undefined {
+  return DEFERRED.get(app);
 }
 
 const METRICS = new WeakMap<FastifyInstance, Metrics>();
@@ -464,6 +481,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   // handle; their reports run in-process as before.
   const reads =
     deps.db === undefined ? undefined : new ReadPool(deps.db, config.readWorker === true ? config.databasePath : undefined);
+  if (reads !== undefined) READS.set(app, reads);
   app.addHook("onClose", async () => {
     await reads?.close();
   });
@@ -519,7 +537,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     // Without a store passed in (tests), alerts are still recorded and
     // listed; only an address cannot be saved, for want of a key.
     const alertStore = deps.alerts ?? new AlertsRepository(deps.db);
-    registerLimits(app, { db: deps.db, accounts: accounts!, repository, alerts: alertStore, alerter });
+    registerLimits(app, { db: deps.db, accounts: accounts!, repository, alerts: alertStore, alerter, reads });
     registerControl(app, {
       db: deps.db,
       accounts: accounts!,
@@ -808,11 +826,25 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         }
       }
 
+      /*
+       * Adjustment rules: lower reasoning, cache breakpoints. They change how
+       * the request is sent, never which model answers it, and run after
+       * routing so they see the body that will actually go out. Most callers
+       * have none in scope, and then nothing is copied.
+       */
+      const adjustRules = adjustmentRulesFor(policies, context);
+      const adjusted =
+        adjustRules.length === 0
+          ? { body: outgoingBody, adjustments: [] }
+          : applyAdjustments(adjustRules, adapter.id === "openai" ? "openai" : "anthropic", outgoingBody);
+      const madeChanges = adjusted.adjustments.filter((a) => a.applied).map((a) => a.change);
+      if (madeChanges.length > 0) reply.header("x-costgrid-adjusted", headerSafe(madeChanges.join("; ")));
+
       // OpenAI omits usage from streams unless asked; without this every
       // streamed call would meter as zero.
       const prepared = config.injectUsageRequest
-        ? adapter.prepareBody(outgoingBody)
-        : { body: outgoingBody, injectedUsageRequest: false };
+        ? adapter.prepareBody(adjusted.body)
+        : { body: adjusted.body, injectedUsageRequest: false };
 
       const outgoingBytes = JSON.stringify(prepared.body);
 
@@ -974,6 +1006,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
             : {}),
           outcome: over.outcome ?? "ok",
           statusCode: over.statusCode ?? upstream.status,
+          ...(adjusted.adjustments.length > 0 ? { adjustments: adjusted.adjustments } : {}),
         } as CallRecord);
 
         /*
@@ -1162,6 +1195,19 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
     return reply.code(202).send({ recorded: true, run_id: runId });
   });
+
+  // Work that can wait, at the batch rate (deferred.ts). The proxy path above is unchanged.
+  DEFERRED.set(
+    app,
+    registerDeferred(app, {
+      db: deps.db,
+      repository,
+      identify: (request, allowSession) => identify(request, deps, allowSession),
+      resolveUpstream,
+      fetchImpl: doFetch,
+      log: app.log,
+    }),
+  );
 
   app.get("/v1/costgrid/summary", async (request, reply) => {
     const caller = identify(request, deps, true);

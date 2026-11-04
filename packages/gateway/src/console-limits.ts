@@ -15,14 +15,18 @@ import {
   type AlertsRepository,
   type CostGridRepository,
   type Db,
+  type JobsCohort,
   MeasuredSavings,
   type MeasuredSwitch,
+  QuickWins,
+  type QuickWinMeasurement,
   RuleRegister,
   trailingWindow,
 } from "@costgrid/db";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Alerter } from "./alerts.js";
 import { type ConsoleRequest, createGuards } from "./console.js";
+import type { ReadPool } from "./read-pool.js";
 
 /**
  * The Limits screen: setting, stopping and accounting for every rule.
@@ -49,6 +53,8 @@ export interface LimitsDeps {
   readonly repository: CostGridRepository;
   readonly alerts: AlertsRepository;
   readonly alerter: Alerter | undefined;
+  /** Runs the quick-wins measurement off the request thread. Absent in some tests. */
+  readonly reads?: ReadPool | undefined;
 }
 
 const money = (value: Nanodollars): string => toUsdString(value, 6);
@@ -83,6 +89,40 @@ function measuredView(m: MeasuredSwitch): Record<string, unknown> {
     measuredSavingPerCallUsd: m.measuredSavingPerCall === null ? null : money(m.measuredSavingPerCall),
     changePerCall: m.changePerCall,
     changePerRun: m.changePerRun,
+    verdict: m.verdict,
+    caveat: m.caveat,
+  };
+}
+
+function quickWinView(m: QuickWinMeasurement): Record<string, unknown> {
+  const usd = (n: Nanodollars | null) => (n === null ? null : money(n));
+  const cohort = (c: QuickWinMeasurement["before"]) => ({
+    calls: c.calls,
+    costPerCallUsd: usd(c.costPerCall),
+    inputCostPerCallUsd: usd(c.inputCostPerCall),
+    outputTokensPerCall: c.outputTokensPerCall,
+  });
+  const jobs = (j: JobsCohort) => ({
+    jobs: j.jobs,
+    finished: j.finished,
+    finishedShare: j.finishedShare,
+    costPerFinishedJobUsd: usd(j.costPerFinishedJob),
+  });
+  return {
+    policyId: m.policyId,
+    policyName: m.policyName,
+    kind: m.kind,
+    scope: m.scope,
+    action: m.action,
+    enabled: m.enabled,
+    liveSince: m.liveSince,
+    before: cohort(m.before),
+    after: cohort(m.after),
+    changePerCall: m.changePerCall,
+    jobs:
+      m.jobs === undefined
+        ? null
+        : { before: jobs(m.jobs.before), after: jobs(m.jobs.after), changePerFinishedJob: m.jobs.changePerFinishedJob },
     verdict: m.verdict,
     caveat: m.caveat,
   };
@@ -139,12 +179,15 @@ export function parseLimit(body: Record<string, unknown>): PolicyRule | string {
     }
     return { kind, limit };
   }
-  if (kind === "max-reasoning") {
+  if (kind === "add-cache") return { kind };
+  if (kind === "max-reasoning" || kind === "lower-reasoning") {
     const effort = body["effort"];
     const budget = body["budgetTokens"];
-    const rule: { kind: "max-reasoning"; effort?: (typeof EFFORT_LEVELS)[number]; budgetTokens?: number } = {
-      kind,
-    };
+    const rule: {
+      kind: "max-reasoning" | "lower-reasoning";
+      effort?: (typeof EFFORT_LEVELS)[number];
+      budgetTokens?: number;
+    } = { kind };
     if (effort !== undefined && effort !== "") {
       if (!isReasoningEffort(effort)) return `effort must be one of ${EFFORT_LEVELS.join(", ")}`;
       rule.effort = effort;
@@ -187,7 +230,7 @@ function describeScope(scope: PolicyScope): string {
 }
 
 export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
-  const { accounts, alerts, alerter, db, repository } = deps;
+  const { accounts, alerts, alerter, db, repository, reads } = deps;
   const { audit } = accounts;
   const { requireRole } = createGuards(accounts);
   const register = new RuleRegister(db, repository);
@@ -295,6 +338,22 @@ export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
         detail: { name: policy.name, kind: policy.rule.kind },
       });
     }
+    /*
+     * The owner's approval: a dry run starts acting, or goes back to measuring.
+     * Only between `monitor` and `warn` here; refusing calls is set when a
+     * limit is created, where the screen says what it means.
+     */
+    const action = body["action"];
+    if (action !== undefined && action !== policy.action) {
+      if (action !== "monitor" && action !== "warn") return bad(reply, "action must be monitor or warn");
+      repository.setPolicyAction(policyId, action);
+      audit.record(tenantId, {
+        actor: by,
+        action: action === "monitor" ? "policy.dry-run" : "policy.acting",
+        subject: policyId,
+        detail: { name: policy.name, kind: policy.rule.kind, from: policy.action, to: action },
+      });
+    }
     const owner = text(body["owner"], 120);
     const reason = text(body["reason"], 300);
     if (owner !== undefined || reason !== undefined) {
@@ -310,6 +369,21 @@ export function registerLimits(app: FastifyInstance, deps: LimitsDeps): void {
       });
     }
     return { id: policyId };
+  });
+
+  /**
+   * Quick wins: what lowering reasoning or adding caching did, before and
+   * after, per rule. Reads every run on both sides, so it runs on the pool.
+   */
+  app.get("/console/:tenantId/quick-wins", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    if (!requireRole(request, reply, tenantId)) return;
+    const now = Date.now();
+    const list =
+      reads === undefined
+        ? new QuickWins(db).measure(tenantId, register.entries(tenantId, trailingWindow(30)), now, { jobs: true })
+        : await reads.run("quickWins", tenantId, now);
+    return { quickWins: list.map(quickWinView) };
   });
 
   /**

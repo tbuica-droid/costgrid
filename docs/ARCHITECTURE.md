@@ -225,6 +225,41 @@ its end, so late re-runs and reversals count and month-end jobs have matured.
 The section is optional on `buildStatement` (`runOutcomes`), and a failure in it
 leaves the statement without the section rather than failing the statement.
 
+## Version 3: choosing the model, starting with savings that keep it
+
+The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
+`docs/plans/v3-progress.md`.
+
+### Phase 1: quick wins
+
+- **Adjustment rules change how a call is sent, never which model answers.**
+  `lower-reasoning` and `add-cache` are policy kinds, evaluated by
+  `packages/core/src/adjust.ts` after routing and before usage injection and
+  signing, so a SigV4 signature covers the final bytes. `monitor` is a dry run.
+  A request that named no effort, or already uses caching, is never touched:
+  CostGrid would otherwise be guessing a provider default or overriding a
+  developer's choice. Each change is a row in `call_adjustments`, against the
+  call, so the register counts it as a firing.
+- **Measured, and kept only where it pays.** `QuickWins` (`packages/db`)
+  compares the calls each rule would have changed in the fortnight before it
+  went live with the calls it changed since. Agent-scoped rules are also
+  compared on cost per finished job and the share of jobs finished, from
+  `RunOutcomes`. It runs on the read pool. Every hour, `quick-win-review.ts`
+  switches an acting rule back to a dry run if the measurement says it costs
+  more or fewer jobs finish. The switch is audited and alerted. The owner
+  approves the other direction, on the Limits screen (`setPolicyAction`).
+- **Batch is a separate door, not a proxy mode.** `/v1/costgrid/deferred`
+  (`deferred.ts`, `deferred-clients.ts`) checks each request against the same
+  policies, sends the accepted ones to Anthropic's Message Batches or OpenAI's
+  Batch API, and returns an id. `deferred_batches` holds provider ids and counts,
+  never content. A five-minute sweep asks about unfinished batches and prices
+  finished ones at the batch rate. That happens all at once: the lines are
+  reduced to usage in memory and every call is written in one transaction,
+  behind a claim, so a retry never counts twice. Results are passed through
+  from the provider on request. Bedrock and Vertex batch jobs need storage
+  buckets and are refused for now. Neither batch API has been run against a
+  live account.
+
 ## Package layout
 
 ```
@@ -804,5 +839,6 @@ billing history is unrecoverable without a backup.
 - `verify-pricing` runs before every app release (`npm run app:release` stops
   on a mismatch) but not on a schedule, so a price change between releases is
   caught at the next release or by running it by hand.
-- Batch API calls are priced correctly but not yet *detected* — the gateway
-  proxies `/v1/messages`, and batches go through a different endpoint.
+- Batch work goes through `/v1/costgrid/deferred` (Anthropic and OpenAI only);
+  batches a customer submits to the provider directly are seen only in the
+  provider's usage report.

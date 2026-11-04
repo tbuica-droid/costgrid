@@ -1,4 +1,4 @@
-import { Analytics, type Db, RunOutcomes } from "@costgrid/db";
+import { Analytics, CostGridRepository, type Db, QuickWins, RuleRegister, RunOutcomes } from "@costgrid/db";
 
 /**
  * The console's slowest reads, by name, so they can run on another thread.
@@ -18,6 +18,11 @@ export const READ_TASKS = {
   topology: (db: Db, tenantId: string, range: { from: number; to: number }) => new Analytics(db).topology(tenantId, range),
   agentDetail: (db: Db, tenantId: string, range: { from: number; to: number }) =>
     new Analytics(db).agentDetail(tenantId, range),
+  // Reads every run on both sides of each rule's start, so it is a pool task.
+  quickWins: (db: Db, tenantId: string, now: number) =>
+    new QuickWins(db).measure(tenantId, new RuleRegister(db, new CostGridRepository(db)).entries(tenantId, { from: now - 30 * 86_400_000, to: now + 1 }), now, {
+      jobs: true,
+    }),
 };
 
 export type ReadTaskName = keyof typeof READ_TASKS;

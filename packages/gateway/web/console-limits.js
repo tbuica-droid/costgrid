@@ -10,6 +10,7 @@
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
 import { controlSection } from "./console-control.js";
+import { ADJUSTS, quickWinsSection } from "./console-quick-wins.js";
 import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
 
 const view = { data: null };
@@ -46,6 +47,12 @@ function ruleText(rule) {
       return `reasoning at most ${[rule.effort, rule.budgetTokens ? `${count(rule.budgetTokens)} thinking tokens` : null]
         .filter(Boolean)
         .join(", ")}`;
+    case "lower-reasoning":
+      return `lower reasoning to ${[rule.effort, rule.budgetTokens ? `${count(rule.budgetTokens)} thinking tokens` : null]
+        .filter(Boolean)
+        .join(", ")}`;
+    case "add-cache":
+      return "cache the unchanging start of each request";
     case "route":
       return `send ${rule.from?.length ? rule.from.join(", ") : "any model"} to ${rule.toModel}`;
     case "max-output-tokens":
@@ -64,7 +71,8 @@ function ruleText(rule) {
  * with action "block" does not refuse anything; it switches the model.
  */
 function actionLabel(rule, action) {
-  if (action === "monitor") return rule.kind === "route" ? "Dry run" : ACTIONS.monitor;
+  if (action === "monitor") return rule.kind === "route" || ADJUSTS.has(rule.kind) ? "Dry run" : ACTIONS.monitor;
+  if (ADJUSTS.has(rule.kind)) return "Changing calls";
   if (rule.kind === "route") return "Switching model";
   if (rule.fallbackModel && action === "block") return "Switch model when over";
   if (rule.kind === "stop") return "Refusing every call";
@@ -133,11 +141,13 @@ function newLimitForm(d) {
        <option value="budget:day">Spend per day</option>
        <option value="run-budget">Spend per run (one task, start to finish)</option>
        <option value="run-steps">Calls per run (stops loops)</option>
-       <option value="max-reasoning">How much the model may reason</option>`,
+       <option value="max-reasoning">How much the model may reason</option>
+       <option value="lower-reasoning">Lower reasoning instead of refusing</option>
+       <option value="add-cache">Cache the unchanging start of each request (Claude)</option>`,
     )}
     ${select("Who it applies to", "scope", `<option value="tenant">Everything</option>${teams}${agents}`)}
     ${field("Amount in dollars, or number of calls", "amount", "text", 'placeholder="250"')}
-    ${select("Reasoning cap (for a reasoning limit)", "effort", `<option value="">none</option>${d.efforts.map((e) => `<option>${e}</option>`).join("")}`)}
+    ${select("Reasoning level (for a reasoning limit)", "effort", `<option value="">none</option>${d.efforts.map((e) => `<option>${e}</option>`).join("")}`)}
     ${select("When it is reached", "action", Object.entries(ACTIONS).map(([v, t]) => `<option value="${v}">${t}</option>`).join(""))}
     ${select("Instead of refusing, switch to (optional)", "fallbackModel", `<option value="">do not switch</option>${models}`)}
     ${field("Owner: who answers for this limit", "owner", "text", 'placeholder="finance@yourcompany.com"')}
@@ -166,6 +176,14 @@ function registerSection(d) {
         <td><details><summary class="kpi-sub">${count(r.history.length)} change${r.history.length === 1 ? "" : "s"}</summary>
           ${r.history.map((h) => `<div class="kpi-sub">${new Date(h.at).toISOString().slice(0, 16).replace("T", " ")} ${escapeHtml(h.action)} by ${escapeHtml(h.by)}</div>`).join("")}</details></td>
         <td class="num">${
+          r.enabled && ADJUSTS.has(r.rule.kind)
+            ? small(
+                r.action === "monitor" ? "Start changing calls" : "Back to dry run",
+                `data-action="limits-act" data-id="${escapeHtml(r.id)}" data-to="${r.action === "monitor" ? "warn" : "monitor"}"`,
+                r.action === "monitor" ? "good" : "",
+              ) + " "
+            : ""
+        }${
           r.rule.kind === "stop"
             ? ""
             : small(r.enabled ? "Switch off" : "Switch on", `data-action="limits-toggle" data-id="${escapeHtml(r.id)}" data-enabled="${r.enabled}"`)
@@ -243,9 +261,10 @@ function alertsSection(d) {
 }
 
 export async function render() {
-  const [d, control] = await Promise.all([
+  const [d, control, wins] = await Promise.all([
     call("GET", `/console/${state.tenantId}/limits`),
     call("GET", `/console/${state.tenantId}/control`).catch(() => null),
+    call("GET", `/console/${state.tenantId}/quick-wins`).catch(() => null),
   ]);
   view.data = d;
   return `
@@ -268,6 +287,10 @@ export async function render() {
     <p class="section-note">A cheaper model can cost more overall if it thinks longer or needs more steps. This
       measures it on your traffic instead of assuming.</p>
     ${measuredSection(d.measured)}
+    <h2 style="margin-top:26px">Did lowering reasoning or caching pay?</h2>
+    <p class="section-note">Savings that keep the same model. Each one is measured on your traffic and switched
+      back to a dry run on its own if it costs more or fewer jobs finish.</p>
+    ${wins ? quickWinsSection(wins.quickWins) : '<p class="kpi-sub">Could not load this just now.</p>'}
     <h2 style="margin-top:26px">Alerts</h2>
     <p class="section-note">You are told when a limit is reached, a call is refused, traffic is switched to a
       cheaper model, or a run costs far more than that agent's runs usually do. Once each, not once per call.</p>
@@ -277,7 +300,8 @@ export async function render() {
 function parseAmount(kind, raw) {
   const text = String(raw ?? "").trim().replace(/^\$/, "");
   if (kind === "run-steps") return { limit: Number(text) };
-  if (kind === "max-reasoning") return text === "" ? {} : { budgetTokens: Number(text) };
+  if (kind === "max-reasoning" || kind === "lower-reasoning") return text === "" ? {} : { budgetTokens: Number(text) };
+  if (kind === "add-cache") return {};
   return { limitUsd: text };
 }
 
@@ -294,7 +318,7 @@ export async function submit(form) {
       kind,
       ...(window ? { window } : {}),
       ...parseAmount(kind, v.amount),
-      ...(kind === "max-reasoning" && v.effort ? { effort: v.effort } : {}),
+      ...((kind === "max-reasoning" || kind === "lower-reasoning") && v.effort ? { effort: v.effort } : {}),
       ...(v.fallbackModel && (kind === "budget" || kind === "run-budget") ? { fallbackModel: v.fallbackModel } : {}),
       scope,
       action: v.action,
@@ -303,7 +327,12 @@ export async function submit(form) {
     });
     state.flash = {
       kind: "ok",
-      text: v.action === "monitor" ? "Limit added. It is measuring: nothing is refused yet." : "Limit added and in force from the next call.",
+      text:
+        v.action === "monitor"
+          ? ADJUSTS.has(kind)
+            ? "Added as a dry run: it records what it would change and changes nothing yet."
+            : "Limit added. It is measuring: nothing is refused yet."
+          : "Limit added and in force from the next call.",
     };
     return true;
   }
@@ -338,6 +367,18 @@ export async function click(target) {
   if (action === "limits-resume") {
     await call("POST", `/console/${t}/resume/${target.dataset.id}`);
     state.flash = { kind: "ok", text: "Resumed. The record of the stop is kept in the register and the audit log." };
+    return true;
+  }
+  if (action === "limits-act") {
+    const to = target.dataset.to;
+    await call("PATCH", `/console/${t}/limits/${target.dataset.id}`, { action: to });
+    state.flash = {
+      kind: "ok",
+      text:
+        to === "warn"
+          ? "It changes calls from the next one. Before and after is measured below, and it goes back to a dry run on its own if it stops paying."
+          : "Back to a dry run. Calls go out as your software sends them.",
+    };
     return true;
   }
   if (action === "limits-toggle") {

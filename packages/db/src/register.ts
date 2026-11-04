@@ -80,6 +80,18 @@ export class RuleRegister {
       n: number;
       last: number;
     }[];
+    // Adjustment rules change calls rather than judge them, so they record in
+    // their own table: a change made counts as acting, a dry run as measuring.
+    const adjusted = this.#db
+      .prepare(
+        `SELECT policy_id AS policyId, CASE WHEN applied = 1 THEN 'warn' ELSE 'monitor' END AS action,
+                COUNT(*) AS n, MAX(occurred_at) AS last
+         FROM call_adjustments
+         WHERE tenant_id = ? AND occurred_at >= ? AND occurred_at < ?
+         GROUP BY policy_id, applied`,
+      )
+      .all(tenantId, range.from, range.to) as typeof firings;
+    firings.push(...adjusted);
 
     const history = this.#db
       .prepare(

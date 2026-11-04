@@ -73,6 +73,7 @@ const TITLES: Record<StoredAlert["kind"], string> = {
   "key-expiring": "An admin key expires soon",
   "key-paused": "An agent's keys were paused or resumed",
   "cap-reached": "An agent reached its monthly cap",
+  "switched-back": "CostGrid switched a saving back off",
   test: "CostGrid test alert",
 };
 

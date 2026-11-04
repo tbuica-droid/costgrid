@@ -41,6 +41,8 @@ export type AlertKind =
   | "key-paused"
   /** An agent reached the monthly cap its owner set. */
   | "cap-reached"
+  /** CostGrid switched a saving back to a dry run because it stopped paying. */
+  | "switched-back"
   /** Sent from the settings screen to prove the channel works. */
   | "test";
 

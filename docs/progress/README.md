@@ -356,3 +356,24 @@ No secret was ever committed.
   - egress rules
   - a secrets manager for the master key
   - naming who is on call
+
+## Version 3, phase 1: savings that keep the same model (4 November 2026)
+
+**What changed**
+- **Lower reasoning instead of refusing.** For an agent that thinks at length and answers briefly, CostGrid can turn the effort level (or thinking budget) down before sending the call on. Advice suggests one level below the agent's usual one.
+- **Prompt caching for Claude.** For an agent that re-sends a large prompt without caching it, CostGrid can mark the tools and system prompt for caching. Advice now offers this on its "re-sends a large prompt" finding.
+- **Both start as a dry run and are measured.** Limits shows cost per call, cost per finished job and the share of jobs finished, before and after. The owner switches each one on. CostGrid switches it back to a dry run on its own, with an alert, if it costs more or fewer jobs finish.
+- **Batch processing at half price.** A new deferred-jobs endpoint sends work that can wait to Anthropic's or OpenAI's batch service, applies your limits to each request, and records each result at the batch rate. No prompt or answer is stored.
+- New CLI commands: `policy lower-reasoning` and `policy cache`.
+
+**How it was checked**
+- 1,072 tests pass, including 28 new ones:
+  - the request rewrites
+  - the before-and-after measurement and the automatic switch-back
+  - the advice
+  - both batch APIs against stubs
+  - a sweep of every table proving no answer is stored
+- The smoke test passes. The latency bench shows CostGrid's own cost at about 2.5 ms p99, against 3.7 ms before, within this machine's noise.
+
+**Still to check with real accounts:** both providers' batch APIs, and how often Claude's cache pays off on real prompts.
+

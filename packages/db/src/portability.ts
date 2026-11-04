@@ -182,6 +182,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   live_since: "BIGINT",
   last_sync_at: "BIGINT",
   named_at: "BIGINT",
+  checked_at: "BIGINT",
+  ended_at: "BIGINT",
+  metered_at: "BIGINT",
 
   // Token counts. A single call never approaches int4, but these are summed
   // across windows constantly and a rate override multiplies them, so the
@@ -214,6 +217,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   auto_provision: "SMALLINT",
   succeeded: "SMALLINT",
   desktop: "SMALLINT",
+  applied: "SMALLINT",
 
   // Small bounded quantities. int4 is already far more than any of them needs.
   duration_ms: "INTEGER",
@@ -222,6 +226,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   requests: "INTEGER",
   rows_written: "INTEGER",
   batch: "INTEGER",
+  request_count: "INTEGER",
+  succeeded_count: "INTEGER",
+  errored_count: "INTEGER",
   max_impact_pct: "INTEGER",
   max_actions: "INTEGER",
   attempts: "INTEGER",

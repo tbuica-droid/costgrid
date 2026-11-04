@@ -108,6 +108,17 @@ understate from the first failure. The gateway keeps serving on purpose.
 3. Grow the volume. Deleting the WAL or SHM files corrupts the database;
    never do it.
 
+### A background job is failing (costgrid_job_failures_total)
+
+The `job` label says which job. The two added in v3:
+- `quick-win-review`: the hourly check that switches a lower-reasoning or
+  caching rule back to a dry run when it stops paying. While it fails, rules
+  stay as they are. The log line says why. It is safe to restart.
+- `deferred-sweep`: the five-minute check of batch jobs. While it fails,
+  finished batches are not priced yet. Nothing is lost: each batch is priced
+  once, in one transaction, on the next successful run. A batch's provider
+  credential being removed is the usual cause.
+
 ### A provider is down (CostGridProviderErrors)
 
 Not CostGrid's failure, and calls fail with the provider's error passed

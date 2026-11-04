@@ -388,8 +388,11 @@ describe("advising from a fleet's own traffic", () => {
     const found = advisor.proposals("t1", window()).find((p) => p.kind === "cache-opportunity");
     expect(found).toBeDefined();
     // How much of that prompt is actually identical is a fact about their
-    // code, so no saving is quoted and no rule is proposed.
-    expect(found!.command).toBeUndefined();
+    // code, so no saving is quoted. For Claude traffic CostGrid can add the
+    // cache markers itself, as a dry run first.
+    expect(found!.backtest).toBeUndefined();
+    expect(found!.rule).toEqual({ kind: "add-cache" });
+    expect(found!.command).toBe("costgrid policy cache agent:classifier --action monitor");
     expect(found!.intent).toBe("finding");
   });
 

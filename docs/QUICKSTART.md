@@ -264,6 +264,58 @@ a call that a block rule already refused.
 **Always start with `--action monitor`.** Routing is the only feature here that
 changes what your code asked for.
 
+### Savings that keep the same model
+
+Three savings leave the model alone. Each is opt-in and starts as a dry run.
+
+**Lower reasoning.** For an agent that thinks at length and answers briefly,
+turn the effort level down instead of refusing the call. Requests that ask for
+more than the level are lowered and sent on. Requests that name no level are
+left alone.
+
+```bash
+npx tsx packages/cli/src/main.ts policy lower-reasoning agent:support-bot \
+  --effort medium --action monitor
+```
+
+**Prompt caching (Claude).** For a Claude agent that sends the same large
+instructions every time without caching them, CostGrid marks the tools and
+system prompt for caching. Requests that already use caching are not touched.
+
+```bash
+npx tsx packages/cli/src/main.ts policy cache agent:support-bot --action monitor
+```
+
+Both show on the Advice screen when your traffic suggests them. When you're ready,
+switch one from dry run to "changing calls" on the Limits screen. Limits then
+shows cost per call and cost per finished job, before and after. An hourly check
+switches the rule back to a dry run on its own, with an alert, if it costs more
+or fewer jobs finish. Changed calls carry `x-costgrid-adjusted`.
+
+**Batch processing at half price.** Work that can wait an hour or a day can go
+through the provider's batch service. Send it to CostGrid's deferred-jobs
+endpoint instead of the proxy:
+
+```bash
+curl -s localhost:8787/v1/costgrid/deferred \
+  -H "x-costgrid-key: $COSTGRID_KEY" -H "x-costgrid-agent: nightly-summaries" \
+  -H "content-type: application/json" \
+  -d '{"provider": "anthropic", "requests": [
+        {"custom_id": "doc-1", "params": {"model": "claude-sonnet-4-6", "max_tokens": 500,
+          "messages": [{"role": "user", "content": "Summarise…"}]}}]}'
+# -> 202 {"id": "cgb_…", "status": "in_progress", "rejected": []}
+
+curl -s localhost:8787/v1/costgrid/deferred/cgb_… -H "x-costgrid-key: $COSTGRID_KEY"
+curl -s localhost:8787/v1/costgrid/deferred/cgb_…/results -H "x-costgrid-key: $COSTGRID_KEY"
+```
+
+- `provider` is `anthropic` or `openai`. For OpenAI, `params` is a Chat
+  Completions body.
+- Your limits apply to each request, and refused ones come back in `rejected`.
+- Results are the provider's own JSONL, one line per `custom_id`.
+- Each result is recorded as a call at the batch rate once the batch ends.
+- CostGrid stores neither the requests nor the answers.
+
 ## 10. Governing runs, not just calls
 
 An agent run is many calls. A daily budget tells you a team overspent hours
