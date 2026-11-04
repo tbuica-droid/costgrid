@@ -19,7 +19,7 @@ describe("LCSO §14 worked example", () => {
   const result = computeLcso(section14Input());
 
   it("reproduces the three layers exactly", () => {
-    expect(result.methodologyVersion).toBe("0.1");
+    expect(result.methodologyVersion).toBe("0.2");
     expect(ratioEquals(value(result.lcso.lcso1), ratio(usd("3040"), 7800n))).toBe(true);
     expect(formatUsdPerOutcome(value(result.lcso.lcso1))).toBe("0.390");
     expect(formatUsdPerOutcome(value(result.lcso.lcso2))).toBe("1.008");
@@ -47,7 +47,10 @@ describe("LCSO §14 worked example", () => {
     expect(formatPercent(value(result.rates.success), 1)).toBe("79.6");
     expect(ratioEquals(value(result.rates.autonomy), ratio(7488n, 7800n))).toBe(true);
     expect(formatRatio(value(result.her).ratio, 2)).toBe("0.23");
-    expect(result.flags).toEqual(["human-cost-estimated"]);
+    // 0.2: no quality evidence, so every success counts as good, and that is disclosed.
+    expect(result.flags).toEqual(["human-cost-estimated", "quality-mostly-unknown"]);
+    expect(result.counts).toMatchObject({ good: 7800, qualityKnown: 0 });
+    expect(ratioEquals(value(result.lcso.good), value(result.lcso.lcso1))).toBe(true);
   });
 
   it("reconciles the provider bill at 98.4%", () => {
@@ -348,3 +351,30 @@ describe("coverage", () => {
     expect(() => coverage(-1n, usd(1))).toThrow(RangeError);
   });
 });
+
+describe("cost per good job (0.2)", () => {
+  it("counts a success as good unless it is marked below the bar", () => {
+    const result = computeLcso(
+      input([
+        task("a", "SUCCESS", ["1"], { quality: "met" }),
+        task("b", "SUCCESS", ["1"], { quality: "below" }),
+        task("c", "SUCCESS", ["1"]),
+        task("d", "FAILURE", ["1"], { quality: "below" }),
+      ]),
+    );
+    expect(result.counts).toMatchObject({ success: 3, good: 2, qualityKnown: 2 });
+    // $4 of AI spend over two good jobs; LCSO-1 stays $4 over three successes.
+    expect(ratioEquals(value(result.lcso.good), ratio(usd("4"), 2n))).toBe(true);
+    expect(ratioEquals(value(result.lcso.lcso1), ratio(usd("4"), 3n))).toBe(true);
+    expect(result.flags).not.toContain("quality-mostly-unknown");
+  });
+
+  it("withholds the figure when no job was good, and in aggregate mode", () => {
+    const none = computeLcso(input([task("a", "SUCCESS", ["1"], { quality: "below" })]));
+    expect(reason(none.lcso.good)).toBe("no-good-jobs");
+    expect(value(none.lcso.lcso1)).toBeDefined();
+    const aggregate = computeLcsoAggregate(section14AggregateInput());
+    expect(reason(aggregate.lcso.good)).toBe("aggregate-mode");
+  });
+});
+

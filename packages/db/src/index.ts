@@ -31,3 +31,4 @@ export * from "./statement-jobs.js";
 export * from "./rekey.js";
 export * from "./quick-wins.js";
 export * from "./deferred.js";
+export * from "./quality.js";

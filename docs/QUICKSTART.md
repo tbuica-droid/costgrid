@@ -693,6 +693,31 @@ for describing what happened, which would be content.
 Report again for the same run and the later answer wins, so a run judged
 successful and later found to have produced nonsense can be corrected.
 
+Two optional fields say how good the work was:
+
+```bash
+  -d '{"run_id": "order-8841", "success": true, "quality": 0.8, "signal": "edited"}'
+```
+
+- `quality` is a score from 0 to 1, for example a reviewer's mark or a user's
+  thumbs up.
+- `signal` is what a person did with the answer: `accepted`, `edited`,
+  `rejected` or `handed-off`.
+
+**Cost per good job.** A job counts as good when it finished and nothing says
+it fell short. Falling short means any of:
+- a failed check on the answer;
+- an `edited`, `rejected` or `handed-off` signal;
+- a score below the agent's bar (0.5 unless you change it).
+
+Under Settings, "What a good answer looks like", you set per agent:
+- whether answers must be JSON;
+- the fields they must have;
+- the bar.
+
+CostGrid checks each answer in memory and keeps only the result. Results and
+the statement then show cost per good job beside cost per finished job.
+
 Once you do this, `costgrid report` gains the figure nothing else can give you:
 
 ```

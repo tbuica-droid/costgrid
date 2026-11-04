@@ -9,7 +9,11 @@ import type { Ratio } from "./ratio.js";
  * and time records. Times are epoch milliseconds. Money is nanodollars.
  */
 
-export const LCSO_METHODOLOGY_VERSION = "0.1" as const;
+/**
+ * 0.2 adds cost per good job: a success counts as good unless something says
+ * its answer fell short of the quality bar (see `LcsoTask.quality`).
+ */
+export const LCSO_METHODOLOGY_VERSION = "0.2" as const;
 
 /** §5.1. Exactly one per task. */
 export const OUTCOME_STATES = ["SUCCESS", "FAILURE", "ABANDONED", "PENDING", "UNKNOWN"] as const;
@@ -54,6 +58,13 @@ export interface LcsoTask {
   readonly finalRunId?: string;
   /** A SUCCESS later reversed: a ticket reopened, a pull request reverted. */
   readonly reversedAt?: number;
+  /**
+   * Whether the finished work met the quality bar (0.2). `below` when a check
+   * on the answer failed, a person edited or rejected it, or a reported score
+   * fell under the bar; `met` when the evidence says it was good; absent when
+   * there is no evidence either way, which counts as good and is disclosed.
+   */
+  readonly quality?: "met" | "below";
 }
 
 /**
@@ -136,7 +147,8 @@ export type NotReportedReason =
   | "aggregate-mode"
   | "no-human-baseline"
   | "rework-not-tracked"
-  | "counts-not-supplied";
+  | "counts-not-supplied"
+  | "no-good-jobs";
 
 /** A figure, or the reason it is withheld. Never a misleading zero. */
 export type Reported<T> =
@@ -154,6 +166,7 @@ export const LCSO_FLAGS = [
   "tasks-without-runs",
   "aggregate-includes-unresolved-spend",
   "failure-counts-not-supplied",
+  "quality-mostly-unknown",
 ] as const;
 
 export type LcsoFlag = (typeof LCSO_FLAGS)[number];
@@ -193,6 +206,10 @@ export interface LcsoCounts {
   readonly pendingMaturing: number;
   readonly clawedBack: number;
   readonly withoutRuns: number;
+  /** Successes not marked below the quality bar (0.2). */
+  readonly good: number;
+  /** Successes with quality evidence either way. */
+  readonly qualityKnown: number;
 }
 
 export interface LcsoResult {
@@ -228,6 +245,8 @@ export interface LcsoResult {
     readonly lcso1: Reported<Ratio>;
     readonly lcso2: Reported<Ratio>;
     readonly lcso3: Reported<Ratio>;
+    /** LCSO-1 over good jobs: AI cost per job that finished and met the bar (0.2). */
+    readonly good: Reported<Ratio>;
   };
   readonly failureCostShare: Reported<Ratio>;
   readonly spread: Reported<LcsoSpread>;

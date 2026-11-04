@@ -60,6 +60,11 @@ function summaryView(r: LcsoResult) {
   return {
     verdict: verdictOf(r),
     costPerFinishedUsd: r.lcso.lcso1.reported ? formatUsdPerOutcome(r.lcso.lcso1.value, 6) : null,
+    // LCSO 0.2: finished and not marked below the quality bar. Coverage says how many were judged.
+    costPerGoodUsd: r.lcso.good.reported ? formatUsdPerOutcome(r.lcso.good.value, 6) : null,
+    goodJobs: r.counts.good,
+    qualityKnown: r.counts.qualityKnown,
+    qualityMostlyUnknown: r.flags.includes("quality-mostly-unknown"),
     failureCostShare: r.failureCostShare.reported ? formatPercent(r.failureCostShare.value, 1) : null,
     spread: spread && {
       typicalUsd: toUsdString(spread.p50, 6),
@@ -98,6 +103,7 @@ function agentView(a: AgentOutcomes) {
     purposeId: a.purposeSet ? a.preset.id : null,
     purposeVersion: a.purposeSet ? a.preset.version : null,
     presetLabel: a.preset.label,
+    quality: a.quality ?? null,
     evidence: a.preset.evidence,
     needsUpgrade: a.needsUpgrade,
     counts: {

@@ -12,6 +12,7 @@ import { call, flashBanner, formValues, state } from "./console-api.js";
 import { confirmDialog } from "./console-shell.js";
 import { controlSection } from "./console-control.js";
 import { ADJUSTS, quickWinsSection } from "./console-quick-wins.js";
+import { decisionsSection } from "./console-quality.js";
 import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
 
 const view = { data: null };
@@ -262,10 +263,11 @@ function alertsSection(d) {
 }
 
 export async function render() {
-  const [d, control, wins] = await Promise.all([
+  const [d, control, wins, decisions] = await Promise.all([
     call("GET", `/console/${state.tenantId}/limits`),
     call("GET", `/console/${state.tenantId}/control`).catch(() => null),
     call("GET", `/console/${state.tenantId}/quick-wins`).catch(() => null),
+    call("GET", `/console/${state.tenantId}/decisions`).catch(() => null),
   ]);
   view.data = d;
   return `
@@ -292,6 +294,10 @@ export async function render() {
     <p class="section-note">Savings that keep the same model. Each one is measured on your traffic and switched
       back to a dry run on its own if it costs more or fewer jobs finish.</p>
     ${wins ? quickWinsSection(wins.quickWins) : '<p class="kpi-sub">Could not load this just now.</p>'}
+    <h2 style="margin-top:26px">Why calls were changed</h2>
+    <p class="section-note">Every time CostGrid sent a call to another model or sent it differently, or would have in
+      a dry run, with the reason and the models it did not choose. The newest 100.</p>
+    ${decisionsSection(decisions)}
     <h2 style="margin-top:26px">Alerts</h2>
     <p class="section-note">You are told when a limit is reached, a call is refused, traffic is switched to a
       cheaper model, or a run costs far more than that agent's runs usually do. Once each, not once per call.</p>

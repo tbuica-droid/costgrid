@@ -98,6 +98,13 @@ export function verdictBlock(agent, { owner = false, spent, month } = {}) {
   if (has(s.costPerFinishedUsd)) {
     figures.push(["Cost per finished job", escapeHtml(usd(s.costPerFinishedUsd)), month ? "your count" : ""]);
   }
+  if (has(s.costPerGoodUsd) && s.qualityKnown > 0) {
+    figures.push([
+      "Cost per good job",
+      escapeHtml(usd(s.costPerGoodUsd)),
+      `finished and up to standard; quality known for ${escapeHtml(String(s.qualityKnown))}`,
+    ]);
+  }
   if (has(s.failureCostShare)) figures.push(["On jobs that didn't finish", `${escapeHtml(s.failureCostShare)}%`, "of the spending"]);
   if (s.spread) {
     figures.push([
@@ -118,9 +125,44 @@ export function verdictBlock(agent, { owner = false, spent, month } = {}) {
               .join("")}</dl>`
           : ""
       }
+      ${qualityLine(agent.quality)}
       ${agent.person ? `<p class="kpi-sub verdict-person">${personLine(agent.person, s.personRatio)} AI model cost only; indicative.</p>` : ""}
       ${owner ? personForm(agent) : ""}
     </div>`;
+}
+
+const CHECK_WORDS = {
+  "cut-off": "cut off",
+  refusal: "refused",
+  "not-json": "not valid JSON",
+  "missing-field": "missing a required field",
+};
+
+/**
+ * The quality spread in one line: how many answers passed CostGrid's checks,
+ * what failed, and the scores your software reported.
+ */
+export function qualityLine(q) {
+  if (!q) return "";
+  const total = Object.values(q.checks).reduce((a, b) => a + b, 0);
+  const parts = [];
+  if (total > 0) {
+    const passed = q.checks.pass ?? 0;
+    const failed = Object.entries(q.checks)
+      .filter(([k, n]) => k !== "pass" && n > 0)
+      .map(([k, n]) => `${n.toLocaleString("en-US")} ${CHECK_WORDS[k] ?? k}`);
+    parts.push(
+      `${Math.round((passed / total) * 100)}% of ${total.toLocaleString("en-US")} answers passed the checks` +
+        (failed.length ? ` (${failed.join(", ")})` : ""),
+    );
+  }
+  if (q.scored > 0) {
+    const s = (m) => (m / 1000).toFixed(2);
+    parts.push(
+      `scores from your software: ${s(q.scoreP10)} low, ${s(q.scoreP50)} typical, ${s(q.scoreP90)} high, over ${q.scored.toLocaleString("en-US")} jobs`,
+    );
+  }
+  return parts.length ? `<p class="kpi-sub verdict-quality">Quality: ${escapeHtml(parts.join("; "))}.</p>` : "";
 }
 
 /** For an agent known only from provider reports: the count form. */

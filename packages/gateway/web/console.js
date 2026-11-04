@@ -31,6 +31,7 @@ import * as outcomes from "./console-outcomes.js";
 import * as verdict from "./console-verdict.js";
 import * as control from "./console-control.js";
 import * as outcomeSettings from "./console-settings-outcomes.js";
+import * as quality from "./console-quality.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
@@ -45,7 +46,7 @@ const PAGES = [
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
-const SCREENS = [connect, agents, proxy, limits, results, outcomes, verdict, control, outcomeSettings, advice, drift, data];
+const SCREENS = [connect, agents, proxy, limits, results, outcomes, verdict, control, outcomeSettings, quality, advice, drift, data];
 
 // ------------------------------------------------------------- signed out
 

@@ -1,4 +1,5 @@
 import {
+  type AnswerCheck,
   computeLcso,
   computeLcsoAggregate,
   type DetectedTask,
@@ -6,13 +7,16 @@ import {
   type LcsoResult,
   matchesEscalation,
   type Nanodollars,
+  nearestRank,
   type PurposePreset,
   presetFor,
+  qualityOf,
   type RunSummary,
   runStatusOf,
   type TaskSource,
 } from "@costgrid/core";
 import { AgentsRepository } from "./agents.js";
+import { DEFAULT_QUALITY_BAR_MILLI, QualityRepository } from "./quality.js";
 import type { Db } from "./database.js";
 import { type JobCount, JobInputs, type PersonCost, personBaseline } from "./job-inputs.js";
 
@@ -48,6 +52,21 @@ export interface AgentOutcomes {
   readonly sharedOpenings: number;
   /** The owner's estimate of the same job done by a person. */
   readonly person?: PersonCost;
+  /** How good the answers were in the period: check results and reported scores. */
+  readonly quality?: QualitySpread;
+}
+
+/**
+ * The quality spread for one agent over the period: how many final answers
+ * each check found, and the reported scores at the 10th, 50th and 90th
+ * percentile (nearest rank, whole thousandths). Null figures had no data.
+ */
+export interface QualitySpread {
+  readonly checks: Readonly<Partial<Record<AnswerCheck, number>>>;
+  readonly scored: number;
+  readonly scoreP10: number | null;
+  readonly scoreP50: number | null;
+  readonly scoreP90: number | null;
 }
 
 /**
@@ -86,6 +105,7 @@ interface RunRow {
   lastOutcome: string;
   lastStatus: number | null;
   lastStop: string | null;
+  lastCheck: AnswerCheck | null;
 }
 
 /** The furthest back a job in the period can have started: the longest maturation plus re-run window. */
@@ -115,6 +135,8 @@ export class RunOutcomes {
     const reported = this.#reported(tenantId);
     const inputs = new JobInputs(this.#db);
     const persons = inputs.personCosts(tenantId);
+    const bars = new QualityRepository(this.#db).all(tenantId);
+    const spreads = this.#qualitySpread(tenantId, range);
     const agents = new Map(
       (
         this.#db
@@ -148,8 +170,17 @@ export class RunOutcomes {
         cost: own.reduce((sum, r) => sum + r.cost, 0n),
         finalStatus: runStatusOf(latest.lastOutcome, latest.lastStatus, latest.lastStop),
         escalated: tools.length > 0,
-        ...(report !== undefined ? { reported: report } : {}),
+        ...(report !== undefined ? { reported: { succeeded: report.succeeded, at: report.at } } : {}),
       };
+      const judged = own.filter((r) => r.lastCheck !== null).reduce<RunRow | undefined>(
+        (a, b) => (a === undefined || b.endedAt >= a.endedAt ? b : a),
+        undefined,
+      );
+      const quality = qualityOf(
+        { check: judged?.lastCheck ?? undefined, qualityMilli: report?.qualityMilli, signal: report?.signal },
+        bars.get(root.agentId)?.barMilli ?? DEFAULT_QUALITY_BAR_MILLI,
+      );
+      if (quality !== undefined) Object.assign(summary, { quality });
       byAgent.set(root.agentId, [...(byAgent.get(root.agentId) ?? []), summary]);
     }
 
@@ -171,6 +202,7 @@ export class RunOutcomes {
         needsUpgrade,
         escalationTools: [...(toolsByAgent.get(agentId) ?? [])].sort(),
         ...(person !== undefined ? { person } : {}),
+        ...(spreads.has(agentId) ? { quality: spreads.get(agentId)! } : {}),
       };
       if (needsUpgrade) {
         results.push({ ...base, tasks: [], totalCost: 0n, sharedOpenings: 0 });
@@ -264,7 +296,10 @@ export class RunOutcomes {
            SELECT run_id, agent_id, parent_run_id, started_at, duration_ms, cost_total, outcome, status_code,
                   stop_reason, task_key, task_source, turns,
                   ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY started_at, id) AS first_n,
-                  ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY started_at DESC, id DESC) AS last_n
+                  ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY started_at DESC, id DESC) AS last_n,
+                  answer_check,
+                  -- The latest call that was judged at all comes first.
+                  ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY (answer_check IS NULL), started_at DESC, id DESC) AS check_n
            FROM calls WHERE tenant_id = ? AND started_at >= ? AND started_at < ?
          )
          SELECT run_id AS runId, MIN(agent_id) AS agentId, MAX(parent_run_id) AS parentRunId,
@@ -276,7 +311,8 @@ export class RunOutcomes {
                 MAX(CASE WHEN first_n = 1 THEN turns END) AS turns,
                 MAX(CASE WHEN last_n = 1 THEN outcome END) AS lastOutcome,
                 MAX(CASE WHEN last_n = 1 THEN status_code END) AS lastStatus,
-                MAX(CASE WHEN last_n = 1 THEN stop_reason END) AS lastStop
+                MAX(CASE WHEN last_n = 1 THEN stop_reason END) AS lastStop,
+                MAX(CASE WHEN check_n = 1 THEN answer_check END) AS lastCheck
          FROM ranked GROUP BY run_id`,
       )
       .safeIntegers(true)
@@ -298,8 +334,40 @@ export class RunOutcomes {
           lastOutcome: r["lastOutcome"] as string,
           lastStatus: num(r["lastStatus"]),
           lastStop: r["lastStop"] as string | null,
+          lastCheck: r["lastCheck"] as AnswerCheck | null,
         };
       });
+  }
+
+  #qualitySpread(tenantId: string, range: { from: number; to: number }): Map<string, QualitySpread> {
+    const checks = this.#db
+      .prepare(
+        `SELECT agent_id AS agentId, answer_check AS check_, COUNT(*) AS n FROM calls
+         WHERE tenant_id = ? AND started_at >= ? AND started_at < ? AND answer_check IS NOT NULL
+         GROUP BY agent_id, answer_check`,
+      )
+      .all(tenantId, range.from, range.to) as { agentId: string; check_: AnswerCheck; n: number }[];
+    // A run's score belongs to the agent that made the run's first call.
+    const scores = this.#db
+      .prepare(
+        `SELECT c.agent_id AS agentId, o.quality_milli AS q FROM outcomes o
+         JOIN calls c ON c.tenant_id = o.tenant_id AND c.run_id = o.run_id AND c.id = (
+           SELECT id FROM calls WHERE tenant_id = o.tenant_id AND run_id = o.run_id ORDER BY started_at, id LIMIT 1)
+         WHERE o.tenant_id = ? AND o.quality_milli IS NOT NULL AND o.reported_at >= ? AND o.reported_at < ?`,
+      )
+      .all(tenantId, range.from, range.to) as { agentId: string; q: number }[];
+
+    const out = new Map<string, { checks: Partial<Record<AnswerCheck, number>>; values: number[] }>();
+    const entry = (id: string) => out.get(id) ?? out.set(id, { checks: {}, values: [] }).get(id)!;
+    for (const c of checks) entry(c.agentId).checks[c.check_] = c.n;
+    for (const s of scores) entry(s.agentId).values.push(s.q);
+    const rank = (v: number[], p: number) => (v.length === 0 ? null : nearestRank(v, p, 100));
+    return new Map(
+      [...out].map(([id, { checks: c, values }]) => {
+        values.sort((a, b) => a - b);
+        return [id, { checks: c, scored: values.length, scoreP10: rank(values, 10), scoreP50: rank(values, 50), scoreP90: rank(values, 90) }];
+      }),
+    );
   }
 
   /** Hand-off tool names used, by run. */
@@ -317,11 +385,26 @@ export class RunOutcomes {
     return byRun;
   }
 
-  #reported(tenantId: string): Map<string, { succeeded: boolean; at: number }> {
+  #reported(
+    tenantId: string,
+  ): Map<string, { succeeded: boolean; at: number; qualityMilli?: number; signal?: string }> {
     const rows = this.#db
-      .prepare("SELECT run_id AS runId, succeeded, reported_at AS at FROM outcomes WHERE tenant_id = ?")
-      .all(tenantId) as { runId: string; succeeded: number; at: number }[];
-    return new Map(rows.map((r) => [r.runId, { succeeded: r.succeeded === 1, at: r.at }]));
+      .prepare(
+        `SELECT run_id AS runId, succeeded, reported_at AS at, quality_milli AS qualityMilli, signal
+         FROM outcomes WHERE tenant_id = ?`,
+      )
+      .all(tenantId) as { runId: string; succeeded: number; at: number; qualityMilli: number | null; signal: string | null }[];
+    return new Map(
+      rows.map((r) => [
+        r.runId,
+        {
+          succeeded: r.succeeded === 1,
+          at: r.at,
+          ...(r.qualityMilli !== null ? { qualityMilli: r.qualityMilli } : {}),
+          ...(r.signal !== null ? { signal: r.signal } : {}),
+        },
+      ]),
+    );
   }
 }
 

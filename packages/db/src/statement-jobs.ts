@@ -33,6 +33,11 @@ export interface StatementJobRow {
   readonly waiting: number;
   readonly cost: Nanodollars;
   readonly costPerFinished: Ratio | undefined;
+  /** Finished jobs nothing marked below the quality bar (LCSO 0.2). */
+  readonly good: number;
+  /** Finished jobs with quality evidence either way. */
+  readonly qualityKnown: number;
+  readonly costPerGood: Ratio | undefined;
   readonly failureShare: Ratio | undefined;
   /** AI cost per finished job over the owner's person estimate. */
   readonly personRatio: Ratio | undefined;
@@ -57,6 +62,9 @@ function row(agentId: string, name: string | null, basis: JobsBasis, r: LcsoResu
     waiting: c.pending,
     cost,
     costPerFinished: r.lcso.lcso1.reported ? r.lcso.lcso1.value : undefined,
+    good: c.good,
+    qualityKnown: c.qualityKnown,
+    costPerGood: r.lcso.good.reported ? r.lcso.good.value : undefined,
     failureShare: r.failureCostShare.reported ? r.failureCostShare.value : undefined,
     personRatio: r.her.reported ? r.her.value.ratio : undefined,
     verdict: verdictOf(r),
@@ -126,6 +134,9 @@ export function jobsView(jobs: StatementJobs | undefined) {
       stillWaiting: r.waiting,
       spendUsd: toUsdString(r.cost, 6),
       costPerFinishedUsd: r.costPerFinished === undefined ? null : formatUsdPerOutcome(r.costPerFinished, 6),
+      good: r.good,
+      qualityKnown: r.qualityKnown,
+      costPerGoodUsd: r.costPerGood === undefined ? null : formatUsdPerOutcome(r.costPerGood, 6),
       spendOnUnfinishedPct: r.failureShare === undefined ? null : formatPercent(r.failureShare, 1),
       aiCostVsPerson: r.personRatio === undefined ? null : formatRatio(r.personRatio, 2),
       verdict: r.verdict,
@@ -151,6 +162,10 @@ export function jobsCsvRows(jobs: StatementJobs, csvRow: (fields: readonly (stri
       "spend_on_unfinished_pct",
       "ai_cost_vs_person",
       "verdict",
+      // Added in method 0.2, at the end so existing spreadsheets keep their columns.
+      "good",
+      "cost_per_good_usd",
+      "quality_known",
     ]),
     ...jobs.rows.map((r) =>
       csvRow([
@@ -165,6 +180,9 @@ export function jobsCsvRows(jobs: StatementJobs, csvRow: (fields: readonly (stri
         r.failureShare === undefined ? "" : formatPercent(r.failureShare, 1),
         r.personRatio === undefined ? "" : formatRatio(r.personRatio, 2),
         r.verdict,
+        r.good,
+        r.costPerGood === undefined ? "" : formatUsdPerOutcome(r.costPerGood, 6),
+        r.qualityKnown,
       ]),
     ),
     ...jobs.notJudged.map((a) => csvRow([a.name ?? a.agentId, a.agentId, "not judged: its purpose predates automatic detection"])),

@@ -86,6 +86,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TENANT_TABLES = [
   "calls",
   "call_adjustments",
+  "routing_decisions",
   "spend_daily",
   "violations",
   "tool_invocations",
@@ -257,6 +258,9 @@ export class Retention {
           .run(tenantId, Math.min(cutoff, monthStart));
         this.#db
           .prepare("DELETE FROM call_adjustments WHERE tenant_id = ? AND occurred_at < ?")
+          .run(tenantId, cutoff);
+        this.#db
+          .prepare("DELETE FROM routing_decisions WHERE tenant_id = ? AND decided_at < ?")
           .run(tenantId, cutoff);
         toolInvocations = this.#db
           .prepare("DELETE FROM tool_invocations WHERE tenant_id = ? AND occurred_at < ?")

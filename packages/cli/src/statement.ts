@@ -123,9 +123,13 @@ export function formatStatement(statement: Statement): string {
     for (const r of jobs) {
       const per = r.costPerFinished === undefined ? "no finished job" : `$${formatUsdPerOutcome(r.costPerFinished, 2)} per finished job`;
       const share = r.failureShare === undefined || r.finished === 0 ? "" : `, ${formatPercent(r.failureShare, 0)}% on unfinished`;
+      const good =
+        r.costPerGood === undefined || r.qualityKnown === 0
+          ? ""
+          : `, $${formatUsdPerOutcome(r.costPerGood, 2)} per good job (${r.good} good, quality known for ${r.qualityKnown})`;
       out.push(
         `    ${(r.name ?? r.agentId).padEnd(24)} ${r.finished} finished, ${r.notFinished} not, ${r.waiting} waiting. ` +
-          `${per}${share} [${BASIS_LABELS[r.basis]}]`,
+          `${per}${good}${share} [${BASIS_LABELS[r.basis]}]`,
       );
       out.push(`    ${"".padEnd(24)} ${VERDICT_LINES[r.verdict]}`);
     }

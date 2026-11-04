@@ -418,3 +418,24 @@ No secret was ever committed.
 - No sideways scrolling at phone width on either.
 - All 1,077 tests pass, and the smoke test passes.
 
+## Version 3, phase 2: is the work any good? (4 November 2026)
+
+**What changed**
+- **Cost per good job.** Beside cost per finished job, CostGrid now shows what a job that finished and was up to standard cost. Jobs that were cut off, refused, in the wrong format, edited or rejected by a person, or scored low by your software don't count as good. It is on Results and the statement, with how many jobs were actually judged.
+- **Checks on every answer.** Per agent, say whether answers must be JSON and which fields they must have. CostGrid checks each answer as it passes and keeps only the result, never the text.
+- **Scores and signals from your software.** The outcome report takes an optional 0 to 1 score and what a person did with the answer.
+- **A quality line per agent on Results:**
+  - how many answers passed the checks, and what failed;
+  - the scores your software reported, low, typical and high.
+- **Why calls were changed.** Limits lists every time CostGrid sent a call to another model or sent it differently (dry runs included), with the reason and the models it didn't choose.
+- The cost-per-job method is now version 0.2.
+
+**How it was checked**
+- 1,093 tests pass. The new ones cover:
+  - every answer check;
+  - cost per good job from calls to the statement;
+  - the outcome fields;
+  - the decision log;
+  - a sweep proving no answer text is stored.
+- The smoke test passes. CostGrid's own latency is 2.8 ms p99.
+

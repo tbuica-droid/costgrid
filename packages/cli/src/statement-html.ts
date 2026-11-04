@@ -145,18 +145,19 @@ export function renderStatementHtml(s: Statement, options: StatementHtmlOptions)
     ? `<section>
       <h2>Did the jobs get done?</h2>
       <table>
-        <thead><tr><th>Agent</th><th class="num">Finished</th><th class="num">Not finished</th><th class="num">Per finished job</th><th>In plain words</th></tr></thead>
+        <thead><tr><th>Agent</th><th class="num">Finished</th><th class="num">Not finished</th><th class="num">Per finished job</th><th class="num">Per good job</th><th>In plain words</th></tr></thead>
         <tbody>${jobRows
           .map(
             (r) => `<tr><td>${esc(r.name ?? r.agentId)}<br /><small>${esc(BASIS_LABELS[r.basis])}</small></td>
               <td class="num">${r.finished.toLocaleString("en-US")}</td><td class="num">${r.notFinished.toLocaleString("en-US")}</td>
               <td class="num">${r.costPerFinished === undefined ? "&mdash;" : `$${formatUsdPerOutcome(r.costPerFinished, 2)}`}</td>
+              <td class="num">${r.costPerGood === undefined ? "&mdash;" : `$${formatUsdPerOutcome(r.costPerGood, 2)}`}<br /><small>quality known for ${r.qualityKnown.toLocaleString("en-US")} of ${r.finished.toLocaleString("en-US")}</small></td>
               <td>${esc(VERDICT_LINES[r.verdict])}${r.failureShare === undefined || r.finished === 0 ? "" : ` ${formatPercent(r.failureShare, 0)}% of its spend was on jobs that didn&rsquo;t finish.`}</td></tr>`,
           )
           .join("")}</tbody>
       </table>
       ${s.jobs!.notJudged.length ? `<p class="note">Not judged, because their purpose predates automatic detection: ${s.jobs!.notJudged.map((a) => esc(a.name ?? a.agentId)).join(", ")}.</p>` : ""}
-      <p class="note">Indicative. Failed and retried attempts are charged to the jobs that worked (LCSO method v${esc(s.jobs!.methodologyVersion)}). Where it says &ldquo;inferred&rdquo;, CostGrid judged each job from how the agent behaved; a report from your software makes it exact.</p>
+      <p class="note">Indicative. Failed and retried attempts are charged to the jobs that worked (LCSO method v${esc(s.jobs!.methodologyVersion)}). Where it says &ldquo;inferred&rdquo;, CostGrid judged each job from how the agent behaved; a report from your software makes it exact. A good job is one that finished and that nothing marked below the quality bar (a failed check on the answer, a person editing or rejecting it, or a low score from your software); a job with no such evidence counts as good, and the column says how many were actually judged.</p>
     </section>`
     : "";
 

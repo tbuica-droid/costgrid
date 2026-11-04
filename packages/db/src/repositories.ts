@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import type Database from "better-sqlite3";
 import type {
   Adjustment,
+  AnswerCheck,
   EnforcementAction,
   Nanodollars,
   Policy,
@@ -76,6 +77,8 @@ export interface CallRecord {
   readonly taskSource?: "header" | "fingerprint" | undefined;
   /** How many messages the request carried, so a continuing conversation is told from a retry. */
   readonly turns?: number | undefined;
+  /** What CostGrid's checks found in the final answer; undefined when it was not judged. */
+  readonly answerCheck?: AnswerCheck | undefined;
   /** Changes adjustment rules made to the request, or would have made in a dry run. */
   readonly adjustments?: readonly Adjustment[] | undefined;
 }
@@ -301,7 +304,7 @@ export class CostGridRepository {
            speed, inference_geo, batch,
            requested_model, routed, route_dry_run, saving_estimate,
            run_id, parent_run_id, run_depth, run_declared, cost_list,
-           reasoning_tokens, reasoning_requested, task_key, task_source, turns
+           reasoning_tokens, reasoning_requested, task_key, task_source, turns, answer_check
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -311,7 +314,7 @@ export class CostGridRepository {
            @speed, @inferenceGeo, @batch,
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
            @runId, @parentRunId, @runDepth, @runDeclared, @costList,
-           @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns
+           @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns, @answerCheck
          )`,
       )
       .run({
@@ -358,6 +361,7 @@ export class CostGridRepository {
         taskKey: call.taskKey ?? null,
         taskSource: call.taskKey === undefined ? null : (call.taskSource ?? null),
         turns: call.turns ?? null,
+        answerCheck: call.answerCheck ?? null,
       });
   }
 
@@ -673,15 +677,21 @@ export class CostGridRepository {
     runId: string;
     succeeded: boolean;
     label?: string | undefined;
+    /** A 0 to 1 score in whole thousandths. */
+    qualityMilli?: number | undefined;
+    /** What a person did with the answer: accepted, edited, rejected, handed-off. */
+    signal?: string | undefined;
     at: number;
   }): void {
     this.#prepare(
-        `INSERT INTO outcomes (tenant_id, run_id, succeeded, label, reported_at)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO outcomes (tenant_id, run_id, succeeded, label, reported_at, quality_milli, signal)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(tenant_id, run_id) DO UPDATE SET
            succeeded = excluded.succeeded,
            label = excluded.label,
-           reported_at = excluded.reported_at`,
+           reported_at = excluded.reported_at,
+           quality_milli = excluded.quality_milli,
+           signal = excluded.signal`,
       )
       .run(
         input.tenantId,
@@ -689,6 +699,8 @@ export class CostGridRepository {
         input.succeeded ? 1 : 0,
         input.label ?? null,
         input.at,
+        input.qualityMilli ?? null,
+        input.signal ?? null,
       );
   }
 

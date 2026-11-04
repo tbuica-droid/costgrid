@@ -112,8 +112,10 @@ describe("monthly statement", () => {
     ]);
     expect(jobsView(s.jobs)).toMatchObject({ indicative: true, notJudged: [], agents: [{ costPerFinishedUsd: "1.500000", spendOnUnfinishedPct: "33.3" }] });
     const csv = statementToCsv(s);
-    expect(csv).toContain("jobs (indicative; cost per finished job, LCSO method v0.1)");
-    expect(csv).toContain("\nsupport-bot,support-bot,inferred,2,1,0,3.000000,1.500000,33.3,,steady");
+    expect(csv).toContain("jobs (indicative; cost per finished job, LCSO method v0.2)");
+    // 0.2's columns come last, so a spreadsheet built on the old ones keeps working.
+    expect(csv).toContain("ai_cost_vs_person,verdict,good,cost_per_good_usd,quality_known\n");
+    expect(csv).toContain("\nsupport-bot,support-bot,inferred,2,1,0,3.000000,1.500000,33.3,,steady,2,1.500000,0");
   });
 
   it("totals only the month it names", () => {

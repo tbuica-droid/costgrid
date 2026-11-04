@@ -5,7 +5,12 @@ import {
   describeReasoning,
   estimateSaving,
   adjustmentRulesFor,
+  ANY_ANSWER,
+  type AnswerCheck,
+  answerOf,
+  type AnswerSpec,
   applyAdjustments,
+  checkAnswer,
   evaluatePolicies,
   planFor,
   type PolicyScope,
@@ -31,7 +36,9 @@ import {
   type ImportsRepository,
   KeyFactsRepository,
   notReadyReason,
+  OUTCOME_SIGNALS,
   OutcomeSettingsRepository,
+  QualityRepository,
   RunOutcomes,
   SourcesRepository,
   trailingWindow,
@@ -52,6 +59,7 @@ import { readCookie, registerConsole, sameOrigin, SESSION_COOKIE } from "./conso
 import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
+import { registerQuality } from "./console-quality.js";
 import { registerKeySafety } from "./console-key-safety.js";
 import { registerControl } from "./console-control.js";
 import { KeyControl } from "./key-control.js";
@@ -313,6 +321,8 @@ export function assertToolPoliciesEnforceable(
 export function createServer(deps: ServerDeps): FastifyInstance {
   const { config, repository, analytics, accounts, imports } = deps;
   const doFetch = deps.fetchImpl ?? fetch;
+  // Answer specs and the decision log. Tests built without a database go without both.
+  const quality = deps.db === undefined ? undefined : new QualityRepository(deps.db);
   const rateLimiter = new RateLimiter();
 
   if (config.hosted && accounts === undefined) {
@@ -526,6 +536,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerSecurity(app, { config, accounts: accounts!, fetchImpl: deps.fetchImpl });
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
+    registerQuality(app, { db: deps.db, accounts: accounts! });
     registerData(app, {
       config,
       db: deps.db,
@@ -944,6 +955,62 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         meter("call", () => recordUnsafe(over));
       };
 
+      // What a good answer looks like for this agent, read once and only after the answer.
+      let spec: AnswerSpec | undefined;
+      const answerSpec = (): AnswerSpec => (spec ??= quality?.forAgent(caller.tenantId, caller.agentId).spec ?? ANY_ANSWER);
+      const judgeBuffered = (stopReason: string | undefined, payload: unknown): { answerCheck?: AnswerCheck } => {
+        const { text, refused } = answerOf(payload);
+        const verdict = checkAnswer({ stopReason, text, refused }, answerSpec());
+        return verdict === undefined ? {} : { answerCheck: verdict };
+      };
+
+      /*
+       * The decision log: every choice about where or how this call was sent,
+       * with its reason. Written with the call, after the answer, and guarded
+       * on its own so a failure here cannot cost the call row.
+       */
+      const recordDecisions = (callRowId: string, servedAs: string): void => {
+        if (quality === undefined || (route === undefined && adjusted.adjustments.length === 0)) return;
+        try {
+          if (route !== undefined) {
+            quality.recordDecision({
+              tenantId: caller.tenantId,
+              callId: callRowId,
+              agentId: caller.agentId,
+              decidedAt: startedAt,
+              kind: route.fallback ? "fallback" : "route",
+              requestedModel: route.fromModel,
+              chosenModel: route.applied ? servedAs : route.fromModel,
+              applied: route.applied,
+              policyId: route.policyId,
+              reason: route.applied ? route.reason : `dry run: ${route.reason}`,
+              rejected: route.applied
+                ? [{ model: route.fromModel, why: `rule "${route.policyName}" sends this traffic elsewhere` }]
+                : [{ model: route.toModel, why: `rule "${route.policyName}" is a dry run` }],
+            });
+          }
+          if (adjusted.adjustments.length > 0) {
+            const made = adjusted.adjustments.filter((a) => a.applied);
+            quality.recordDecision({
+              tenantId: caller.tenantId,
+              callId: callRowId,
+              agentId: caller.agentId,
+              decidedAt: startedAt,
+              kind: "adjust",
+              requestedModel: requestedModel,
+              chosenModel: servedAs,
+              applied: made.length > 0,
+              policyId: (made[0] ?? adjusted.adjustments[0]!).policyId,
+              reason: adjusted.adjustments
+                .map((a) => `${a.applied ? "" : "dry run: "}${a.change} by "${a.policyName}"`)
+                .join("; "),
+            });
+          }
+        } catch (error) {
+          app.log.warn({ err: error }, "the routing decision could not be logged; the call was recorded");
+        }
+      };
+
       const recordUnsafe = (over: RecordOverrides): void => {
         const usage = over.usage ?? ZERO_USAGE;
         const model = over.model ?? requestedModel;
@@ -981,6 +1048,13 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           savingEstimate = listSaving === undefined ? undefined : applyRateTo(listSaving, rate);
         }
 
+        // A stream is judged on how it ended; its text was never held whole.
+        const answerCheck =
+          over.answerCheck ??
+          ((over.outcome ?? "ok") === "ok" && streaming
+            ? checkAnswer({ stopReason: over.stopReason, text: undefined }, answerSpec())
+            : undefined);
+
         // `priced: false` means the cost could not be established — either the
         // model is uncatalogued, or the provider reported no usage. Both must
         // surface as unpriced rather than as free traffic.
@@ -1012,7 +1086,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           outcome: over.outcome ?? "ok",
           statusCode: over.statusCode ?? upstream.status,
           ...(adjusted.adjustments.length > 0 ? { adjustments: adjusted.adjustments } : {}),
+          ...(answerCheck !== undefined ? { answerCheck } : {}),
         } as CallRecord);
+        recordDecisions(id, model);
 
         /*
          * Tool names, after the row exists and after the caller has their
@@ -1123,6 +1199,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         reasoningTokens: parsed.reasoningTokens,
         modifiers: parsed.modifiers,
         ...(parsed.stopReason !== undefined ? { stopReason: parsed.stopReason } : {}),
+        // Judged in memory; only the one-word result is kept.
+        ...judgeBuffered(parsed.stopReason, payload),
         ...(parsed.usage === undefined
           ? { priced: false, errorMessage: "response carried no usage; cost not established" }
           : {}),
@@ -1190,11 +1268,27 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         ? rawLabel.trim().slice(0, 64)
         : undefined;
 
+    /*
+     * How good the answer was, where the customer's software knows: a score
+     * from 0 to 1, and what a person did with it. Both optional, both checked
+     * here, at the boundary, so nothing else ever sees a malformed one.
+     */
+    const rawQuality = body["quality"];
+    if (rawQuality !== undefined && (typeof rawQuality !== "number" || !(rawQuality >= 0 && rawQuality <= 1))) {
+      return reply.code(400).send({ error: "quality must be a number from 0 to 1" });
+    }
+    const rawSignal = body["signal"];
+    if (rawSignal !== undefined && !(OUTCOME_SIGNALS as readonly unknown[]).includes(rawSignal)) {
+      return reply.code(400).send({ error: `signal must be one of ${OUTCOME_SIGNALS.join(", ")}` });
+    }
+
     repository.recordOutcome({
       tenantId: caller.tenantId,
       runId,
       succeeded: body["success"],
       label,
+      ...(typeof rawQuality === "number" ? { qualityMilli: Math.round(rawQuality * 1000) } : {}),
+      ...(typeof rawSignal === "string" ? { signal: rawSignal } : {}),
       at: Date.now(),
     });
 

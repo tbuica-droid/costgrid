@@ -185,6 +185,8 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   checked_at: "BIGINT",
   ended_at: "BIGINT",
   metered_at: "BIGINT",
+  decided_at: "BIGINT",
+  predicted_cost: "BIGINT",
 
   // Token counts. A single call never approaches int4, but these are summed
   // across windows constantly and a rate override multiplies them, so the
@@ -227,6 +229,10 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   rows_written: "INTEGER",
   batch: "INTEGER",
   request_count: "INTEGER",
+  quality_milli: "INTEGER",
+  quality_bar_milli: "INTEGER",
+  predicted_quality_milli: "INTEGER",
+  confidence_milli: "INTEGER",
   succeeded_count: "INTEGER",
   errored_count: "INTEGER",
   max_impact_pct: "INTEGER",

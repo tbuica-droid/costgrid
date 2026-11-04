@@ -151,3 +151,95 @@ to what the product does (batch at half price, cached prompts billed at a
 fraction, lower reasoning, cheaper models where they do the job). No measured
 percentage is quoted until D2 has been met on real traffic.
 
+
+## Phase 2: quality foundations
+
+### Design note (4 November 2026)
+
+**What gets built**
+
+1. **A quality score on outcome reports.** `/v1/costgrid/outcome` takes an
+   optional `quality`, a number from 0 to 1. It is stored as whole thousandths
+   so comparisons are exact. It also takes an optional `signal`: `accepted`,
+   `edited`, `rejected` or `handed-off`, for the customer's software to say
+   what a person did with the answer.
+2. **Checks on the answer.** Each agent can say what a good answer looks like:
+   - any format, or JSON;
+   - the top-level fields it must have (names only).
+
+   The proxy checks every buffered final answer in memory and records one word
+   per call in `calls.answer_check`: `pass`, `cut-off`, `refusal`, `not-json` or
+   `missing-field`. A request that ends by asking for a tool is a step, not an
+   answer, and is not judged. Streamed answers are judged on how they ended
+   (cut off or refused). Their format is not checked, because that would mean
+   holding the whole answer. The text is never stored.
+3. **Signals from real use.** "Asked again" and "handed to a person" already
+   exist. Reported `edited`, `rejected` and `handed-off` signals now count too.
+4. **Cost per good job.** A job is good if it finished and nothing says it
+   fell short of the quality bar. Falling short means any of:
+   - a failed answer check on its last answer;
+   - an `edited` or `rejected` signal;
+   - a reported score below the agent's bar.
+
+   The bar is set per agent, from 0 to 1, and defaults to 0.5. The plan's
+   default of "never worse than the current model" is a relative bar for
+   switching models (phase 5), not this one.
+   - **Method version.** The LCSO method goes to version 0.2. The result gains
+     `counts.good`, `counts.qualityKnown` and `lcso.good` (AI cost per good
+     job), plus a flag when quality is known for fewer than half the finished
+     jobs. A job with no quality evidence counts as good, and the coverage
+     figure says how many were actually judged.
+   - **Where it shows.** On the Results screen, with a quality spread:
+     - the answer-check pass rate;
+     - the reported scores at the 10th, 50th and 90th percentile.
+
+     It is also on the statement.
+5. **The decision log.** `routing_decisions` keeps one row for every choice
+   CostGrid makes about where or how a call is sent. Phase 2 records route
+   rules, budget fallbacks and adjustments. Each row holds:
+   - the kind of choice;
+   - the requested and chosen model;
+   - whether it was applied, or a dry run;
+   - the reason;
+   - the predicted cost, predicted quality and confidence (empty until
+     phase 4 starts predicting);
+   - the models rejected, and why.
+
+   The rows are written with the call, after the answer, so nothing is added
+   before forwarding.
+
+**Data model (migration 22)**
+- `outcomes`: `quality_milli` and `signal`.
+- `calls`: `answer_check`.
+- `agents`: `answer_format`, `required_fields` (a JSON list of names) and
+  `quality_bar_milli`.
+- A new `routing_decisions` table. It goes in `TENANT_TABLES`, and its time and
+  money columns go in `COLUMN_WIDTHS`.
+
+**Risks**
+- A self-reported score is only as good as the software sending it. It is
+  shown as "reported by your software", and the coverage says how many jobs
+  had one.
+- Treating a job with no quality evidence as good flatters the figure where
+  evidence is thin. The coverage figure and the flag make that visible rather
+  than hiding it.
+- JSON checking reads the answer in memory on the response path, after the
+  caller already has it, so it adds no delay before forwarding.
+
+### Done (4 November 2026)
+
+Built as designed.
+- **Code:**
+  - core: `answer-check.ts` and LCSO 0.2;
+  - database: migration 22 and `quality.ts`;
+  - gateway: `console-quality.ts`, plus answer checks and the decision log in
+    `server.ts`;
+  - console: `console-quality.js` on Settings and Limits.
+- **Latency:** within noise (2.76 ms p99 on `npm run bench`).
+- **Tests:** 1,093 passing. The smoke test passes.
+- **Not done:**
+  - **Streamed answers' format is not checked.** That would mean holding the
+    whole answer in memory. A later phase can add it per agent if owners ask.
+  - **"Asked again" is not a separate quality signal.** It stays what it was:
+    a finished job asked again inside its window is reversed to not finished.
+

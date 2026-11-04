@@ -46,6 +46,8 @@ export interface RunSummary {
   readonly escalated: boolean;
   /** The latest outcome the owner's software reported for this run. */
   readonly reported?: { readonly succeeded: boolean; readonly at: number };
+  /** Whether this run's work met the quality bar, where there is evidence (`qualityOf`). */
+  readonly quality?: "met" | "below";
 }
 
 /** Why a job ended up where it did, in the order they were found. */
@@ -235,6 +237,8 @@ export function detectOutcomes(runs: readonly RunSummary[], windows: DetectionWi
         runs: runsOf.map((r) => ({ runId: r.runId, cost: r.cost, startedAt: r.startedAt })),
         finalRunId: final.runId,
         ...(decision.reversedAt !== undefined ? { reversedAt: decision.reversedAt } : {}),
+        // The job's quality is its final run's: earlier attempts were superseded.
+        ...(final.quality !== undefined ? { quality: final.quality } : {}),
       },
     };
   });

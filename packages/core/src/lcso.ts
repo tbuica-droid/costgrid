@@ -233,6 +233,8 @@ function levels(
   success: number,
   pending: ReadonlySet<string> = NO_TASKS,
   successes?: ReadonlySet<string>,
+  /** Good jobs (0.2); undefined in aggregate mode, where quality is not seen. */
+  good?: number,
 ): Levels {
   const tools = sumNano((input.toolCosts ?? []).map((line) => line.amount));
   const fixedLines = input.fixedCosts ?? [];
@@ -263,7 +265,7 @@ function levels(
     return {
       components,
       carriedHuman: carried,
-      lcso: { lcso1: none, lcso2: none, lcso3: none },
+      lcso: { lcso1: none, lcso2: none, lcso3: none, good: good === undefined ? notReported("aggregate-mode") : none },
       autonomy: tracked ? none : notReported("rework-not-tracked"),
       her: notReported(baseline ? "no-successes" : "no-human-baseline"),
       flags,
@@ -273,7 +275,17 @@ function levels(
   return {
     components,
     carriedHuman: carried,
-    lcso: { lcso1: reported(ratio(l1, n)), lcso2: reported(ratio(l2, n)), lcso3: reported(ratio(l3, n)) },
+    lcso: {
+      lcso1: reported(ratio(l1, n)),
+      lcso2: reported(ratio(l2, n)),
+      lcso3: reported(ratio(l3, n)),
+      good:
+        good === undefined
+          ? notReported("aggregate-mode")
+          : good === 0
+            ? notReported("no-good-jobs")
+            : reported(ratio(l1, BigInt(good))),
+    },
     autonomy: tracked ? reported(ratio(BigInt(success - reworked), n)) : notReported("rework-not-tracked"),
     her: baseline
       ? reported({ ratio: ratio(l3, n * baseline.costPerOutcome), baseline })
@@ -341,6 +353,8 @@ export function computeLcso(input: LcsoInput): LcsoResult {
     pendingMaturing: 0,
     clawedBack: 0,
     withoutRuns: 0,
+    good: 0,
+    qualityKnown: 0,
   };
   const evidenceTiers = { A: 0, B: 0, C: 0, none: 0 };
   const pendingIds = new Set<string>();
@@ -383,6 +397,8 @@ export function computeLcso(input: LcsoInput): LcsoResult {
     if (state === "SUCCESS") {
       counts.success++;
       successIds.add(task.taskId);
+      if (task.quality !== undefined) counts.qualityKnown++;
+      if (task.quality !== "below") counts.good++;
       nonFinal += cost - finalCost;
     } else {
       counts[FAILED_COUNTER[state]]++;
@@ -397,8 +413,9 @@ export function computeLcso(input: LcsoInput): LcsoResult {
   if (evidenceTiers.C * 2 > resolved) flags.add("mostly-tier-c");
   if (adjustments.length > 0) flags.add("prior-period-adjustment");
   if (counts.withoutRuns > 0) flags.add("tasks-without-runs");
+  if (counts.success > 0 && counts.qualityKnown * 2 < counts.success) flags.add("quality-mostly-unknown");
 
-  const shared = levels(input, model, counts.success, pendingIds, successIds);
+  const shared = levels(input, model, counts.success, pendingIds, successIds, counts.good);
   for (const flag of shared.flags) flags.add(flag);
   adjustments.sort((a, b) => a.reversedAt - b.reversedAt || (a.taskId < b.taskId ? -1 : 1));
 
@@ -453,7 +470,7 @@ export function computeLcsoAggregate(input: LcsoAggregateInput): LcsoResult {
     ...header(input),
     mode: "aggregate",
     asOf: null,
-    counts: { resolved, success, failure, abandoned, unknown, pending: 0, pendingMaturing: 0, clawedBack: 0, withoutRuns: 0 },
+    counts: { resolved, success, failure, abandoned, unknown, pending: 0, pendingMaturing: 0, clawedBack: 0, withoutRuns: 0, good: 0, qualityKnown: 0 },
     evidenceTiers: { A: 0, B: 0, C: 0, none: 0 },
     components: { model: input.modelCost, modelNonFinalSuccessRuns: 0n, ...shared.components },
     carriedForward: { tasks: 0, model: 0n, human: shared.carriedHuman },

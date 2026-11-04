@@ -266,6 +266,27 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   buckets and are refused for now. Neither batch API has been run against a
   live account.
 
+### Phase 2: quality foundations
+
+- **Answers are judged in memory, and only the verdict is kept.** `answer-check.ts`
+  (core) returns one word for each final answer: `pass`, `cut-off`, `refusal`,
+  `not-json` or `missing-field`. A step that asks for a tool is not judged. A
+  stream is judged only on how it ended, since its text is never held whole. The
+  agent's spec (format and required field names) is read after the answer
+  has gone to the caller, so nothing is added before forwarding.
+- **LCSO 0.2: cost per good job.** A task carries an optional `quality`
+  (`met` or `below`), decided per run by `qualityOf`:
+  - Any negative evidence wins: a failed check, an `edited`, `rejected` or
+    `handed-off` signal, or a reported score under the agent's bar.
+  - With no evidence the job counts as good. `counts.qualityKnown` and the
+    `quality-mostly-unknown` flag disclose how many were actually judged.
+  - `lcso.good` is LCSO-1 over good jobs. The statement adds it in new CSV
+    columns at the end, so existing spreadsheets keep their columns.
+- **The decision log** (`routing_decisions`) records each route rule, budget
+  fallback and adjustment, dry runs included, with the reason and the models
+  not chosen. It is written with the call. The prediction columns stay empty
+  until phase 4.
+
 ## Package layout
 
 ```
