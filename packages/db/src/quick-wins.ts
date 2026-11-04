@@ -31,12 +31,31 @@ import { RunOutcomes } from "./run-outcomes.js";
 export const MIN_JOBS_PER_SIDE = 20;
 /** How far the finished share may fall, in points, before it counts as worse. */
 export const FINISHED_SHARE_TOLERANCE = 0.05;
+/**
+ * Failed calls after the change before a rise in failures is judged. Small on
+ * purpose: a level the model rejects fails every call, and waiting for thirty
+ * would leave an agent broken for longer than any saving is worth.
+ */
+export const MIN_ERRORS_TO_JUDGE = 5;
+/** How far the share of failed calls may rise, in points, before it counts as worse. */
+export const ERROR_RATE_TOLERANCE = 0.05;
 
 const DAY_MS = 86_400_000;
+
+/** Calls that went through and calls that failed, with cost and tokens from the first only. */
+const SUMS = `COALESCE(SUM(CASE WHEN outcome = 'ok' THEN 1 ELSE 0 END), 0) AS calls,
+  COALESCE(SUM(CASE WHEN outcome = 'error' THEN 1 ELSE 0 END), 0) AS errors,
+  COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_total ELSE 0 END), 0) AS cost,
+  COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_input + cost_cache_write + cost_cache_read ELSE 0 END), 0) AS input,
+  COALESCE(SUM(CASE WHEN outcome = 'ok' THEN output_tokens ELSE 0 END), 0) AS output`;
 const CLAUDE_FORMAT = "('anthropic', 'bedrock', 'vertex')";
 
 export interface QuickWinCohort {
+  /** Calls that went through. Failed calls are counted in `errors`, not here. */
   readonly calls: number;
+  readonly errors: number;
+  /** Failed calls over all calls; null with none. */
+  readonly errorRate: number | null;
   readonly costPerCall: Nanodollars | null;
   /** Input, cache-write and cache-read cost per call: the part caching changes. */
   readonly inputCostPerCall: Nanodollars | null;
@@ -52,6 +71,7 @@ export interface JobsCohort {
 }
 
 export type QuickWinVerdict =
+  | "more-errors"
   | "cheaper"
   | "more-expensive"
   | "no-change"
@@ -99,6 +119,7 @@ function change(before: bigint | null, after: bigint | null): number | null {
 
 interface Sums {
   calls: bigint;
+  errors: bigint;
   cost: bigint;
   input: bigint;
   output: bigint;
@@ -106,8 +127,11 @@ interface Sums {
 
 function cohort(s: Sums): QuickWinCohort {
   const n = Number(s.calls);
+  const errors = Number(s.errors);
   return {
     calls: n,
+    errors,
+    errorRate: n + errors === 0 ? null : errors / (n + errors),
     costPerCall: n === 0 ? null : s.cost / BigInt(n),
     inputCostPerCall: n === 0 ? null : s.input / BigInt(n),
     outputTokensPerCall: n === 0 ? null : Math.round(Number(s.output) / n),
@@ -163,11 +187,8 @@ export class QuickWins {
   #sums(where: string, params: unknown[]): Sums {
     return this.#db
       .prepare(
-        `SELECT COUNT(*) AS calls,
-                COALESCE(SUM(cost_total), 0) AS cost,
-                COALESCE(SUM(cost_input + cost_cache_write + cost_cache_read), 0) AS input,
-                COALESCE(SUM(output_tokens), 0) AS output
-         FROM calls WHERE outcome = 'ok' ${where}`,
+        `SELECT ${SUMS}
+         FROM calls WHERE outcome IN ('ok', 'error') ${where}`,
       )
       .safeIntegers(true)
       .get(...params) as unknown as Sums;
@@ -191,19 +212,17 @@ export class QuickWins {
     // sum by label and keep the ones the rule would have lowered.
     const groups = this.#db
       .prepare(
-        `SELECT reasoning_requested AS requested, COUNT(*) AS calls,
-                COALESCE(SUM(cost_total), 0) AS cost,
-                COALESCE(SUM(cost_input + cost_cache_write + cost_cache_read), 0) AS input,
-                COALESCE(SUM(output_tokens), 0) AS output
-         FROM calls WHERE outcome = 'ok' AND reasoning_requested IS NOT NULL ${base}
+        `SELECT reasoning_requested AS requested, ${SUMS}
+         FROM calls WHERE outcome IN ('ok', 'error') AND reasoning_requested IS NOT NULL ${base}
          GROUP BY reasoning_requested`,
       )
       .safeIntegers(true)
       .all(...params) as unknown as (Sums & { requested: string })[];
-    const total: Sums = { calls: 0n, cost: 0n, input: 0n, output: 0n };
+    const total: Sums = { calls: 0n, errors: 0n, cost: 0n, input: 0n, output: 0n };
     for (const g of groups) {
       if (rule.kind !== "lower-reasoning" || !exceedsReasoning(g.requested, rule)) continue;
       total.calls += g.calls;
+      total.errors += g.errors;
       total.cost += g.cost;
       total.input += g.input;
       total.output += g.output;
@@ -264,7 +283,15 @@ export class QuickWins {
     // lower effort level may have left unfinished.
     const deciding = (jobsComparable ? jobs!.changePerFinishedJob : null) ?? perCall;
 
-    const verdict: QuickWinVerdict = !enough
+    // Checked first and on a small sample: a change that makes calls fail is
+    // never a saving, however few calls it has touched.
+    const moreErrors =
+      after.errors >= MIN_ERRORS_TO_JUDGE &&
+      (after.errorRate ?? 0) - (before.errorRate ?? 0) >= ERROR_RATE_TOLERANCE;
+
+    const verdict: QuickWinVerdict = moreErrors
+      ? "more-errors"
+      : !enough
       ? "not-enough-data"
       : fewerFinished
         ? "fewer-jobs-finished"

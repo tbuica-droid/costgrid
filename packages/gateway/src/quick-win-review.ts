@@ -32,9 +32,17 @@ export interface QuickWinReviewDeps {
   readonly reads?: ReadPool | undefined;
 }
 
-const WORSE: ReadonlySet<QuickWinMeasurement["verdict"]> = new Set(["more-expensive", "fewer-jobs-finished"]);
+const WORSE: ReadonlySet<QuickWinMeasurement["verdict"]> = new Set([
+  "more-errors",
+  "more-expensive",
+  "fewer-jobs-finished",
+]);
 
 function why(m: QuickWinMeasurement): string {
+  if (m.verdict === "more-errors") {
+    const pctOf = (r: number | null) => Math.round((r ?? 0) * 100);
+    return `${m.after.errors} of the calls it changed failed (${pctOf(m.after.errorRate)}% against ${pctOf(m.before.errorRate)}% before)`;
+  }
   if (m.verdict === "fewer-jobs-finished") {
     const before = m.jobs?.before.finishedShare ?? 0;
     const after = m.jobs?.after.finishedShare ?? 0;
@@ -57,15 +65,31 @@ function tenantsToReview(db: Db): string[] {
   ];
 }
 
-/** Review every tenant. Returns the rules switched back, for the log. */
-export async function reviewQuickWins(deps: QuickWinReviewDeps, now = Date.now()): Promise<string[]> {
+/**
+ * Review every tenant. Returns the rules switched back, for the log.
+ *
+ * `errorsOnly` is the quick check run every few minutes: it skips the
+ * cost-per-finished-job comparison, which reads every run, and acts only on a
+ * rise in failed calls, so a change the provider rejects is undone within
+ * minutes rather than at the next hourly review.
+ */
+export async function reviewQuickWins(
+  deps: QuickWinReviewDeps,
+  now = Date.now(),
+  opts: { errorsOnly?: boolean } = {},
+): Promise<string[]> {
   const { db, audit, alerter, reads } = deps;
   const repository = new CostGridRepository(db);
   const switched: string[] = [];
 
   for (const tenantId of tenantsToReview(db)) {
-    const measurements =
-      reads === undefined
+    const measurements = opts.errorsOnly
+      ? new QuickWins(db).measure(
+          tenantId,
+          new RuleRegister(db, repository).entries(tenantId, { from: now - 30 * 86_400_000, to: now + 1 }),
+          now,
+        )
+      : reads === undefined
         ? new QuickWins(db).measure(
             tenantId,
             new RuleRegister(db, repository).entries(tenantId, { from: now - 30 * 86_400_000, to: now + 1 }),
@@ -76,6 +100,7 @@ export async function reviewQuickWins(deps: QuickWinReviewDeps, now = Date.now()
 
     for (const m of measurements) {
       if (!m.enabled || m.action === "monitor" || !WORSE.has(m.verdict)) continue;
+      if (opts.errorsOnly && m.verdict !== "more-errors") continue;
       // Re-read: the owner may have changed the rule while the measurement ran.
       const current = repository.listPolicies(tenantId).find((p) => p.id === m.policyId);
       if (current === undefined || !current.enabled || current.action === "monitor") continue;

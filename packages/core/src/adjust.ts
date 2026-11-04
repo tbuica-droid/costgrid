@@ -1,6 +1,6 @@
 import type { Policy, RequestContext } from "./policy.js";
 import { scopeMatches } from "./policy.js";
-import { effortRank, isReasoningEffort, type ReasoningEffort } from "./reasoning.js";
+import { effortRank, effortsAccepted, isReasoningEffort, type ReasoningEffort } from "./reasoning.js";
 
 /**
  * Adjustments: savings that change how a request is sent, not which model
@@ -40,9 +40,6 @@ export interface Adjustment {
 /** Anthropic's smallest thinking budget; a request below it is refused upstream. */
 export const MIN_THINKING_BUDGET = 1024;
 
-/** The lowest effort each format accepts. Claude has no `minimal`. */
-const EFFORT_FLOOR: Record<BodyFormat, ReasoningEffort> = { anthropic: "low", openai: "minimal" };
-
 const EPHEMERAL = Object.freeze({ type: "ephemeral" });
 
 type Json = Record<string, unknown>;
@@ -77,19 +74,25 @@ export function adjustmentRulesFor(
  * Returns the body to send and every change made or, for a dry run, that would
  * have been made. The input is never mutated; with no applied change the same
  * object comes back.
+ *
+ * `model` is the model the call will go to, which decides the effort levels
+ * it can be lowered to. Omitted, it is read from the body; Bedrock and Vertex
+ * carry it in the path, so the gateway passes it.
  */
 export function applyAdjustments(
   rules: readonly Policy[],
   format: BodyFormat,
   body: unknown,
+  model?: string,
 ): { body: unknown; adjustments: Adjustment[] } {
+  const served = model ?? (typeof record(body)?.["model"] === "string" ? (record(body)!["model"] as string) : "");
   let out = body;
   const adjustments: Adjustment[] = [];
   for (const policy of rules) {
     const rule = policy.rule;
     const result =
       rule.kind === "lower-reasoning"
-        ? lowerReasoning(format, out, rule.effort, rule.budgetTokens)
+        ? lowerReasoning(format, served, out, rule.effort, rule.budgetTokens)
         : rule.kind === "add-cache"
           ? addCache(format, out)
           : undefined;
@@ -107,15 +110,26 @@ export function applyAdjustments(
   return { body: out, adjustments };
 }
 
-/** One step down the effort scale, not below what the format accepts. */
-export function oneLevelBelow(effort: ReasoningEffort, format: BodyFormat): ReasoningEffort | undefined {
-  const rank = effortRank(effort) - 1;
-  if (rank < effortRank(EFFORT_FLOOR[format])) return undefined;
-  return ["minimal", "low", "medium", "high", "xhigh", "max"][rank] as ReasoningEffort;
+const provider = (format: BodyFormat): string => (format === "openai" ? "openai" : "anthropic");
+
+/** The next level down that this model accepts, or undefined at its lowest. */
+export function oneLevelBelow(effort: ReasoningEffort, format: BodyFormat, model = ""): ReasoningEffort | undefined {
+  const below = effortsAccepted(model, provider(format)).filter((e) => effortRank(e) < effortRank(effort));
+  return below[below.length - 1];
+}
+
+/**
+ * The level to lower to: the rule's target if the model takes it, otherwise
+ * the lowest level it takes that is at or above the target. A target below
+ * everything the model accepts means "as low as this model goes".
+ */
+function acceptedTarget(target: ReasoningEffort, format: BodyFormat, model: string): ReasoningEffort | undefined {
+  return effortsAccepted(model, provider(format)).find((e) => effortRank(e) >= effortRank(target));
 }
 
 function lowerReasoning(
   format: BodyFormat,
+  model: string,
   body: unknown,
   effort: ReasoningEffort | undefined,
   budgetTokens: number | undefined,
@@ -123,10 +137,8 @@ function lowerReasoning(
   const request = record(body);
   if (request === undefined) return undefined;
 
-  // A target below what this format accepts means "as low as it goes".
-  const floor = EFFORT_FLOOR[format];
-  const target =
-    effort === undefined ? undefined : effortRank(effort) < effortRank(floor) ? floor : effort;
+  // Never a level the model rejects: the call would fail rather than cost less.
+  const target = effort === undefined ? undefined : acceptedTarget(effort, format, model);
 
   const next: Json = { ...request };
   const changes: string[] = [];

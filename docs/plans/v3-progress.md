@@ -129,3 +129,25 @@ Built as designed. The main points:
 - **Flaky test.** `auth-hardening.test.ts` ("limits login attempts per IP") once
   timed out under full-suite load before any change. It passes alone, and it
   passed in every run since.
+
+### Fixes after review (4 November 2026)
+
+- **Effort levels per model.** `effortsAccepted` decides which levels a model
+  takes. `minimal` is accepted only by gpt-5, gpt-5-mini and gpt-5-nano. The
+  o-series takes low to high, and pro models high only. An unknown model gets
+  low to high. The rule, the advisor and the batch endpoint all use it. When
+  the model is already at its lowest accepted level, the call is left alone.
+- **Failures count.** Cohorts now count failed calls. A `more-errors` verdict
+  (at least 5 failures, and failures up by 5 points) is checked first, on any
+  sample size. The review runs every five minutes for failures only, and every
+  hour in full.
+- **Batch body limit.** `/v1/costgrid/deferred` takes up to 64 MiB, the same as
+  a proxied call. Other control routes stay at 1 MiB.
+
+## Owner decision: savings claims (4 November 2026)
+
+The owner overrode D1: the website may now claim a lower bill. Claims are tied
+to what the product does (batch at half price, cached prompts billed at a
+fraction, lower reasoning, cheaper models where they do the job). No measured
+percentage is quoted until D2 has been met on real traffic.
+

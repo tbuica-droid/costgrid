@@ -163,15 +163,22 @@ export async function startGateway(
     timers.push(backingUp);
   }
 
-  // Hourly: switch back any quick win (lower reasoning, caching) that stopped
-  // paying. Measured on the read pool; only the switch itself writes here.
+  // Switch back any quick win (lower reasoning, caching) that stopped paying:
+  // every five minutes for a rise in failed calls, which is cheap to check,
+  // and hourly for cost and jobs finished, measured on the read pool.
+  let reviewTick = 0;
   const reviewing = setInterval(() => {
-    reviewQuickWins({
-      db,
-      audit: accounts?.audit ?? new AuditLog(db),
-      alerter: alerterOf(app),
-      reads: readsOf(app),
-    })
+    const errorsOnly = reviewTick++ % 12 !== 0;
+    reviewQuickWins(
+      {
+        db,
+        audit: accounts?.audit ?? new AuditLog(db),
+        alerter: alerterOf(app),
+        reads: readsOf(app),
+      },
+      Date.now(),
+      { errorsOnly },
+    )
       .then((switched) => {
         if (switched.length > 0) app.log.info({ switched }, "quick wins switched back to a dry run");
       })
@@ -179,7 +186,7 @@ export async function startGateway(
         app.log.error({ err: error }, "the quick-win review failed; nothing was changed");
         metricsOf(app)?.jobFailed("quick-win-review");
       });
-  }, 60 * 60 * 1000);
+  }, 5 * 60 * 1000);
   reviewing.unref();
   timers.push(reviewing);
 

@@ -232,6 +232,26 @@ describe("deferred jobs at the batch rate", () => {
     expect(stub.calls).toEqual([]);
   });
 
+  it("accepts a multi-megabyte batch, while other /v1/costgrid/ routes keep their 1 MiB limit", async () => {
+    // 500 ordinary prompts of 8 KB each: about 4 MB, well over 1 MiB.
+    const prompt = "x".repeat(8_000);
+    const requests = Array.from({ length: 500 }, (_, i) => ({
+      custom_id: `r${i}`,
+      params: { model: "claude-sonnet-4-6", max_tokens: 100, messages: [{ role: "user", content: prompt }] },
+    }));
+    const big = await submit({ provider: "anthropic", requests });
+    expect(big.statusCode).toBe(202);
+    expect((big.json() as { request_count: number }).request_count).toBe(500);
+
+    const outcome = await app.inject({
+      method: "POST",
+      url: "/v1/costgrid/outcome",
+      headers: { ...headers(), "content-type": "application/json" },
+      payload: JSON.stringify({ run_id: "r", success: true, pad: "x".repeat(2 * 1024 * 1024) }),
+    });
+    expect(outcome.statusCode).toBe(413);
+  });
+
   it("needs an API key, and never shows one organisation's batch to another", async () => {
     const { id } = (await submit(anthropicBatch)).json() as { id: string };
     expect((await app.inject({ method: "GET", url: `/v1/costgrid/deferred/${id}` })).statusCode).toBe(401);

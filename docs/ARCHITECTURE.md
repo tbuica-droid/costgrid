@@ -246,12 +246,18 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   compared on cost per finished job and the share of jobs finished, from
   `RunOutcomes`. It runs on the read pool. Every hour, `quick-win-review.ts`
   switches an acting rule back to a dry run if the measurement says it costs
-  more or fewer jobs finish. The switch is audited and alerted. The owner
+  more or fewer jobs finish. Every five minutes, a cheaper check compares failed
+  calls before and after. It acts on five failures, not thirty calls, because a
+  change the provider rejects fails every call. Effort is only ever lowered to a
+  level the model accepts (`effortsAccepted` in `reasoning.ts`). OpenAI's
+  `minimal` is accepted only by the original GPT-5 family, and unknown models get
+  low, medium and high. The switch is audited and alerted. The owner
   approves the other direction, on the Limits screen (`setPolicyAction`).
 - **Batch is a separate door, not a proxy mode.** `/v1/costgrid/deferred`
   (`deferred.ts`, `deferred-clients.ts`) checks each request against the same
   policies, sends the accepted ones to Anthropic's Message Batches or OpenAI's
-  Batch API, and returns an id. `deferred_batches` holds provider ids and counts,
+  Batch API, and returns an id. That route alone takes bodies up to 64 MiB; every
+  other `/v1/costgrid/` route keeps the 1 MiB control limit. `deferred_batches` holds provider ids and counts,
   never content. A five-minute sweep asks about unfinished batches and prices
   finished ones at the batch rate. That happens all at once: the lines are
   reduced to usage in memory and every call is written in one transaction,

@@ -290,7 +290,10 @@ Both show on the Advice screen when your traffic suggests them. When you're read
 switch one from dry run to "changing calls" on the Limits screen. Limits then
 shows cost per call and cost per finished job, before and after. An hourly check
 switches the rule back to a dry run on its own, with an alert, if it costs more
-or fewer jobs finish. Changed calls carry `x-costgrid-adjusted`.
+or fewer jobs finish. A check every five minutes does the same as soon as five
+changed calls have failed and failures are clearly above the level before the
+change. CostGrid only lowers effort to a level the model accepts. For example,
+it never sends `minimal` to o3. Changed calls carry `x-costgrid-adjusted`.
 
 **Batch processing at half price.** Work that can wait an hour or a day can go
 through the provider's batch service. Send it to CostGrid's deferred-jobs
@@ -311,6 +314,8 @@ curl -s localhost:8787/v1/costgrid/deferred/cgb_…/results -H "x-costgrid-key: 
 
 - `provider` is `anthropic` or `openai`. For OpenAI, `params` is a Chat
   Completions body.
+- Up to 10,000 requests and 64 MiB per submission. Split bigger work into
+  several batches.
 - Your limits apply to each request, and refused ones come back in `rejected`.
 - Results are the provider's own JSONL, one line per `custom_id`.
 - Each result is recorded as a call at the batch rate once the batch ends.

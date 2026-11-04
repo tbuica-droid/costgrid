@@ -377,3 +377,10 @@ No secret was ever committed.
 
 **Still to check with real accounts:** both providers' batch APIs, and how often Claude's cache pays off on real prompts.
 
+**Fixes the same day**
+- A lower-reasoning rule could lower OpenAI's o3 or o4-mini to `minimal`, which they reject. Every call would then fail, and the measurement, which only counted calls that went through, never switched the rule back. Now:
+  - CostGrid knows which effort levels each model accepts and never sends one it doesn't.
+  - Failed calls are counted.
+  - A check every five minutes switches a rule back after five failures.
+- The batch endpoint shared the 1 MiB limit of the other control routes, so a batch of a few hundred ordinary prompts was refused. It now takes up to 64 MiB.
+

@@ -836,7 +836,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       const adjusted =
         adjustRules.length === 0
           ? { body: outgoingBody, adjustments: [] }
-          : applyAdjustments(adjustRules, adapter.id === "openai" ? "openai" : "anthropic", outgoingBody);
+          : applyAdjustments(
+              adjustRules,
+              adapter.id === "openai" ? "openai" : "anthropic",
+              outgoingBody,
+              route?.applied === true ? route.toModel : requestedModel,
+            );
       const madeChanges = adjusted.adjustments.filter((a) => a.applied).map((a) => a.change);
       if (madeChanges.length > 0) reply.header("x-costgrid-adjusted", headerSafe(madeChanges.join("; ")));
 

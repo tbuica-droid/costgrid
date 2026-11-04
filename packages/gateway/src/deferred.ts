@@ -53,6 +53,16 @@ import { ADAPTERS, type ProviderAdapter } from "./providers/index.js";
  */
 
 export const MAX_DEFERRED_REQUESTS = 10_000;
+/**
+ * The largest batch body accepted, 64 MiB: the same as one proxied call.
+ *
+ * Every other /v1/costgrid/ route stays at 1 MiB (api.ts). A batch carries
+ * many prompts, so 500 ordinary ones are already several megabytes. Anthropic
+ * takes up to 256 MB per batch, but the body is parsed in memory here, and
+ * 64 MiB keeps one submission from taking a large share of a small server's
+ * memory. Bigger work goes in as several batches.
+ */
+export const DEFERRED_BODY_LIMIT = 64 * 1024 * 1024;
 const CUSTOM_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** How often an unfinished batch is asked about, at most. */
 const CHECK_EVERY_MS = 60_000;
@@ -235,7 +245,7 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
 
   // ------------------------------------------------------------------ routes
 
-  app.post("/v1/costgrid/deferred", async (request, reply) => {
+  app.post("/v1/costgrid/deferred", { bodyLimit: DEFERRED_BODY_LIMIT }, async (request, reply) => {
     const caller = deps.identify(request, false);
     if (!caller) return reply.code(401).send({ error: "unauthorized" });
 
@@ -300,6 +310,7 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
         adjustmentRulesFor(policies, context),
         provider === "openai" ? "openai" : "anthropic",
         routed,
+        adapter.modelOf(routed),
       );
       accepted.push({ custom_id: customId, params: adjusted.body });
     }

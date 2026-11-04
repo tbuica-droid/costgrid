@@ -73,10 +73,34 @@ describe("lower-reasoning", () => {
 
   it("lowers both OpenAI spellings", () => {
     const rules = [policy({ kind: "lower-reasoning", effort: "minimal" })];
-    expect(applyAdjustments(rules, "openai", { reasoning_effort: "high" }).body).toEqual({ reasoning_effort: "minimal" });
-    expect(applyAdjustments(rules, "openai", { reasoning: { effort: "medium", summary: "auto" } }).body).toEqual({
-      reasoning: { effort: "minimal", summary: "auto" },
+    expect(applyAdjustments(rules, "openai", { model: "gpt-5", reasoning_effort: "high" }).body).toEqual({
+      model: "gpt-5",
+      reasoning_effort: "minimal",
     });
+    expect(
+      applyAdjustments(rules, "openai", { model: "gpt-5-mini", reasoning: { effort: "medium", summary: "auto" } }).body,
+    ).toEqual({ model: "gpt-5-mini", reasoning: { effort: "minimal", summary: "auto" } });
+  });
+
+  it("never lowers to a level the model rejects", () => {
+    const rules = [policy({ kind: "lower-reasoning", effort: "minimal" })];
+    // o3 has no `minimal`: the lowest it takes is `low`.
+    const o3 = applyAdjustments(rules, "openai", { model: "o3", reasoning_effort: "high" });
+    expect(o3.body).toEqual({ model: "o3", reasoning_effort: "low" });
+    expect(o3.adjustments[0]!.change).toBe("effort:high->low");
+    // Already at its lowest: nothing is changed, rather than sending `minimal`.
+    expect(applyAdjustments(rules, "openai", { model: "o4-mini", reasoning_effort: "low" }).adjustments).toEqual([]);
+    // A model passed in (Bedrock, Vertex, a routed call) wins over the body.
+    expect(applyAdjustments(rules, "openai", { reasoning_effort: "high" }, "gpt-5-nano").body).toEqual({
+      reasoning_effort: "minimal",
+    });
+    // A model CostGrid does not know gets only the levels every model takes.
+    expect(applyAdjustments(rules, "openai", { model: "gpt-7", reasoning_effort: "medium" }).body).toEqual({
+      model: "gpt-7",
+      reasoning_effort: "low",
+    });
+    // Pro models run at high only.
+    expect(applyAdjustments(rules, "openai", { model: "gpt-5-pro", reasoning_effort: "high" }).adjustments).toEqual([]);
   });
 
   it("caps a thinking budget, never below Anthropic's minimum", () => {
@@ -149,7 +173,10 @@ describe("oneLevelBelow", () => {
   it("steps down within what the format accepts", () => {
     expect(oneLevelBelow("high", "anthropic")).toBe("medium");
     expect(oneLevelBelow("low", "anthropic")).toBeUndefined();
-    expect(oneLevelBelow("low", "openai")).toBe("minimal");
-    expect(oneLevelBelow("minimal", "openai")).toBeUndefined();
+    expect(oneLevelBelow("low", "openai", "gpt-5")).toBe("minimal");
+    expect(oneLevelBelow("minimal", "openai", "gpt-5")).toBeUndefined();
+    expect(oneLevelBelow("low", "openai", "o3")).toBeUndefined();
+    expect(oneLevelBelow("medium", "openai", "o4-mini-2025-04-16")).toBe("low");
+    expect(oneLevelBelow("high", "openai", "o3-pro")).toBeUndefined();
   });
 });

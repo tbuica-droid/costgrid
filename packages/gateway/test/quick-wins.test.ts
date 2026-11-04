@@ -57,6 +57,10 @@ describe("quick wins", () => {
       fetchImpl: (async (_url: unknown, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         sent.push(body);
+        // As OpenAI does: o3 has no `minimal` effort and refuses the call.
+        if (body["model"] === "o3" && body["reasoning_effort"] === "minimal") {
+          return new Response(JSON.stringify({ error: { message: "Unsupported value: 'minimal'" } }), { status: 400 });
+        }
         return new Response(
           JSON.stringify({ model: body["model"], stop_reason: "end_turn", usage: { input_tokens: 100, output_tokens: 10 } }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -100,6 +104,19 @@ describe("quick wins", () => {
     // What the caller asked for is kept as asked.
     const call = db.prepare("SELECT reasoning_requested AS r FROM calls").get() as { r: string };
     expect(call.r).toBe("effort:high");
+  });
+
+  it("never sends an effort level the model rejects: o3 is lowered to low, not minimal", async () => {
+    rule({ kind: "lower-reasoning", effort: "minimal" });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { "x-costgrid-key": apiKey, "x-costgrid-agent": "support" },
+      payload: { model: "o3", reasoning_effort: "high", messages: [{ role: "user", content: "hi" }] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(sent[0]!["reasoning_effort"]).toBe("low");
+    expect(res.headers["x-costgrid-adjusted"]).toBe("effort:high->low");
   });
 
   it("adds cache breakpoints, and a dry run changes nothing but records what it would have", async () => {
@@ -200,6 +217,56 @@ describe("quick wins", () => {
     expect(alerts.recent("t1", 10).map((a) => a.kind)).toEqual(["switched-back"]);
     // Nothing left to do on the next run.
     expect(await reviewQuickWins({ db, audit: new AuditLog(db) })).toEqual([]);
+  });
+
+  it("switches a rule back within minutes when the calls it changes start failing", async () => {
+    const liveSince = Date.now() - 2 * DAY;
+    const id = rule({ kind: "lower-reasoning", effort: "low" }, "warn", liveSince);
+    // A healthy fortnight before, then six changed calls, all refused upstream:
+    // far below the thirty-call minimum for judging cost.
+    for (let i = 0; i < 30; i += 1) {
+      repository.recordCall(call({ costTotal: 10n, startedAt: liveSince - DAY + i, reasoningRequested: "effort:high" }));
+    }
+    for (let i = 0; i < 6; i += 1) {
+      repository.recordCall(
+        call({
+          costTotal: 0n,
+          startedAt: liveSince + 1000 + i,
+          reasoningRequested: "effort:high",
+          outcome: "error",
+          statusCode: 400,
+          adjustments: [{ policyId: id, policyName: "x", kind: "lower-reasoning", applied: true, change: "effort:high->low" }],
+        }),
+      );
+    }
+    const [m] = new QuickWins(db).measure("t1", entries(), Date.now());
+    expect(m).toMatchObject({ verdict: "more-errors", after: { calls: 0, errors: 6, errorRate: 1 }, before: { errors: 0 } });
+
+    const alerts = new AlertsRepository(db, undefined);
+    const switched = await reviewQuickWins({ db, audit: new AuditLog(db), alerter: new Alerter({ alerts }) }, Date.now(), {
+      errorsOnly: true,
+    });
+    expect(switched).toEqual([id]);
+    expect(repository.listPolicies("t1")[0]!.action).toBe("monitor");
+    expect(alerts.recent("t1", 10)[0]!.message).toContain("6 of the calls it changed failed");
+  });
+
+  it("does not act on cost in the quick check, and needs five failures", async () => {
+    const liveSince = Date.now() - 2 * DAY;
+    const id = rule({ kind: "lower-reasoning", effort: "low" }, "warn", liveSince);
+    seed(liveSince, id, 6_000n, 10_000n);
+    for (let i = 0; i < 4; i += 1) {
+      repository.recordCall(
+        call({
+          costTotal: 0n,
+          startedAt: liveSince + 5000 + i,
+          outcome: "error",
+          adjustments: [{ policyId: id, policyName: "x", kind: "lower-reasoning", applied: true, change: "effort:high->low" }],
+        }),
+      );
+    }
+    expect(await reviewQuickWins({ db, audit: new AuditLog(db) }, Date.now(), { errorsOnly: true })).toEqual([]);
+    expect(repository.listPolicies("t1")[0]!.action).toBe("warn");
   });
 
   it("leaves a rule that pays alone", async () => {

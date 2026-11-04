@@ -98,6 +98,8 @@ function quickWinView(m: QuickWinMeasurement): Record<string, unknown> {
   const usd = (n: Nanodollars | null) => (n === null ? null : money(n));
   const cohort = (c: QuickWinMeasurement["before"]) => ({
     calls: c.calls,
+    errors: c.errors,
+    errorRate: c.errorRate,
     costPerCallUsd: usd(c.costPerCall),
     inputCostPerCallUsd: usd(c.inputCostPerCall),
     outputTokensPerCall: c.outputTokensPerCall,

@@ -28,22 +28,23 @@ export function lowerReasoningProposals(db: Db, tenantId: string, range: TimeRan
 
     const asked = db
       .prepare(
-        `SELECT reasoning_requested AS requested, provider, COUNT(*) AS calls
+        `SELECT reasoning_requested AS requested, provider, model, COUNT(*) AS calls
          FROM calls
          WHERE tenant_id = ? AND agent_id = ? AND outcome = 'ok' AND reasoning_requested LIKE 'effort:%'
            AND started_at >= ? AND started_at < ?
-         GROUP BY reasoning_requested, provider
+         GROUP BY reasoning_requested, provider, model
          ORDER BY calls DESC LIMIT 1`,
       )
       .get(tenantId, signal.agentId, range.from, range.to) as
-      | { requested: string; provider: string; calls: number }
+      | { requested: string; provider: string; model: string; calls: number }
       | undefined;
     if (asked === undefined) continue;
 
     const effort = asked.requested.split(" ")[0]!.slice("effort:".length);
     if (!isReasoningEffort(effort)) continue;
     const format: BodyFormat = asked.provider === "openai" ? "openai" : "anthropic";
-    const target: ReasoningEffort | undefined = oneLevelBelow(effort, format);
+    // Only a level this model accepts: one it rejects would fail every call.
+    const target: ReasoningEffort | undefined = oneLevelBelow(effort, format, asked.model);
     if (target === undefined) continue;
 
     const dollars = (Number(signal.reasoningCost) / 1e9).toFixed(2);

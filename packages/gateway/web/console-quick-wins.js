@@ -16,6 +16,7 @@ const perCall = (usd) => (usd === null ? null : `$${Number(usd).toFixed(5)}`);
 const share = (f) => (f === null ? null : `${Math.round(f * 100)}%`);
 
 const VERDICTS = {
+  "more-errors": '<span class="tag off">more calls failed</span>',
   cheaper: '<span class="tag on">cheaper, measured</span>',
   "more-expensive": '<span class="tag off">more expensive, measured</span>',
   "fewer-jobs-finished": '<span class="tag off">fewer jobs finished</span>',
@@ -44,6 +45,7 @@ function card(m) {
       <span class="kpi-sub">for ${escapeHtml(scopeText(m.scope))}, "${escapeHtml(m.policyName)}", ${state}</span></p>
     <div class="scroll-x"><table><thead><tr><th></th><th class="num">Before</th><th class="num">After</th></tr></thead><tbody>
       ${line("Calls", count(m.before.calls), count(m.after.calls))}
+      ${m.before.errors || m.after.errors ? line("Failed calls", count(m.before.errors), count(m.after.errors)) : ""}
       ${line("Cost per call", perCall(m.before.costPerCallUsd), perCall(m.after.costPerCallUsd))}
       ${m.kind === "add-cache" ? line("Of which prompt and cache", perCall(m.before.inputCostPerCallUsd), perCall(m.after.inputCostPerCallUsd)) : ""}
       ${m.kind === "lower-reasoning" ? line("Answer tokens per call", m.before.outputTokensPerCall, m.after.outputTokensPerCall) : ""}
