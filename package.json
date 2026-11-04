@@ -10,6 +10,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "prebuild": "node scripts/prebuild.mjs",
     "build": "tsc --build",
     "clean": "tsc --build --clean",
     "test": "vitest run",
