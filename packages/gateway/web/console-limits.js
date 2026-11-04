@@ -9,6 +9,7 @@
  */
 
 import { call, flashBanner, formValues, state } from "./console-api.js";
+import { confirmDialog } from "./console-shell.js";
 import { controlSection } from "./console-control.js";
 import { ADJUSTS, quickWinsSection } from "./console-quick-wins.js";
 import { button, count, escapeHtml, field, money, pageHead, relativeTime } from "./ui.js";
@@ -180,7 +181,7 @@ function registerSection(d) {
             ? small(
                 r.action === "monitor" ? "Start changing calls" : "Back to dry run",
                 `data-action="limits-act" data-id="${escapeHtml(r.id)}" data-to="${r.action === "monitor" ? "warn" : "monitor"}"`,
-                r.action === "monitor" ? "good" : "",
+                r.action === "monitor" ? "metal" : "",
               ) + " "
             : ""
         }${
@@ -353,13 +354,25 @@ export async function click(target) {
   const action = target.dataset.action;
   if (action === "limits-stop-agent") {
     const agentId = target.dataset.agent;
-    if (!confirm(`Stop ${agentId}? Its next call will be refused until you resume it.`)) return true;
+    const sure = await confirmDialog({
+      title: `Stop ${agentId}?`,
+      body: "Its next call is refused before it reaches the provider, so nothing more is billed. Other agents carry on. You can resume it any time.",
+      confirm: "Stop agent",
+      tone: "danger",
+    });
+    if (!sure) return true;
     await call("POST", `/console/${t}/stop`, { scope: { kind: "agent", agentId } });
     state.flash = { kind: "ok", text: `${agentId} is stopped. Nothing from it reaches the provider until you resume it.` };
     return true;
   }
   if (action === "limits-stop-all") {
-    if (!confirm("Stop everything? Every call through CostGrid will be refused until you resume.")) return true;
+    const sure = await confirmDialog({
+      title: "Stop every agent?",
+      body: "Every call through CostGrid is refused until you resume. Nothing more is billed in the meantime.",
+      confirm: "Stop everything",
+      tone: "danger",
+    });
+    if (!sure) return true;
     await call("POST", `/console/${t}/stop`, { scope: { kind: "tenant" } });
     state.flash = { kind: "ok", text: "Everything is stopped." };
     return true;

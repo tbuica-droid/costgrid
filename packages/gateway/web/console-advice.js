@@ -41,7 +41,7 @@ function proposalCard(p, index) {
     ${p.backtest ? `<p class="kpi-sub" style="margin-bottom:10px">${escapeHtml(backtestLine(p.backtest, p.intent))}</p>` : ""}
     ${
       p.command
-        ? `${button("Start measuring this", `type="button" data-action="advise-apply" data-index="${index}"`)}
+        ? `${button("Try it as a dry run", `type="button" data-action="advise-apply" data-index="${index}"`, "metal")}
            <span class="kpi-sub" style="margin-left:10px">Installed as a dry run: it records what it
              would have done and changes nothing.</span>`
         : '<p class="kpi-sub">No rule to write. This one is a change in your own code.</p>'
@@ -130,10 +130,10 @@ export async function render() {
 
   return `
     ${pageHead(
-      "Advice",
-      `CostGrid reads your own traffic and proposes rules. Each one is replayed
-      against the same window, so the saving is shown before you switch anything on. It proposes; it
-      does not apply anything until you say so.`,
+      "Ways to save",
+      `Where your agents are spending more than they need to, found in your own traffic. Each
+      suggestion starts as a dry run that changes nothing: you see what it would have done, then switch
+      it on from Limits. CostGrid never applies one on its own.`,
       `<form id="advice-window" class="form-row">
         <select name="days" aria-label="Window">
           ${[7, 30, 90].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} days</option>`).join("")}

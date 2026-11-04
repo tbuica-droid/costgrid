@@ -20,6 +20,7 @@
  */
 
 import { call, formValues, state } from "./console-api.js";
+import { confirmDialog } from "./console-shell.js";
 import { button, count, escapeHtml, field, money, relativeTime } from "./ui.js";
 import {
   codeNameAfter,
@@ -428,7 +429,13 @@ export async function click(target) {
   }
   if (action === "agents-delete") {
     const { agentId, agentName, origin } = target.dataset;
-    if (!confirm(confirmDelete(agentName, origin))) return true;
+    const sure = await confirmDialog({
+      title: `Remove ${agentName}?`,
+      body: confirmDelete(agentName, origin),
+      confirm: "Remove agent",
+      tone: "danger",
+    });
+    if (!sure) return true;
     await attempt(agentKey(agentId), () => call("DELETE", agentPath(agentId)));
     return true;
   }

@@ -8,6 +8,7 @@
  */
 
 import { call, state } from "./console-api.js";
+import { confirmDialog } from "./console-shell.js";
 import { isOwner } from "./console-outcomes.js";
 import { button } from "./ui.js";
 
@@ -55,7 +56,16 @@ export async function submit() {
 export async function click(target) {
   if (target.dataset.action !== "outcome-settings-toggle") return false;
   const enabled = target.dataset.enabled === "true";
-  if (!enabled && !confirm("Turn off matching repeat jobs? The codes already saved are deleted.")) return true;
+  if (
+    !enabled &&
+    !(await confirmDialog({
+      title: "Turn off matching repeat jobs?",
+      body: "CostGrid stops noticing when a job is asked again, and the codes already saved are deleted.",
+      confirm: "Turn off",
+    }))
+  ) {
+    return true;
+  }
   await call("PUT", `/console/${state.tenantId}/outcome-settings`, { enabled });
   state.flash = {
     kind: "ok",

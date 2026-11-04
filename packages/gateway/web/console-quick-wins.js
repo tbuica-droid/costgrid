@@ -69,7 +69,7 @@ function card(m) {
 export function quickWinsSection(list) {
   if (list.length === 0) {
     return `<p class="kpi-sub">Nothing to measure yet. Add "Lower reasoning instead of refusing" or "Cache the
-      unchanging start of each request" above, or take one from Advice. Once it changes calls, this compares
+      unchanging start of each request" above, or take one from Ways to save. Once it changes calls, this compares
       cost per call and cost per finished job before and after.</p>`;
   }
   return list.map(card).join("");

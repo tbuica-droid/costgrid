@@ -9,6 +9,7 @@
  */
 
 import { call, state } from "./console-api.js";
+import { confirmDialog } from "./console-shell.js";
 import { isOwner } from "./console-outcomes.js";
 import { button, escapeHtml, money } from "./ui.js";
 
@@ -156,7 +157,13 @@ export async function click(target) {
   const { action, agentId, agentName } = target.dataset;
   const base = `/console/${state.tenantId}/agents/${encodeURIComponent(agentId ?? "")}`;
   if (action === "control-pause") {
-    if (!window.confirm(`Turn off ${agentName}'s Claude keys at Anthropic? Everything using them stops until you resume.`)) return true;
+    const sure = await confirmDialog({
+      title: `Pause ${agentName}'s Claude keys?`,
+      body: "CostGrid turns the keys off at Anthropic. Everything using them stops until you resume them here.",
+      confirm: "Pause keys",
+      tone: "danger",
+    });
+    if (!sure) return true;
     const result = await call("POST", `${base}/pause`);
     state.flash = { kind: result.failed.length ? "error" : "ok", text: report(result, "paused") };
     return true;

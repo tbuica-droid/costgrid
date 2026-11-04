@@ -286,7 +286,7 @@ system prompt for caching. Requests that already use caching are not touched.
 npx tsx packages/cli/src/main.ts policy cache agent:support-bot --action monitor
 ```
 
-Both show on the Advice screen when your traffic suggests them. When you're ready,
+Both show on the "Ways to save" screen when your traffic suggests them. When you're ready,
 switch one from dry run to "changing calls" on the Limits screen. Limits then
 shows cost per call and cost per finished job, before and after. An hourly check
 switches the rule back to a dry run on its own, with an alert, if it costs more

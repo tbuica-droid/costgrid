@@ -384,3 +384,37 @@ No secret was ever committed.
   - A check every five minutes switches a rule back after five failures.
 - The batch endpoint shared the 1 MiB limit of the other control routes, so a batch of a few hundred ordinary prompts was refused. It now takes up to 64 MiB.
 
+## The website and app, rebuilt to sell the saving (4 November 2026)
+
+**What changed**
+- **The website now leads with a lower bill.** "Cut your AI bill." The six ways CostGrid makes the bill smaller sit near the top, each in plain words:
+  - half-price batch work
+  - cached prompts at a tenth of the input price
+  - less "thinking"
+  - cheaper models where they do the job
+  - limits for runaway agents
+  - the money spent on failing jobs
+
+  Beside them is how it stays safe: dry run first, measured on your traffic, undoes itself. No measured percentage is quoted yet.
+- **New feel, same privacy:**
+  - a hero whose video grows to fill the screen as you scroll
+  - a liquid-metal download button
+  - a download dialog that asks which chip your Mac has
+  - a floating dock of quick links
+  - a footer that rises into view like a curtain
+
+  All of it is plain CSS and JavaScript served from the site itself, so the strict security policy is unchanged. Visitors who ask for less motion get a still page.
+- **The app:**
+  - The sidebar folds to a rail of icons and opens on hover.
+  - On a phone it becomes a drawer, with a dock of the four most used screens.
+  - Confirmations ("Stop every agent?") are proper dialogs with a red button for anything drastic.
+  - "Advice" is now "Ways to save".
+  - The button that switches a saving on is the liquid-metal one.
+- **One typeface everywhere:** Plus Jakarta Sans, self-hosted, on the website, the app and the demo.
+
+**How it was checked**
+- Screenshots in Chrome of the hero at three scroll positions, the savings section, the dock, the dialog and the footer.
+- The app's folded and opened sidebar, the stop dialog (Escape cancels it, and nothing is stopped), the phone drawer and the dock.
+- No sideways scrolling at phone width on either.
+- All 1,077 tests pass, and the smoke test passes.
+

@@ -7,16 +7,29 @@
 <script src="/app/theme.js"></script>
 <link rel="stylesheet" href="/app/styles.css" />
 <link rel="stylesheet" href="/app/setup.css" />
+<link rel="stylesheet" href="/app/shell.css" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='1.75' y='1.75' width='22.5' height='22.5' rx='5' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
 </head>
 <body>
 
 <div class="shell">
+  <!-- Small screens: a top bar with the menu button; the sidebar becomes a drawer. -->
+  <div class="topbar">
+    <span class="brand-mini">CostGrid</span>
+    <button type="button" class="btn btn-sm" id="menu-open-top" data-menu aria-label="Open the menu">Menu</button>
+  </div>
+  <div class="nav-scrim" aria-hidden="true"></div>
   <aside class="sidebar">
     <div class="sidebar-inner">
+      <button type="button" class="nav-fold" id="nav-fold" aria-expanded="true" aria-label="Fold or unfold the menu" title="Fold the menu">
+        <svg viewBox="0 0 17 17" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="12" height="11" rx="2"/><path d="M6.5 3v11"/></svg>
+      </button>
+      <button type="button" class="nav-close" id="menu-close" aria-label="Close the menu">
+        <svg viewBox="0 0 17 17" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l9 9M13 4l-9 9"/></svg>
+      </button>
       <div class="brand">
         <svg class="logo" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="14" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="7" y="14" width="5" height="5" rx="1" fill="currentColor"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-        CostGrid
+        <span class="nav-label">CostGrid</span>
       </div>
       <div class="workspace" id="workspace" hidden></div>
       <nav id="nav" class="side-nav" aria-label="Console"></nav>
@@ -34,6 +47,8 @@
     </footer>
   </div>
 </div>
+
+<nav class="dock" id="dock" aria-label="Quick screens" hidden></nav>
 
 <script type="module" src="/app/console.js"></script>
 </body>

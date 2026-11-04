@@ -34,13 +34,14 @@ import * as outcomeSettings from "./console-settings-outcomes.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
+import { initShell, renderDock } from "./console-shell.js";
 
 const PAGES = [
   ["setup", "Setup", wizard.render],
   ["limits", "Limits", limits.render],
   ["results", "Results", results.render],
   ["settings", "Settings", renderSettings],
-  ["advice", "Advice", advice.render],
+  ["advice", "Ways to save", advice.render],
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
@@ -108,6 +109,7 @@ function renderNav() {
   const nav = document.getElementById("nav");
   const workspace = document.getElementById("workspace");
   if (!state.user || !state.tenantId) {
+    renderDock(PAGES, state.page, false);
     nav.innerHTML = "";
     workspace.hidden = true;
     workspace.innerHTML = "";
@@ -128,8 +130,9 @@ function renderNav() {
   workspace.hidden = false;
   nav.innerHTML = PAGES.map(
     ([id, label]) =>
-      `<button class="nav-item" data-page="${id}" aria-current="${id === state.page}">${icon(id)}${escapeHtml(label)}</button>`,
+      `<button class="nav-item" data-page="${id}" aria-current="${id === state.page}" title="${escapeHtml(label)}">${icon(id)}<span class="nav-label">${escapeHtml(label)}</span></button>`,
   ).join("");
+  renderDock(PAGES, state.page, true);
 }
 
 async function render() {
@@ -289,6 +292,7 @@ document.addEventListener("click", async (event) => {
 // for a redraw this way rather than reaching into the page.
 document.addEventListener("costgrid:render", () => void render());
 
+initShell();
 await loadSession();
 await loadSetup();
 await choosePage();
