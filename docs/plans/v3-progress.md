@@ -672,30 +672,34 @@ the docs. It replaces "Your keys are only ever sent to OpenAI or Anthropic,
 never to us" on the website's privacy card, and the FAQ answer to "Does it
 read my data?".
 
-**Privacy card: "Your keys and prompts go only where you send them"**
+Rewritten in plainer words at the owner's request, the same day.
 
-> CostGrid sends each request to the AI provider your agent already uses,
-> OpenAI or Anthropic. It sends a request anywhere else only when you have
-> ticked that destination for that agent and set a rule to route it there:
-> the other of the two, or an open-model service you connected with your own
-> key. That service then handles the request under its own terms. Each key
-> goes only to the service it belongs to, never to us.
+**Privacy card: "Your prompts only go where you choose"**
 
-**Privacy card: "CostGrid keeps no prompt and no answer"**
+> When one of your agents asks AI to do something, CostGrid passes the
+> request to the AI company that agent already uses, OpenAI or Anthropic. It
+> only sends it somewhere else if you've said that's fine for that agent and
+> set up a rule to do it, for example to the other of those two, or to a
+> service running open models that you've connected with your own account.
+> That service then looks after the request under its own terms. Your keys
+> only ever go to the service they belong to. We never see them.
 
-> CostGrid reads each request and answer as it passes, to price it and check
-> it, and keeps neither. If you turn on grading, a stronger model from a
-> provider you already use compares two answers on a small sample of test
-> jobs, and only its verdict is kept. If you also turn on spot checks, those
-> two answers are held in the app's memory, never on disk, so you can read
-> them: at most 50, for up to 24 hours, and gone when the app restarts or you
-> turn spot checks off.
+**Privacy card: "We don't keep your prompts or answers"**
+
+> CostGrid reads each request and answer as it goes by, to work out what it
+> cost and whether it came back right. Then it lets them go. If you turn on
+> grading, a stronger AI you already use compares two answers on a small
+> sample of test jobs, and all we keep is which one it preferred. If you also
+> turn on spot checks, those two answers wait in the app's memory, never saved
+> to disk, so you can read them yourself. We hold at most 50, for no more than
+> a day, and they're gone as soon as the app restarts or you switch spot
+> checks off.
 
 **FAQ: "Does it read my data?"**
 
-> It reads each request and answer as it passes, to work out the cost and
-> check the answer, and keeps neither. Requests go to the provider your agent
-> uses, and elsewhere only where you have opted that agent in. If you turn on
-> spot checks, a few graded answers are held in memory, never on disk, for up
-> to 24 hours so you can read them.
+> It looks at each request and answer as it passes, to see what it cost and
+> whether it worked, and doesn't keep either. Your requests go to the AI
+> company your agent already uses, and only go anywhere else if you've said
+> so for that agent. If you turn on spot checks, a few answers are held in
+> memory, never saved, for up to a day so you can read them yourself.
 
