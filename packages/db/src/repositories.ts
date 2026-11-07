@@ -3,6 +3,8 @@ import type Database from "better-sqlite3";
 import type {
   Adjustment,
   AnswerCheck,
+  TaskKind,
+  TaskSize,
   EnforcementAction,
   Nanodollars,
   Policy,
@@ -77,6 +79,10 @@ export interface CallRecord {
   readonly taskSource?: "header" | "fingerprint" | undefined;
   /** How many messages the request carried, so a continuing conversation is told from a retry. */
   readonly turns?: number | undefined;
+  /** What kind of task the call was, and how it was labelled. Never the words. */
+  readonly taskKind?: TaskKind | undefined;
+  readonly taskSize?: TaskSize | undefined;
+  readonly labelledBy?: "signals" | "model" | undefined;
   /** What CostGrid's checks found in the final answer; undefined when it was not judged. */
   readonly answerCheck?: AnswerCheck | undefined;
   /** Changes adjustment rules made to the request, or would have made in a dry run. */
@@ -304,7 +310,8 @@ export class CostGridRepository {
            speed, inference_geo, batch,
            requested_model, routed, route_dry_run, saving_estimate,
            run_id, parent_run_id, run_depth, run_declared, cost_list,
-           reasoning_tokens, reasoning_requested, task_key, task_source, turns, answer_check
+           reasoning_tokens, reasoning_requested, task_key, task_source, turns, answer_check,
+           task_kind, task_size, labelled_by
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -314,7 +321,8 @@ export class CostGridRepository {
            @speed, @inferenceGeo, @batch,
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
            @runId, @parentRunId, @runDepth, @runDeclared, @costList,
-           @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns, @answerCheck
+           @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns, @answerCheck,
+           @taskKind, @taskSize, @labelledBy
          )`,
       )
       .run({
@@ -362,6 +370,9 @@ export class CostGridRepository {
         taskSource: call.taskKey === undefined ? null : (call.taskSource ?? null),
         turns: call.turns ?? null,
         answerCheck: call.answerCheck ?? null,
+        taskKind: call.taskKind ?? null,
+        taskSize: call.taskSize ?? null,
+        labelledBy: call.taskKind === undefined ? null : (call.labelledBy ?? "signals"),
       });
   }
 
@@ -766,6 +777,15 @@ export class CostGridRepository {
          WHERE id = ?`,
       )
       .run(action, at, action, id);
+  }
+
+  /** A better label for a call, from the local model, after the answer has gone. */
+  relabelCall(tenantId: string, callId: string, kind: TaskKind): void {
+    this.#prepare("UPDATE calls SET task_kind = ?, labelled_by = 'model' WHERE tenant_id = ? AND id = ?").run(
+      kind,
+      tenantId,
+      callId,
+    );
   }
 
   // ------------------------------------------------------------- violations

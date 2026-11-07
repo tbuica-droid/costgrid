@@ -21,7 +21,7 @@ import {
 } from "@costgrid/db";
 import type { FastifyInstance } from "fastify";
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type { AlertNotice } from "./alerts.js";
 import { AnchorSender } from "./anchor-sender.js";
 import type { GatewayConfig } from "./config.js";
@@ -30,6 +30,7 @@ import { KeyControl } from "./key-control.js";
 import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
 import { reviewQuickWins } from "./quick-win-review.js";
+import { loadLocalLabeller } from "./task-labeller.js";
 import { alerterOf, assertToolPoliciesEnforceable, createServer, deferredOf, metricsOf, readsOf } from "./server.js";
 
 /** How often stored admin keys are used to bring imported usage up to date. */
@@ -97,7 +98,10 @@ export async function startGateway(
 
   // Kept in the keychain where there is one, so the codes it makes can't be tested against offline.
   const fingerprintKey = await loadFingerprintKey({ secretStore: options.secretStore, masterKey });
+  // The local task-labelling model, when its runtime is installed (task-labeller.ts).
+  const local = config.localLabeller ? await loadLocalLabeller(join(dirname(config.databasePath), "models")) : {};
   const app = createServer({
+    labeller: local.labeller,
     config,
     db,
     repository,
@@ -110,6 +114,7 @@ export async function startGateway(
     fingerprintKey,
   });
   const timers: NodeJS.Timeout[] = [];
+  if (local.reason !== undefined) app.log.info(local.reason);
 
   // Expired rows can never authenticate anything; sweeping them keeps the
   // table from growing without bound in a long-lived deployment.

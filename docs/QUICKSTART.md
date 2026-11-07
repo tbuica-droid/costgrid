@@ -1148,3 +1148,26 @@ something the other side can't honour (extended thinking, cache control, a
 server tool, several answers at once, and so on) stays on its own model. The
 response header `x-costgrid-not-routed` and the decision log say why.
 
+## Which model is best for this?
+
+CostGrid labels every call with the kind of task it is (`answer`, `summarise`,
+`extract`, `code` and so on): the label only, never the words. Ask for a
+ranked list of the models an agent may be sent to:
+
+```bash
+curl -s localhost:8787/v1/costgrid/predict -H "x-costgrid-key: $COSTGRID_KEY" \
+  -H "content-type: application/json" \
+  -d '{"agent": "support-bot", "sample": {"format": "anthropic",
+       "request": {"messages": [{"role": "user", "content": "When do you close?"}]}}}'
+```
+
+Each model comes with:
+- predicted quality and chance of finishing, each with a range;
+- cost per call and per finished job;
+- how sure the prediction is;
+- what it rests on: your own calls, or an estimate from list prices and a
+  starting guess by model tier.
+
+The sample is read in memory to pick the kind of task, and isn't kept.
+Predictions never move traffic on their own.
+

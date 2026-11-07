@@ -458,3 +458,19 @@ No secret was ever committed.
   - an unpriced model, which is never routed to.
 - Smoke test passes. CostGrid's own latency is 1.3 ms p99.
 
+## Version 3, phase 4: what kind of task, and which model would do it (7 November 2026)
+
+**What changed**
+- **Every call is labelled** with the kind of task it is (answering, summarising, extracting, writing, code and so on) and its size. Only the label is kept, never the words.
+- **Predictions per model.** For each model an agent may use, CostGrid predicts:
+  - how good its work would be;
+  - how often it would finish;
+  - what a call and a finished job would cost.
+
+  Each prediction has a range and says how sure it is. It learns from the agent's own results, and starts from a deliberately weak guess by model tier, clearly labelled.
+- **"Which model for this?"** A new endpoint takes an agent and an optional sample request, and returns the models ranked for "same quality, lower cost", "best within a budget" or "best value".
+- **A small local model can refine the labels** on the owner's own machine. Its runtime isn't bundled yet, which is a decision for the owner. Without it, simple signals do the labelling.
+
+**How it was checked**
+- 1,124 tests pass, the smoke test passes, and labelling takes 14 microseconds on a 400 KB request.
+

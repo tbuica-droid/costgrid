@@ -16,7 +16,9 @@ import {
   evaluatePolicies,
   findModelPrice,
   isOpenModel,
+  labelTask,
   parseOpenModel,
+  readableText,
   type PricedUsage,
   type PriceModifiers,
   type StreamTranslator,
@@ -87,6 +89,8 @@ import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
 import { formatOf, requestFor, responseFor, streamFor, targetAdapterFor, upstreamModel } from "./cross-route.js";
 import { guardedFetch } from "./outbound-guard.js";
+import type { ModelLabeller } from "./task-labeller.js";
+import { registerPredict } from "./predict-api.js";
 import { type DeferredJobs, registerDeferred } from "./deferred.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -135,6 +139,8 @@ export interface ServerDeps {
   readonly onAlert?: ((notice: AlertNotice) => void) | undefined;
   /** Where admin keys are kept: the desktop app's keychain. Absent, a key is used once. */
   readonly secretStore?: SecretStore | undefined;
+  /** Refines each call's task label after the answer (task-labeller.ts). Absent, labels come from signals alone. */
+  readonly labeller?: ModelLabeller | undefined;
   /** The key for one-way codes of a job's first message (`fingerprint-key.ts`). Absent, only the task header works. */
   readonly fingerprintKey?: Uint8Array | undefined;
 }
@@ -817,7 +823,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         }
       }
 
+      // What kind of task this is, from signals, before forwarding. Never the words.
+      const label = labelTask(formatOf(adapter.id), request.body);
+      // Held in memory for the local model only, and only when there is one.
+      const labelWords = deps.labeller === undefined ? undefined : readableText(request.body);
+
       const baseRecord = {
+        taskKind: label.kind,
+        taskSize: label.size,
         tenantId: caller.tenantId,
         agentId: caller.agentId,
         department: caller.department,
@@ -1203,6 +1216,14 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           ...(answerCheck !== undefined ? { answerCheck } : {}),
         } as CallRecord);
         recordDecisions(id, model);
+        if (deps.labeller !== undefined && labelWords) {
+          void deps.labeller
+            .label(labelWords)
+            .then((kind) => {
+              if (kind !== label.kind) repository.relabelCall(caller.tenantId, id, kind);
+            })
+            .catch((error: unknown) => app.log.warn({ err: error }, "the local task label failed; the signals label stands"));
+        }
 
         /*
          * Tool names, after the row exists and after the caller has their
@@ -1413,6 +1434,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
     return reply.code(202).send({ recorded: true, run_id: runId });
   });
+
+  // "Which model is best for this agent or this sample task?" (predict-api.ts).
+  registerPredict(app, { db: deps.db, reads, identify: (request) => identify(request, deps, true) });
 
   // Work that can wait, at the batch rate (deferred.ts). The proxy path above is unchanged.
   DEFERRED.set(

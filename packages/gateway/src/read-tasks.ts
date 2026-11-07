@@ -1,4 +1,5 @@
-import { Analytics, CostGridRepository, type Db, QuickWins, RuleRegister, RunOutcomes } from "@costgrid/db";
+import type { RoutingMode, TaskKind } from "@costgrid/core";
+import { Analytics, CostGridRepository, type Db, Predictions, QuickWins, RuleRegister, RunOutcomes } from "@costgrid/db";
 
 /**
  * The console's slowest reads, by name, so they can run on another thread.
@@ -23,6 +24,8 @@ export const READ_TASKS = {
     new QuickWins(db).measure(tenantId, new RuleRegister(db, new CostGridRepository(db)).entries(tenantId, { from: now - 30 * 86_400_000, to: now + 1 }), now, {
       jobs: true,
     }),
+  predictions: (db: Db, tenantId: string, agentId: string, kind: TaskKind | undefined, mode: RoutingMode | undefined, now: number) =>
+    new Predictions(db).forAgent(tenantId, agentId, { kind, now, ...(mode ? { mode } : {}) }),
 };
 
 export type ReadTaskName = keyof typeof READ_TASKS;

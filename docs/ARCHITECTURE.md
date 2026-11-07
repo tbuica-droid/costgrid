@@ -313,6 +313,32 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   `x-costgrid-not-routed` say why. Hosted, every endpoint call goes through
   `guardedFetch`, and an endpoint address must be public https.
 
+### Phase 4: understanding the task and predicting the outcome
+
+- **Labels, never words.** `labelTask` (core) gives every proxied call a kind and
+  a size before forwarding, from the request's shape and the first 4 KB of
+  its last user turn. It takes 14 µs on a 400 KB request. Only the label is
+  stored (`calls.task_kind`, `task_size`, `labelled_by`).
+  - **The local model** (`task-labeller.ts`) refines the label after the
+    answer, with a small sentence model compared against a description of each
+    kind. Its runtime is loaded by dynamic import and isn't bundled (owner
+    question 2), so without it the signals label stands.
+- **Predictions are Beta posteriors, and say so.** `predict.ts` (core):
+  - Quality and the chance of finishing start from a prior worth four jobs.
+    The prior is a cited benchmark (`BENCHMARKS`, empty for now) or the
+    model's tier, labelled as a guess.
+  - They are updated with the agent's own answer checks, errors and reported
+    outcomes on that model and kind (`predictions.ts`).
+  - Cost is measured where the agent has used the model. Otherwise it is the
+    list price applied to the agent's usual tokens, and labelled as an
+    estimate.
+  - `rankModels` orders candidates for the agent's mode. In "same quality" a
+    candidate qualifies only within 0.02 of the current model, and below the
+    bar quality decides the order, not cost.
+- **`POST /v1/costgrid/predict`** answers "which model for this agent or
+  sample task?" on the read pool. A sample is labelled in memory and not kept.
+  Nothing here routes a call (D8).
+
 ## Package layout
 
 ```

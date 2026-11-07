@@ -12,6 +12,21 @@ before it is built, and closes with what was done.
    in "Phase 3: privacy wording draft" below. It is not live anywhere public.
    The app shows it only on the opt-in screen itself. Please approve it, or
    change it, before the website and the docs' privacy sections are updated.
+2. **The local task-labelling model's runtime (phase 4, D7).** Running a small
+   model on the customer's machine needs a runtime. transformers.js with ONNX
+   Runtime is the usual choice, and adds about 470 MB of dependencies to the
+   app and the server image. Phase 4 ships the local-model labeller behind an
+   interface. It works when that package is installed, downloads its model on
+   first use, and otherwise falls back to the signals labeller. Should the
+   runtime be bundled (bigger download), offered as an optional add-on, or left
+   out for now?
+3. **Benchmark results to start predictions from (phase 4, D8).** Predictions
+   start from a weak prior by model tier, labelled "tier prior, not a
+   benchmark", and learn from the customer's own outcomes. The format for real
+   public benchmark results, with source and date for each, is in place
+   (`BENCHMARKS` in `predict.ts`). It is empty, because no published result
+   for the current catalog's models could be cited. Which benchmarks should we
+   trust, and who checks the figures entered?
 
 ## Phase 1: quick wins that cut cost without changing the model
 
@@ -386,4 +401,84 @@ Built as designed.
     catalog models, so it is skipped there. The measured before-and-after
     still applies.
 - **Waiting on the owner:** the privacy wording (question 1).
+
+## Phase 4: understanding the task and predicting the outcome
+
+### Design note (7 November 2026)
+
+**What gets built**
+
+1. **Task labels.** Every proxied call gets a kind and a size:
+   - **Kinds:** `answer`, `chat`, `summarise`, `extract`, `classify`,
+     `write`, `code`, `analyse`, `agent-step`.
+   - **Sizes:** `s`, `m`, `l`, from the request's length.
+
+   The label is metadata, like a model name: the words it came from are read
+   in memory and never stored or sent anywhere. `calls.task_kind`,
+   `task_size` and `labelled_by` hold it.
+   - **The signals labeller** (`task-label.ts`, core, pure) is always on and
+     the fallback. It reads the last user turn (first 4 KB) and the request's
+     shape: tools, tool results, a JSON format, code. That costs microseconds,
+     so it runs before forwarding.
+   - **The local-model labeller** runs only if its runtime is installed (see
+     owner question 2). It embeds the text with a small sentence model
+     (all-MiniLM-L6-v2, about 23 MB, downloaded once into the app's data
+     folder) and picks the nearest kind. It runs after the answer has gone to
+     the caller, so it never adds delay, and it updates the call's label.
+     Hosted, it runs on the server.
+2. **Predictions** (`predict.ts`, core, pure; inputs gathered by
+   `predictions.ts` in the database package). For an agent, a kind of task and
+   each candidate model, it predicts:
+   - **Quality.** The share of answers that pass the checks and aren't
+     reported as below the bar. This is a Beta posterior: a weak prior from
+     the model's tier, or from a cited benchmark when one exists, updated
+     with the agent's own evidence on that model and kind.
+   - **Chance of finishing.** The same method, over finished and not finished.
+   - **Cost per call and per finished job, reasoning included.** From the
+     agent's own calls on that model where it has them. Otherwise from the
+     agent's token profile on its current model, priced at the candidate's
+     list price, with the current reasoning share carried over and the
+     estimate labelled as one.
+   - **How sure it is.** One minus the width of the 90% interval on quality,
+     plus the evidence counts.
+
+   Candidates are the catalog models of the agent's own provider and of every
+   destination it opted in to, plus priced endpoint models. Retired and
+   unpriced models are left out.
+3. **"Which model for this?"** `POST /v1/costgrid/predict` takes an agent and
+   an optional sample request. The sample is labelled in memory and never
+   stored. The answer is a ranked list in the agent's mode (default "same
+   quality, lower cost"). The console's version comes in phase 6.
+
+**D8: no traffic moves on a prior.** Predictions inform suggestions and the
+decision log. Nothing here routes a call. Phase 5's trials are the gate.
+
+**Data model (migration 24).** `calls`: `task_kind`, `task_size`,
+`labelled_by`. Existing calls stay unlabelled and are counted as "not
+labelled", never guessed after the fact.
+
+**Risks**
+- **Signal labels are coarse.** They're only used to group evidence, and every
+  prediction shows its evidence count.
+- **A tier prior can be badly wrong for a specific model.** It is weak (worth
+  four jobs), labelled, and outweighed by the customer's data quickly.
+- **Labelling adds time before forwarding.** The signals labeller is
+  benchmarked, and the model labeller runs after the answer.
+
+### Done (7 November 2026)
+
+Built as designed.
+- **Code:**
+  - core: `task-label.ts` and `predict.ts`;
+  - database: migration 24 and `predictions.ts`;
+  - gateway: `task-labeller.ts`, `predict-api.ts`, labels in the proxy, and a
+    `predictions` read-pool task.
+- **Latency:** labelling costs 14 µs on a 400 KB request. The bench varied
+  between 2.3 and 6.9 ms p99 across runs, which is this machine's noise; all
+  within target.
+- **Waiting on the owner:**
+  - question 2: bundling the local model's runtime;
+  - question 3: which benchmarks to cite.
+- **Not done:** the decision log's prediction columns are still empty for
+  route rules. Phase 6, which chooses per request, fills them.
 

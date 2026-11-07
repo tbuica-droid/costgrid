@@ -41,6 +41,12 @@ export interface GatewayConfig {
    */
   readonly extractTools: boolean;
   /**
+   * Try to load the local task-labelling model (task-labeller.ts). On by
+   * default for the desktop app; it falls back to simple signals quietly when
+   * the model's runtime is not installed. `COSTGRID_LOCAL_LABELLER`.
+   */
+  readonly localLabeller?: boolean;
+  /**
    * When true, a request presenting no valid CostGrid key is attributed to the
    * single local tenant instead of being rejected. For solo/self-hosted use;
    * must stay false in any multi-tenant deployment.
@@ -400,6 +406,7 @@ export function loadConfig(deps: ConfigDeps = {}): GatewayConfig {
     upstreamTimeoutMs: integer("COSTGRID_UPSTREAM_TIMEOUT_MS", 15 * 60 * 1000),
     injectUsageRequest: boolean("COSTGRID_OPENAI_INJECT_USAGE", true),
     extractTools: boolean("COSTGRID_EXTRACT_TOOLS", true),
+    localLabeller: boolean("COSTGRID_LOCAL_LABELLER", desktop),
     allowAnonymous: boolean("COSTGRID_ALLOW_ANONYMOUS", false),
     logLevel: process.env["COSTGRID_LOG_LEVEL"]?.trim() || "info",
     logFile: optional("COSTGRID_LOG_FILE"),

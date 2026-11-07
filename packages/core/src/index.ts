@@ -24,3 +24,5 @@ export * from "./answer-check.js";
 export * from "./translate.js";
 export * from "./translate-stream.js";
 export * from "./open-models.js";
+export * from "./task-label.js";
+export * from "./predict.js";

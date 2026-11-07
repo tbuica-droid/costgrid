@@ -33,3 +33,4 @@ export * from "./quick-wins.js";
 export * from "./deferred.js";
 export * from "./quality.js";
 export * from "./endpoints.js";
+export * from "./predictions.js";
