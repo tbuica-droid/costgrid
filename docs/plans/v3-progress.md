@@ -24,6 +24,9 @@ Answered on 7 November 2026:
 
 Still open: **D3**, the customers whose traffic proves the savings (phase 7).
 
+The owner approved the privacy text below and asked for the rest of the app
+and docs to be rewritten in the same plain voice, as part of the UI pass.
+
 ## Phase 1: quick wins that cut cost without changing the model
 
 ### Design note (4 November 2026)
@@ -665,7 +668,7 @@ customers' traffic against D2, then claims and pricing) needs the owner:
 D3, the customers who'll send one agent's traffic. The open questions are at
 the top of this file.
 
-### Phase 3: privacy wording, final (7 November 2026, waiting for the owner's OK)
+### Phase 3: privacy wording, final (approved by the owner, 7 November 2026)
 
 This goes live with cross-provider routing, on the website, in the app and in
 the docs. It replaces "Your keys are only ever sent to OpenAI or Anthropic,
