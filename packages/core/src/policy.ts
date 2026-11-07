@@ -244,6 +244,13 @@ export interface RequestContext {
   readonly delegatedFrom?: readonly string[];
   /** What the request asked the model to think, when it said anything. */
   readonly reasoning?: ReasoningRequest;
+  /**
+   * Whether a route rule may send this call to a model on another provider or
+   * an open-model endpoint (v3). The gateway answers it from the agent's
+   * opt-ins and whether the target is priced. Absent, routing stays within
+   * one provider, as before.
+   */
+  readonly canRouteTo?: (model: string) => boolean;
 }
 
 /**
@@ -537,7 +544,7 @@ function evaluateRoute(
   if (rule.from !== undefined && rule.from.length > 0 && !rule.from.includes(context.model)) {
     return undefined;
   }
-  if (!substitutionAllowed(context.model, rule.toModel)) return undefined;
+  if (!substitutionAllowed(context.model, rule.toModel) && context.canRouteTo?.(rule.toModel) !== true) return undefined;
 
   const applied = policy.action !== "monitor";
   return {

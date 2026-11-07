@@ -120,6 +120,9 @@ const TENANT_TABLES = [
   "key_actions",
   "outcome_settings",
   "deferred_batches",
+  "model_endpoints",
+  "endpoint_models",
+  "agent_providers",
   // The local copies only. Anchors already delivered live at the receiver,
   // which is the point of them, and are outside anything this can reach.
   "anchors",

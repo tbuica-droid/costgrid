@@ -1116,3 +1116,35 @@ in `packages/core/src/routing.ts` and are only as good as those assumptions.
 If a call uses a model missing from the price catalog, the report says
 `UNPRICED` and tells you the total is understated. It never silently records
 that traffic as free.
+
+## Open models and routing across providers
+
+Connect a service that accepts OpenAI-format requests under Settings, "Open
+models and other providers". It can be a hosted open-model service, or a model
+running on your machine (`http://127.0.0.1:11434/v1`). Then list the models it
+serves, with the price per million tokens, the page the prices come from and
+the date you read them. Each model gets an id:
+
+```
+open:together/meta-llama/Llama-3.3-70B-Instruct-Turbo
+```
+
+Call it directly through `/v1/chat/completions` with that id as `model`, or
+route an agent's traffic to it:
+
+1. Tick the destination for the agent in the same section. Nothing goes
+   anywhere new without that tick.
+2. Add a route rule naming the model, dry run first:
+
+```bash
+npx tsx packages/cli/src/main.ts policy route agent:support-bot \
+  open:together/meta-llama/Llama-3.3-70B-Instruct-Turbo --from claude-sonnet-4-6 --action monitor
+```
+
+The same works between Claude and OpenAI in both directions, for agents ticked
+for the other provider. Your software keeps speaking its own format: CostGrid
+translates the request and the answer, streams included. A request using
+something the other side can't honour (extended thinking, cache control, a
+server tool, several answers at once, and so on) stays on its own model. The
+response header `x-costgrid-not-routed` and the decision log say why.
+

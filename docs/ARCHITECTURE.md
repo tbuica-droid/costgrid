@@ -287,6 +287,32 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   not chosen. It is written with the call. The prediction columns stay empty
   until phase 4.
 
+### Phase 3: reach
+
+- **Open models are endpoint models.** An owner connects any service that
+  takes OpenAI-format requests (`model_endpoints`, key encrypted and included
+  in master-key rotation), lists its models (`endpoint_models`) and prices them.
+  The id is `open:<endpoint>/<model>`, so one model at two hosts is two prices.
+  Prices are the owner's: whole nanodollars per million tokens, with source and
+  date required, and costed exactly (`costOfOpen`). CostGrid ships no built-in
+  open-model prices it can't verify.
+- **Translation is pure and complete, or it doesn't happen.** `translate.ts`
+  and `translate-stream.ts` in core map requests, answers and streams between
+  the two formats: system prompts, images, tools, tool calls and results, tool
+  choice, stop sequences and usage. Anything that can't be carried faithfully
+  (extended thinking, effort, cache control, documents, server tools, `n` above
+  1, response formats and so on) returns a reason instead. Bedrock and Vertex
+  callers aren't translated yet.
+- **Routing across providers needs an opt-in.** The policy context's
+  `canRouteTo` lets a route rule cross providers only to a destination the
+  agent opted in to (`agent_providers`), and only to a priced model.
+  `cross-route.ts` resolves the target adapter, translates, and uses the
+  target's credential, path, headers, parser and rate. The caller's own
+  provider headers are not forwarded. An untranslatable request, or a target
+  with no credential, stays on its model: a `not-routed` row and
+  `x-costgrid-not-routed` say why. Hosted, every endpoint call goes through
+  `guardedFetch`, and an endpoint address must be public https.
+
 ## Package layout
 
 ```
@@ -500,9 +526,11 @@ blame their own code first. Four guards, enforced rather than advised:
   what would have happened and what it would have saved. This is how a
   customer builds confidence before switching anything on, and it is the
   default the CLI picks.
-- **Never across providers.** An Anthropic request body is not a valid OpenAI
-  one, so rewriting `model` across providers would send a malformed request
-  upstream and break the feature outright.
+- **Never across providers without translation and consent.** An Anthropic
+  request body is not a valid OpenAI one, so a route that crosses providers
+  translates the request (v3, phase 3). It is allowed only for agents opted in
+  to that destination, and a request that can't be translated faithfully stays
+  where it was.
 - **Never to an unpriceable model.** Otherwise the customer watches their
   traffic move and their reported spend fall to zero.
 - **First match wins, and a blocked call is never routed.** Overlapping rules

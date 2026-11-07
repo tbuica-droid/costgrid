@@ -21,3 +21,6 @@ export * from "./verdict.js";
 export * from "./key-safety.js";
 export * from "./adjust.js";
 export * from "./answer-check.js";
+export * from "./translate.js";
+export * from "./translate-stream.js";
+export * from "./open-models.js";

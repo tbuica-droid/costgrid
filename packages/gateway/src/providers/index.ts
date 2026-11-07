@@ -239,6 +239,27 @@ export const openaiAdapter: ProviderAdapter = {
   streamError: sseError,
 };
 
+/**
+ * Any service that accepts OpenAI-format requests: an open-model host, or a
+ * model running on the owner's own machine (open-models.ts in core).
+ *
+ * The OpenAI adapter with three differences: it has no route of its own (a
+ * caller reaches it through `/v1/chat/completions` with an `open:` model, or
+ * by a route rule), its path is relative to the endpoint's base URL, which
+ * already ends in the API's version, and it sends a key only when the
+ * endpoint has one.
+ */
+export const openAdapter: ProviderAdapter = {
+  ...openaiAdapter,
+  id: "open",
+  path: "/v1/chat/completions",
+  defaultBaseUrl: "http://127.0.0.1:11434/v1/",
+  apiKeyEnvVar: "",
+  authHeaders: async (apiKey) => (apiKey === "" ? {} : { authorization: `Bearer ${apiKey}` }),
+  forwardedRequestHeaders: [],
+  upstreamPath: () => "chat/completions",
+};
+
 export const ADAPTERS: readonly ProviderAdapter[] = [
   anthropicAdapter,
   openaiAdapter,

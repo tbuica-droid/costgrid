@@ -11,6 +11,7 @@ import { call, flashBanner, state } from "./console-api.js";
 import { auditSection, retentionSection, ssoSection } from "./console-security.js";
 import { outcomeSettingsCard } from "./console-settings-outcomes.js";
 import { qualityCard } from "./console-quality.js";
+import { endpointsSection } from "./console-endpoints.js";
 import { button, count, escapeHtml, getAppearance, money, pageHead, relativeTime } from "./ui.js";
 
 const APPEARANCES = [
@@ -35,7 +36,7 @@ export async function renderSettings() {
   const tenantId = state.tenantId;
   const org = state.orgs.find((o) => o.tenantId === tenantId);
 
-  const [credentials, keys, billing, importState, sso, retention, audit, matching, quality] = await Promise.all([
+  const [credentials, keys, billing, importState, sso, retention, audit, matching, quality, endpoints] = await Promise.all([
     call("GET", `/console/${tenantId}/credentials`),
     call("GET", `/console/${tenantId}/keys`),
     call("GET", `/console/${tenantId}/billing`),
@@ -45,6 +46,7 @@ export async function renderSettings() {
     call("GET", `/console/${tenantId}/audit/verify`),
     call("GET", `/console/${tenantId}/outcome-settings`).catch(() => null),
     call("GET", `/console/${tenantId}/quality`).catch(() => null),
+    call("GET", `/console/${tenantId}/endpoints`).catch(() => null),
   ]);
 
   const credentialRows = credentials.providers
@@ -220,6 +222,9 @@ export async function renderSettings() {
 
     <h2>What a good answer looks like</h2>
     ${qualityCard(quality)}
+
+    <h2>Open models and other providers</h2>
+    ${endpointsSection(endpoints)}
 
     <h2>How long we keep your data</h2>
     <p class="section-note">Nothing is deleted unless you ask for it. Set a limit here and

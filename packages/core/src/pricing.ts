@@ -9,7 +9,7 @@ import { mulDiv, type Nanodollars, usd } from "./money.js";
  * valid on the Anthropic API, so rewriting one into the other would send a
  * malformed request upstream.
  */
-export type Provider = "anthropic" | "openai" | "bedrock" | "vertex";
+export type Provider = "anthropic" | "openai" | "bedrock" | "vertex" | "open";
 
 /**
  * Tiers are CostGrid's own classification, not a vendor concept. The routing

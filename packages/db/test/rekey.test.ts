@@ -2,6 +2,7 @@ import { decryptSecret, deriveMasterKey } from "@costgrid/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AccountsRepository } from "../src/accounts.js";
 import { AlertsRepository } from "../src/alerts.js";
+import { EndpointsRepository } from "../src/endpoints.js";
 import { openDatabase } from "../src/database.js";
 import { rekeySecrets } from "../src/rekey.js";
 import { CostGridRepository } from "../src/repositories.js";
@@ -16,12 +17,16 @@ describe("changing the master key", () => {
     new CostGridRepository(db).createTenant("Acme", "t1");
     new AccountsRepository(db, OLD).putCredential("t1", "anthropic", "sk-ant-real-key-123");
     new AlertsRepository(db, OLD).configure("t1", { webhookUrl: "https://hooks.example.com/T/SECRET" });
+    new EndpointsRepository(db, OLD).put("t1", { id: "together", name: "Together", baseUrl: "https://x/v1", apiKey: "tg-key-123" });
+    // A local server with no key: nothing to re-encrypt.
+    new EndpointsRepository(db, OLD).put("t1", { id: "local", name: "Local", baseUrl: "http://127.0.0.1/v1" });
   });
   afterEach(() => db.close());
 
   it("re-encrypts every secret so only the new key opens it", () => {
     const counts = rekeySecrets(db, OLD, NEW);
-    expect(counts).toEqual({ provider_credentials: 1, sso_connections: 0, alert_settings: 1 });
+    expect(counts).toEqual({ provider_credentials: 1, sso_connections: 0, alert_settings: 1, model_endpoints: 1 });
+    expect(new EndpointsRepository(db, NEW).reveal("t1", "together")?.apiKey).toBe("tg-key-123");
 
     expect(new AccountsRepository(db, NEW).revealCredential("t1", "anthropic")?.apiKey).toBe("sk-ant-real-key-123");
     expect(new AlertsRepository(db, NEW).webhookUrl("t1")).toBe("https://hooks.example.com/T/SECRET");

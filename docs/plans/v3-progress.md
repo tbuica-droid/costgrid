@@ -5,7 +5,13 @@ before it is built, and closes with what was done.
 
 ## Questions for the owner
 
-None yet.
+1. **Privacy wording for other providers (phase 3, D6).** Today the app and
+   the website say keys and prompts go "only to OpenAI or Anthropic". With
+   per-agent opt-in, an agent's prompts can also go to an open-model service
+   the owner connects, or to the other of the two. The drafted replacement is
+   in "Phase 3: privacy wording draft" below. It is not live anywhere public.
+   The app shows it only on the opt-in screen itself. Please approve it, or
+   change it, before the website and the docs' privacy sections are updated.
 
 ## Phase 1: quick wins that cut cost without changing the model
 
@@ -242,4 +248,142 @@ Built as designed.
     whole answer in memory. A later phase can add it per agent if owners ask.
   - **"Asked again" is not a separate quality signal.** It stays what it was:
     a finished job asked again inside its window is reversed to not finished.
+
+
+## Phase 3: reach
+
+### Design note (7 November 2026)
+
+**What gets built**
+
+1. **Endpoints for open models.** An owner registers any service that accepts
+   OpenAI-format requests (a hosted service, or a model running on their own
+   machine), with:
+   - its base URL;
+   - its key, encrypted like other provider keys (it may have none, for a
+     local server);
+   - the models it serves.
+
+   A model on an endpoint is named `open:<endpoint>/<model>`, for example
+   `open:together/meta-llama/Llama-3.3-70B-Instruct-Turbo`. Callers can send
+   to it through `/v1/chat/completions`, and route rules can send traffic
+   to it.
+2. **The SSRF guard in hosted mode.** An endpoint's address must be a public
+   internet address. It is checked when the endpoint is saved and again on
+   every call (`guardedFetch`). Desktop and self-hosted installs may point at
+   `localhost`, which is where a self-run model usually lives.
+3. **Prices for open models, per host.** The same model costs different amounts
+   at different hosts, and the prices change often. So the owner enters each
+   endpoint's input, output and cached-input price per million tokens, with the
+   page they came from and the date. They are stored as exact whole
+   nanodollars per million tokens, and every call is priced with exact
+   rounding. A model running on the owner's own machine can be priced at zero,
+   with its hardware entered as a fixed cost. CostGrid ships no
+   built-in open-model prices, because a figure that can't be checked is the
+   decay the catalog's provenance rule exists to prevent.
+4. **Translation between Claude and OpenAI formats** (`translate.ts` and
+   `translate-stream.ts` in core, pure):
+   - requests;
+   - responses;
+   - streams, event by event;
+   - system prompts;
+   - images;
+   - tool definitions, calls and results;
+   - tool choice;
+   - stop sequences.
+
+   **Usage.** Metering reads the target provider's own usage with its own
+   parser, so cost stays exact. Usage is also mapped into the caller's format
+   for the caller's benefit: OpenAI's prompt tokens include cached ones,
+   Claude's input tokens exclude them.
+
+   **What blocks routing.** A request that uses something the target can't
+   honour is not routed. It stays on its own model, a `not-routed` row in the
+   decision log says why, and `x-costgrid-not-routed` tells the caller.
+   - Claude features: extended thinking, effort settings, cache control,
+     documents, citations, server tools, `top_k`, MCP servers.
+   - OpenAI features: `n` above 1, log probabilities, response formats,
+     audio, penalties, logit bias, reasoning effort, a temperature above 1.
+5. **Per-agent opt-in.** `agent_providers` lists, per agent, the destinations
+   it may be sent to beyond its own provider: `openai`, `anthropic`, or a
+   specific endpoint. Without an entry, a route rule never moves that agent's
+   traffic across formats. CostGrid never sends a customer's prompt to a
+   provider the agent hasn't opted in to.
+6. **Privacy wording.** New wording is drafted for the app, the docs and the
+   website. It waits for the owner's approval before going live (question at
+   the top of this file). Until then, cross-provider routing is off unless an
+   agent has an opt-in, and the app's opt-in screen says plainly where the
+   prompts will go.
+
+**Data model (migration 23)**
+- `model_endpoints`: an id, a name, the base URL, the encrypted key and the
+  hint shown in its place, and creation and update times.
+- `endpoint_models`: endpoint, model, price per million tokens (input, output
+  and cached input), the source page and the date priced.
+- `agent_providers`: agent and destination.
+
+All three are tenant tables. Their new money and time columns go in
+`COLUMN_WIDTHS`.
+
+**The proxy.** A route decision can now name a target on another adapter. The
+handler resolves the target's adapter, credential and format, then:
+1. translates the body;
+2. applies the adjustments in the target's format;
+3. prepares and signs the request for the target;
+4. meters with the target's parser;
+5. translates the answer, buffered or streamed, back to the caller's format.
+
+Calls that aren't routed take the same path as today. Benchmarked.
+
+**Risks**
+- **Translation loses something the caller relied on.** Anything that can't be
+  carried blocks routing, rather than being dropped quietly. Golden tests cover
+  each mapping, both ways, and streams event by event.
+- **Answers differ between models.** That is what phase 2's checks and phase
+  5's trials measure. Routing to an open model is the owner's rule, dry-run
+  first.
+- **A hosted endpoint can point inwards.** The SSRF guard covers this, on save
+  and on every call.
+- **A self-entered price can be wrong.** It is shown with its source and date,
+  and calls to an endpoint model with no price are recorded as unpriced, never
+  as free.
+
+### Phase 3: privacy wording draft (awaiting the owner)
+
+This replaces "Your keys are only ever sent to OpenAI or Anthropic" on the
+website's privacy card and in the privacy sections of the docs. It is not live
+until the owner approves it.
+
+> **Your keys and prompts go only where you send them.** CostGrid sends each
+> request to the AI provider your agent uses, OpenAI or Anthropic. It sends a
+> request somewhere else only when you have ticked that destination for that
+> agent and set a rule to route it there: the other of the two, or an
+> open-model service you connected with your own key. That service then
+> handles the request under its own terms. Your keys go only to the service
+> they belong to, never to us. CostGrid itself still keeps no prompt and no
+> answer.
+
+The console's opt-in table already says, in its own words, what ticking a
+destination means, because that's where the decision is made.
+
+### Done (7 November 2026)
+
+Built as designed.
+- **Code:**
+  - core: `translate.ts`, `translate-stream.ts` and `open-models.ts`;
+  - database: migration 23 and `endpoints.ts`, with endpoint keys added to
+    master-key rotation;
+  - gateway: `cross-route.ts`, `console-endpoints.ts`, the open adapter, and
+    the proxy handler resolving a target adapter;
+  - console: `console-endpoints.js` on Settings.
+- **Latency:** 1.27 ms p99 on `npm run bench`.
+- **Not done, deliberately:**
+  - **Bedrock and Vertex callers are not translated.** Bedrock streams binary
+    frames, and the plan puts both channels later.
+  - **Error bodies from another provider are passed through untranslated.**
+    The status code is the provider's own.
+  - **No saving estimate for open-model routes.** The estimate prices only
+    catalog models, so it is skipped there. The measured before-and-after
+    still applies.
+- **Waiting on the owner:** the privacy wording (question 1).
 

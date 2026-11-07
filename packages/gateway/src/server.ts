@@ -11,7 +11,16 @@ import {
   type AnswerSpec,
   applyAdjustments,
   checkAnswer,
+  costOfOpen,
+  deriveMasterKey,
   evaluatePolicies,
+  findModelPrice,
+  isOpenModel,
+  parseOpenModel,
+  type PricedUsage,
+  type PriceModifiers,
+  type StreamTranslator,
+  type TokenUsage,
   planFor,
   type PolicyScope,
   type PolicyViolation,
@@ -31,6 +40,8 @@ import {
   API_KEY_PREFIX,
   type CallRecord,
   CostGridRepository,
+  destinationOf,
+  EndpointsRepository,
   type Db,
   AgentsRepository,
   type ImportsRepository,
@@ -60,6 +71,7 @@ import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
 import { registerQuality } from "./console-quality.js";
+import { registerEndpoints } from "./console-endpoints.js";
 import { registerKeySafety } from "./console-key-safety.js";
 import { registerControl } from "./console-control.js";
 import { KeyControl } from "./key-control.js";
@@ -73,6 +85,8 @@ import { registerSecurity } from "./console-security.js";
 import { registerSetup } from "./console-setup.js";
 import type { GatewayConfig } from "./config.js";
 import { registerDashboard } from "./dashboard.js";
+import { formatOf, requestFor, responseFor, streamFor, targetAdapterFor, upstreamModel } from "./cross-route.js";
+import { guardedFetch } from "./outbound-guard.js";
 import { type DeferredJobs, registerDeferred } from "./deferred.js";
 import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -323,6 +337,42 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   const doFetch = deps.fetchImpl ?? fetch;
   // Answer specs and the decision log. Tests built without a database go without both.
   const quality = deps.db === undefined ? undefined : new QualityRepository(deps.db);
+  // Open-model endpoints and each agent's opt-ins (cross-route.ts).
+  const endpoints =
+    deps.db === undefined
+      ? undefined
+      : new EndpointsRepository(deps.db, config.masterKeySecret === undefined ? undefined : deriveMasterKey(config.masterKeySecret));
+
+  /**
+   * May this agent's call go to `model` on another provider or an endpoint?
+   * Only to a destination the agent opted in to, and only to a model CostGrid
+   * can price: a routed call must never meter as free.
+   */
+  function crossAllowed(tenantId: string, agentId: string, model: string): boolean {
+    if (endpoints === undefined) return false;
+    const destination = destinationOf(model, findModelPrice(model)?.provider);
+    if (destination === undefined || !endpoints.destinations(tenantId, agentId).includes(destination)) return false;
+    return isOpenModel(model) ? endpoints.priceOf(tenantId, model) !== undefined : findModelPrice(model) !== undefined;
+  }
+
+  /** Where to send a call for `model` on `target`, with what key; undefined without one. */
+  function resolveTarget(target: ProviderAdapter, tenantId: string, model: string): { apiKey: string; baseUrl: string } | undefined {
+    if (target.id !== "open") return resolveUpstream(target, tenantId);
+    const open = parseOpenModel(model);
+    const found = open === undefined ? undefined : endpoints?.reveal(tenantId, open.endpoint);
+    if (found === undefined) return undefined;
+    // The base URL ends in the API's version; the path is relative to it.
+    return { apiKey: found.apiKey ?? "", baseUrl: found.baseUrl.endsWith("/") ? found.baseUrl : `${found.baseUrl}/` };
+  }
+
+  /** The price of a call: the catalog's, or for an open model the owner's for that endpoint. */
+  function priceCall(tenantId: string, model: string, usage: TokenUsage, modifiers: PriceModifiers): PricedUsage {
+    if (!isOpenModel(model)) return priceUsage(model, usage, modifiers);
+    const price = endpoints?.priceOf(tenantId, model);
+    return price === undefined
+      ? { usage, cost: ZERO_COST, price: undefined, priced: false, modifiers }
+      : { usage, cost: costOfOpen(usage, price), price: undefined, priced: true, modifiers };
+  }
   const rateLimiter = new RateLimiter();
 
   if (config.hosted && accounts === undefined) {
@@ -537,6 +587,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
     registerQuality(app, { db: deps.db, accounts: accounts! });
+    registerEndpoints(app, {
+      db: deps.db,
+      accounts: accounts!,
+      hosted: config.hosted,
+      masterKey: config.masterKeySecret === undefined ? undefined : deriveMasterKey(config.masterKeySecret),
+    });
     registerData(app, {
       config,
       db: deps.db,
@@ -632,7 +688,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       const upstreamCredential = resolveUpstream(adapter, caller.tenantId);
-      if (!upstreamCredential) {
+      // A call to an open model goes to its endpoint, so it needs no OpenAI key.
+      const directOpen = adapter.id === "openai" && isOpenModel(adapter.modelOf(request.body));
+      if (!upstreamCredential && !directOpen) {
         return reply.code(400).send({
           type: "error",
           error: {
@@ -675,6 +733,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         ...(declaredTools === undefined ? {} : { declaredTools }),
         delegatedFrom,
         ...(reasoning === undefined ? {} : { reasoning }),
+        // Across providers only to a destination this agent opted in to, and a model CostGrid can price.
+        canRouteTo: (model: string) => crossAllowed(caller.tenantId, caller.agentId, model),
       };
 
       repository.touchAgent(caller.tenantId, caller.agentId, caller.department);
@@ -806,7 +866,6 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       // --- Forward upstream -------------------------------------------------
-      const { apiKey, baseUrl } = upstreamCredential;
 
       /*
        * Apply a route rule, if one matched and is not a dry run.
@@ -815,10 +874,44 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * so it happens once, explicitly, on a copy of the body. `requestedModel`
        * is kept for the record: without it a rerouted call is indistinguishable
        * from one that simply used a cheap model, and the saving is unprovable.
+       *
+       * The target may be on another provider or an open-model endpoint
+       * (cross-route.ts): the body is then translated, and a call that cannot
+       * be translated faithfully, or whose target has no credential, stays on
+       * the model it asked for, with the reason in the decision log.
        */
-      const route = decision.route;
-      const outgoingBody =
-        route?.applied === true ? adapter.withModel(request.body, route.toModel) : request.body;
+      let route = decision.route;
+      let notRouted: { model: string; reason: string } | undefined;
+      let target = adapter;
+      let outgoingBody: unknown = request.body;
+      let upstreamTarget = upstreamCredential;
+      const targetModel = route?.applied === true ? route.toModel : requestedModel;
+      if (targetModel !== requestedModel || directOpen) {
+        const candidate = targetAdapterFor(targetModel, adapter);
+        const body = requestFor(adapter, candidate, request.body, targetModel);
+        const credential = body.ok ? resolveTarget(candidate, caller.tenantId, targetModel) : undefined;
+        if (body.ok && credential !== undefined) {
+          target = candidate;
+          outgoingBody = body.body;
+          upstreamTarget = credential;
+        } else if (directOpen) {
+          return reply.code(400).send({
+            type: "error",
+            error: {
+              type: "provider_not_configured",
+              message: `No open-model endpoint is set up for ${targetModel}. Add it in Settings, under open models.`,
+            },
+          });
+        } else {
+          notRouted = {
+            model: targetModel,
+            reason: body.ok ? `no credential for ${candidate.id} to send it with` : body.reason,
+          };
+          reply.header("x-costgrid-not-routed", headerSafe(`${targetModel}: ${notRouted.reason}`));
+          route = undefined;
+        }
+      }
+      const { apiKey, baseUrl } = upstreamTarget!;
 
       if (route !== undefined) {
         const substitution = `${route.fromModel}->${route.toModel}`;
@@ -849,9 +942,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           ? { body: outgoingBody, adjustments: [] }
           : applyAdjustments(
               adjustRules,
-              adapter.id === "openai" ? "openai" : "anthropic",
+              formatOf(target.id),
               outgoingBody,
-              route?.applied === true ? route.toModel : requestedModel,
+              upstreamModel(route?.applied === true ? route.toModel : requestedModel),
             );
       const madeChanges = adjusted.adjustments.filter((a) => a.applied).map((a) => a.change);
       if (madeChanges.length > 0) reply.header("x-costgrid-adjusted", headerSafe(madeChanges.join("; ")));
@@ -859,7 +952,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       // OpenAI omits usage from streams unless asked; without this every
       // streamed call would meter as zero.
       const prepared = config.injectUsageRequest
-        ? adapter.prepareBody(adjusted.body)
+        ? target.prepareBody(adjusted.body)
         : { body: adjusted.body, injectedUsageRequest: false };
 
       const outgoingBytes = JSON.stringify(prepared.body);
@@ -873,7 +966,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * is one fixed path whatever the model.
        */
       const servedModel = route?.applied === true ? route.toModel : requestedModel;
-      const upstreamUrl = new URL(adapter.upstreamPath(servedModel, streaming), baseUrl);
+      const upstreamUrl = new URL(target.upstreamPath(upstreamModel(servedModel), streaming), baseUrl);
 
       /*
        * Authentication is resolved last, because two channels need the final
@@ -883,24 +976,30 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        */
       const upstreamHeaders: Record<string, string> = {
         "content-type": "application/json",
-        ...(await adapter.authHeaders(apiKey, {
+        ...(await target.authHeaders(apiKey, {
           method: "POST",
           url: upstreamUrl,
           body: outgoingBytes,
         })),
       };
-      for (const name of adapter.forwardedRequestHeaders) {
-        const value = headerValue(request, name);
-        if (value !== undefined) upstreamHeaders[name] = value;
+      // A caller's provider headers mean nothing to another provider, so they
+      // go only where the call was addressed.
+      if (target === adapter) {
+        for (const name of adapter.forwardedRequestHeaders) {
+          const value = headerValue(request, name);
+          if (value !== undefined) upstreamHeaders[name] = value;
+        }
       }
-      if (adapter.id === "anthropic" && upstreamHeaders["anthropic-version"] === undefined) {
+      if (target.id === "anthropic" && upstreamHeaders["anthropic-version"] === undefined) {
         upstreamHeaders["anthropic-version"] = "2023-06-01";
       }
 
       let upstream: Response;
-      metrics.forwarded(adapter.id, reply.elapsedTime / 1000);
+      metrics.forwarded(target.id, reply.elapsedTime / 1000);
+      // An open-model endpoint is an address the organisation typed in: hosted, it must be public.
+      const send = target.id === "open" && config.hosted ? guardedFetch(doFetch) : doFetch;
       try {
-        upstream = await doFetch(upstreamUrl, {
+        upstream = await send(upstreamUrl, {
           method: "POST",
           headers: upstreamHeaders,
           body: outgoingBytes,
@@ -908,7 +1007,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        metrics.upstreamError(adapter.id, error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network");
+        metrics.upstreamError(target.id, error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network");
         meter("upstream-error", () =>
           repository.recordCall({
             ...baseRecord,
@@ -928,8 +1027,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       }
 
-      if (upstream.status >= 500) metrics.upstreamError(adapter.id, "5xx");
-      for (const name of adapter.forwardedResponseHeaders) {
+      if (upstream.status >= 500) metrics.upstreamError(target.id, "5xx");
+      for (const name of target.forwardedResponseHeaders) {
         const value = upstream.headers.get(name);
         if (value !== null) reply.header(name, value);
       }
@@ -970,8 +1069,23 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * on its own so a failure here cannot cost the call row.
        */
       const recordDecisions = (callRowId: string, servedAs: string): void => {
-        if (quality === undefined || (route === undefined && adjusted.adjustments.length === 0)) return;
+        if (quality === undefined || (route === undefined && notRouted === undefined && adjusted.adjustments.length === 0)) return;
         try {
+          if (notRouted !== undefined) {
+            quality.recordDecision({
+              tenantId: caller.tenantId,
+              callId: callRowId,
+              agentId: caller.agentId,
+              decidedAt: startedAt,
+              kind: "not-routed",
+              requestedModel,
+              chosenModel: servedAs,
+              applied: true,
+              ...(decision.route !== undefined ? { policyId: decision.route.policyId } : {}),
+              reason: `kept on ${requestedModel}: ${notRouted.reason}`,
+              rejected: [{ model: notRouted.model, why: notRouted.reason }],
+            });
+          }
           if (route !== undefined) {
             quality.recordDecision({
               tenantId: caller.tenantId,
@@ -1015,7 +1129,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         const usage = over.usage ?? ZERO_USAGE;
         const model = over.model ?? requestedModel;
         const modifiers = over.modifiers ?? {};
-        const computed = priceUsage(model, usage, modifiers);
+        const computed = priceCall(caller.tenantId, model, usage, modifiers);
 
         /*
          * The negotiated rate, applied here rather than at read time.
@@ -1026,7 +1140,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
          * alongside as `costList`, which is what makes the discount provable
          * instead of asserted.
          */
-        const rate = rateFor(adapter.id);
+        const rate = rateFor(target.id);
         const effectiveCost = applyRate(computed.cost, rate);
 
         /*
@@ -1137,7 +1251,10 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       };
 
       if (streaming && upstream.ok && upstream.body) {
-        return streamThrough(adapter, reply, upstream, record, app.log, toolGuard);
+        return streamThrough(target, reply, upstream, record, app.log, toolGuard, {
+          translator: streamFor(adapter, target, servedModel, request.body),
+          ...(target.id === "open" ? { model: servedModel } : {}),
+        });
       }
 
       // --- Buffered response ------------------------------------------------
@@ -1157,7 +1274,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         return reply.code(upstream.status).send(payload);
       }
 
-      const parsed = adapter.parseBufferedResponse(payload);
+      const parsed = target.parseBufferedResponse(payload);
 
       /*
        * A forbidden tool call in a buffered response never reaches the caller.
@@ -1194,7 +1311,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           ? { statusCode: 403, errorMessage: gateBlock.reason }
           : {}),
         // Bill the model that actually ran, which a server-side fallback can change.
-        ...(parsed.model !== undefined ? { model: parsed.model } : {}),
+        // An endpoint names its model its own way; the call is priced by the id CostGrid knows it by.
+        ...(target.id === "open" ? { model: servedModel } : parsed.model !== undefined ? { model: parsed.model } : {}),
         usage: parsed.usage ?? ZERO_USAGE,
         reasoningTokens: parsed.reasoningTokens,
         modifiers: parsed.modifiers,
@@ -1220,7 +1338,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         });
       }
 
-      return reply.code(upstream.status).send(payload);
+      // In the format the caller spoke, whichever provider answered.
+      return reply.code(upstream.status).send(responseFor(adapter, target, payload, servedModel));
     };
   }
 
@@ -1360,13 +1479,27 @@ async function streamThrough(
   record: (over: RecordOverrides) => void,
   log: FastifyInstance["log"],
   toolGuard: ToolGuard | undefined,
+  /**
+   * `translator` rewrites the stream into the caller's format when another
+   * provider answered (cross-route.ts); metering still reads the original.
+   * `model` is the id to record the call under when the provider names it
+   * differently (an open-model endpoint).
+   */
+  options: { translator?: StreamTranslator | undefined; model?: string } = {},
 ): Promise<void> {
   const collector: StreamUsageCollector = adapter.createStreamCollector();
   const decoder = new TextDecoder();
+  const { translator } = options;
+  /** Send bytes on, translated when needed, respecting backpressure. */
+  const forward = async (value: Uint8Array, text: string | undefined): Promise<void> => {
+    const out = translator === undefined ? Buffer.from(value) : translator.push(text ?? "");
+    if (out.length === 0) return;
+    if (!reply.raw.write(out)) await new Promise<void>((resolve) => reply.raw.once("drain", resolve));
+  };
 
   reply.raw.writeHead(upstream.status, {
     [REQUEST_ID_HEADER]: reply.request.id,
-    "content-type": upstream.headers.get("content-type") ?? "text/event-stream",
+    "content-type": translator !== undefined ? "text/event-stream" : (upstream.headers.get("content-type") ?? "text/event-stream"),
     "cache-control": "no-cache",
     connection: "keep-alive",
   });
@@ -1404,11 +1537,12 @@ async function streamThrough(
        * sentence. Where the guarantee has to be absolute, do not stream: a
        * buffered response is checked in full before any of it is forwarded.
        */
-      if (toolGuard !== undefined) {
-        collector.feed(decoder.decode(value, { stream: true }));
+      if (toolGuard !== undefined || translator !== undefined) {
+        const text = decoder.decode(value, { stream: true });
+        collector.feed(text);
 
         const seen = collector.invokedTools;
-        for (; checkedTools < seen.length; checkedTools += 1) {
+        for (; toolGuard !== undefined && checkedTools < seen.length; checkedTools += 1) {
           const violation = toolGuard.check(seen[checkedTools]!);
           if (violation === undefined) continue;
           gated.push(violation);
@@ -1417,9 +1551,7 @@ async function streamThrough(
 
         if (gateBlock !== undefined) break;
 
-        if (!reply.raw.write(Buffer.from(value))) {
-          await new Promise<void>((resolve) => reply.raw.once("drain", resolve));
-        }
+        await forward(value, text);
         continue;
       }
 
@@ -1430,6 +1562,7 @@ async function streamThrough(
       collector.feed(decoder.decode(value, { stream: true }));
     }
     collector.end();
+    if (translator !== undefined && gateBlock === undefined) reply.raw.write(translator.end());
   } catch (error) {
     aborted = true;
     log.warn({ err: error }, "stream interrupted; usage may be partial");
@@ -1437,7 +1570,8 @@ async function streamThrough(
     if (gateBlock !== undefined) {
       // A stream that simply stops leaves the caller debugging a network fault
       // that never happened.
-      const event = adapter.streamError?.(
+      // In the provider's own format, which is the caller's unless the stream was translated.
+      const event = translator !== undefined ? undefined : adapter.streamError?.(
         `Blocked by CostGrid policy "${gateBlock.policyName}": ${gateBlock.reason}. ` +
           "The tool arguments were not sent.",
       );
@@ -1453,7 +1587,7 @@ async function streamThrough(
 
   record({
     invokedTools: collector.invokedTools,
-    ...(collector.model !== undefined ? { model: collector.model } : {}),
+    ...(options.model !== undefined ? { model: options.model } : collector.model !== undefined ? { model: collector.model } : {}),
     usage: collector.usage,
     reasoningTokens: collector.reasoningTokens,
     modifiers: collector.modifiers,

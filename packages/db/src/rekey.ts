@@ -4,8 +4,9 @@ import type { Db } from "./database.js";
 /**
  * Re-encrypt every stored secret under a new master key.
  *
- * Three columns hold secrets encrypted under the master key: tenants'
- * provider keys, single sign-on client secrets and alert webhook addresses.
+ * Four columns hold secrets encrypted under the master key: tenants'
+ * provider keys, single sign-on client secrets, alert webhook addresses and
+ * open-model endpoint keys.
  * All of them are decrypted with the old key and encrypted with the new one
  * in a single transaction, so a wrong old key, or any row that will not
  * decrypt, changes nothing at all: there is never a database with secrets
@@ -19,6 +20,7 @@ const COLUMNS = [
   { table: "provider_credentials", column: "encrypted_key", key: ["tenant_id", "provider"] },
   { table: "sso_connections", column: "encrypted_secret", key: ["tenant_id"] },
   { table: "alert_settings", column: "encrypted_webhook", key: ["tenant_id"] },
+  { table: "model_endpoints", column: "encrypted_key", key: ["tenant_id", "id"] },
 ] as const;
 
 export type RekeyResult = Readonly<Record<(typeof COLUMNS)[number]["table"], number>>;

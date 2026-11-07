@@ -186,6 +186,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   ended_at: "BIGINT",
   metered_at: "BIGINT",
   decided_at: "BIGINT",
+  input_per_m: "BIGINT",
+  output_per_m: "BIGINT",
+  cached_input_per_m: "BIGINT",
   predicted_cost: "BIGINT",
 
   // Token counts. A single call never approaches int4, but these are summed

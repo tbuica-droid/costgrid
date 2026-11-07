@@ -439,3 +439,22 @@ No secret was ever committed.
   - a sweep proving no answer text is stored.
 - The smoke test passes. CostGrid's own latency is 2.8 ms p99.
 
+## Version 3, phase 3: open models, and Claude and OpenAI both ways (7 November 2026)
+
+**What changed**
+- **Open models.** Connect any service that accepts OpenAI-format requests, hosted or on your own computer, list its models and enter their prices with where they come from. Calls to them are priced exactly from your figures.
+- **One format in, any model out.** CostGrid translates requests, answers and streams between the Claude and OpenAI formats, tools included. A Claude agent can be served by an open model or by OpenAI, and an OpenAI agent by Claude, without changing its code.
+- **Nothing goes anywhere new without your say-so.** Each agent is opted in per destination. A request that uses something the other side can't do stays on its own model, and the decision log says why.
+- Hosted, a connected service must be a public https address, checked on save and on every call.
+- New privacy wording is drafted and waiting for approval. Nothing public has changed.
+
+**How it was checked**
+- 1,114 tests pass, including every translation both ways and streams split at awkward points.
+- End to end through the real proxy:
+  - a Claude request served by an open model, buffered and streamed;
+  - an OpenAI request served by Claude;
+  - a request that can't be translated, which stays put;
+  - an agent with no opt-in, which stays put;
+  - an unpriced model, which is never routed to.
+- Smoke test passes. CostGrid's own latency is 1.3 ms p99.
+

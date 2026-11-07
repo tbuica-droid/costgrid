@@ -53,7 +53,7 @@ export const MAX_DATA_ROWS = 200_000;
 /** Real exports have a few dozen; thousands is a file built to make every row expensive. */
 export const MAX_COLUMNS = 500;
 
-const NAMES: Record<Provider, string> = { anthropic: "Claude", openai: "OpenAI", bedrock: "Bedrock", vertex: "Vertex" };
+const NAMES: Record<Provider, string> = { anthropic: "Claude", openai: "OpenAI", bedrock: "Bedrock", vertex: "Vertex", open: "Open model" };
 
 // ------------------------------------------------------------------ parser
 
