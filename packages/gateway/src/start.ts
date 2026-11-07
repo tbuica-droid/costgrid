@@ -31,8 +31,9 @@ import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
 import { reviewQuickWins } from "./quick-win-review.js";
 import { reviewTrials } from "./trial-review.js";
+import { runSelfChecks } from "./self-check.js";
 import { loadLocalLabeller } from "./task-labeller.js";
-import { alerterOf, assertToolPoliciesEnforceable, createServer, deferredOf, metricsOf, readsOf } from "./server.js";
+import { alerterOf, assertToolPoliciesEnforceable, createServer, deferredOf, metricsOf, readsOf, routingCacheOf } from "./server.js";
 
 /** How often stored admin keys are used to bring imported usage up to date. */
 const ADMIN_KEY_SYNC_MS = 6 * 60 * 60 * 1000;
@@ -175,6 +176,16 @@ export async function startGateway(
   let reviewTick = 0;
   const reviewing = setInterval(() => {
     const errorsOnly = reviewTick++ % 12 !== 0;
+    // Hourly: rebuild per-request routing, and check predictions and the grader (self-check.ts).
+    if (!errorsOnly) {
+      try {
+        runSelfChecks({ db, alerter: alerterOf(app) });
+        routingCacheOf(app)?.invalidate();
+      } catch (error) {
+        app.log.error({ err: error }, "the routing self-check failed; the old routing table stands");
+        metricsOf(app)?.jobFailed("self-check");
+      }
+    }
     // Trials and the switches they made (trial-review.ts), on the same rhythm.
     try {
       const changed = reviewTrials({ db, audit: accounts?.audit ?? new AuditLog(db), alerter: alerterOf(app) }, Date.now(), { errorsOnly });

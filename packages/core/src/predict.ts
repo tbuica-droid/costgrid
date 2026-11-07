@@ -84,12 +84,16 @@ export interface Prediction {
   readonly prior: string;
 }
 
-/** Beta(α, β) as a mean and an approximate 90% interval. */
-function beta(priorMean: number, successes: number, failures: number): Interval {
+/**
+ * Beta(α, β) as a mean and an approximate 90% interval. `trust` (0 to 1, from
+ * the weekly check of past predictions) widens the interval where the router
+ * has been wrong before, so it plays safer there.
+ */
+function beta(priorMean: number, successes: number, failures: number, trust = 1): Interval {
   const a = priorMean * PRIOR_WEIGHT + successes;
   const b = (1 - priorMean) * PRIOR_WEIGHT + failures;
   const mean = a / (a + b);
-  const half = 1.645 * Math.sqrt((mean * (1 - mean)) / (a + b + 1));
+  const half = (1.645 * Math.sqrt((mean * (1 - mean)) / (a + b + 1))) / Math.max(0.25, trust);
   return { mean, low: Math.max(0, mean - half), high: Math.min(1, mean + half) };
 }
 
@@ -101,11 +105,11 @@ function priorFor(model: string, tier: Tier, kind: TaskKind | undefined): { mean
     : { mean: TIER_PRIOR[tier], label: `tier prior (${tier}), not a benchmark` };
 }
 
-export function predictOne(c: Candidate, kind: TaskKind | undefined, callsPerJob: number): Prediction {
+export function predictOne(c: Candidate, kind: TaskKind | undefined, callsPerJob: number, trust = 1): Prediction {
   const prior = priorFor(c.model, c.tier, kind);
   const e = c.evidence;
-  const quality = beta(prior.mean, e.met, e.below);
-  const finish = beta(FINISH_PRIOR, e.finished, e.notFinished);
+  const quality = beta(prior.mean, e.met, e.below, trust);
+  const finish = beta(FINISH_PRIOR, e.finished, e.notFinished, trust);
   const measured = e.calls > 0 && e.cost > 0n;
   const perCall = measured ? e.cost / BigInt(e.calls) : (c.estimatedCostPerCall ?? null);
   // Calls per job and the chance of finishing are ratios; scaled by a million to stay in integers.
@@ -117,7 +121,7 @@ export function predictOne(c: Candidate, kind: TaskKind | undefined, callsPerJob
     finish,
     costPerCall: perCall,
     costPerFinishedJob: perJob,
-    confidence: Math.max(0, Math.min(1, 1 - (quality.high - quality.low))),
+    confidence: Math.max(0, Math.min(1, (1 - (quality.high - quality.low)) * trust)),
     evidence: { calls: e.calls, judged: e.met + e.below },
     costBasis: measured ? "measured" : perCall === null ? "unknown" : "estimated",
     prior: prior.label,
@@ -156,10 +160,10 @@ const byCost = (a: Prediction, b: Prediction): number => {
  */
 export function rankModels(
   candidates: readonly Candidate[],
-  opts: { kind?: TaskKind | undefined; current?: string | undefined; callsPerJob?: number; mode?: RoutingMode },
+  opts: { kind?: TaskKind | undefined; current?: string | undefined; callsPerJob?: number; mode?: RoutingMode; trust?: number },
 ): Ranked[] {
   const mode = opts.mode ?? DEFAULT_MODE;
-  const predictions = candidates.map((c) => predictOne(c, opts.kind, opts.callsPerJob ?? 1));
+  const predictions = candidates.map((c) => predictOne(c, opts.kind, opts.callsPerJob ?? 1, opts.trust ?? 1));
   const current = predictions.find((p) => p.model === opts.current);
 
   const ranked = predictions.map((p): Ranked => {

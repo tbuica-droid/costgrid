@@ -1,11 +1,13 @@
-import { toUsdString } from "@costgrid/core";
+import { findModelPrice, labelTask, toUsdString } from "@costgrid/core";
 import {
   type AccountsRepository,
   type ArmStats,
   type Db,
   Predictions,
+  RoutingRepository,
   TrialsRepository,
 } from "@costgrid/db";
+import { predictionsView } from "./predict-api.js";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { type ConsoleRequest, createGuards } from "./console.js";
 import type { SpotCheckMemory } from "./grading.js";
@@ -24,6 +26,8 @@ export interface TrialsDeps {
   readonly db: Db;
   readonly accounts: AccountsRepository;
   readonly spotChecks: SpotCheckMemory;
+  /** Refresh the proxy's routing cache after a routing setting changes. */
+  readonly invalidateRouting?: (() => void) | undefined;
 }
 
 const money = (n: bigint | null) => (n === null ? null : toUsdString(n, 6));
@@ -73,6 +77,7 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
         return {
           ...a,
           ...settings,
+          ...new RoutingRepository(db).settings(tenantId, a.id),
           canSwitchOnItsOwn: trials.hasApplied(tenantId, a.id),
           current: p.current ?? null,
           suggestion:
@@ -97,6 +102,66 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
         answersInMemory: spotChecks.get(tenantId, s.callId) !== undefined,
       })),
     };
+  });
+
+  /** Per-request routing (D17) and cheap-first (D15) for one agent. */
+  app.put("/console/:tenantId/agents/:agentId/routing", async (request: ConsoleRequest, reply) => {
+    const { tenantId, agentId } = request.params as { tenantId: string; agentId: string };
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const perRequest = body["perRequest"];
+    const step = body["stepUpModel"];
+    if (perRequest !== undefined && typeof perRequest !== "boolean") return bad(reply, "perRequest must be true or false");
+    // D14: choosing a model per request is switching on its own, so only after an approved trial.
+    if (perRequest === true && !trials.hasApplied(tenantId, agentId)) {
+      return bad(reply, "approve one passed trial for this agent first; then it may choose a model per request");
+    }
+    if (step !== undefined && step !== null && (typeof step !== "string" || findModelPrice(step) === undefined)) {
+      return bad(reply, "the cheap model must be one CostGrid can price");
+    }
+    const ok = new RoutingRepository(db).setSettings(tenantId, agentId, {
+      ...(typeof perRequest === "boolean" ? { perRequest } : {}),
+      ...(step !== undefined ? { stepUpModel: step as string | null } : {}),
+    });
+    if (!ok) return reply.code(404).send({ error: "agent not found" });
+    deps.invalidateRouting?.();
+    accounts.audit.record(tenantId, {
+      actor: by(actor.user),
+      action: "agent.routing",
+      subject: agentId,
+      detail: { perRequest: typeof perRequest === "boolean" ? perRequest : null, stepUpModel: step === undefined ? null : (step as string | null) },
+    });
+    return new RoutingRepository(db).settings(tenantId, agentId);
+  });
+
+  /** How the router's predictions and its grader have held up. */
+  app.get("/console/:tenantId/self-checks", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    if (!requireRole(request, reply, tenantId)) return;
+    const checks = new RoutingRepository(db).checks(tenantId);
+    const predictions = new Predictions(db);
+    const agents = [...new Set(checks.map((c) => c["agentId"] as string))];
+    return {
+      checks,
+      trust: Object.fromEntries(agents.map((a) => [a, Math.round(predictions.trust(tenantId, a) * 1000) / 1000])),
+      grader: trials.graderAgreement(tenantId),
+    };
+  });
+
+  /** "Which model is best for this agent, or this sample task?" A pasted sample is read in memory and not kept. */
+  app.post("/console/:tenantId/which-model", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    if (!requireRole(request, reply, tenantId)) return;
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const agentId = typeof body["agentId"] === "string" ? body["agentId"] : "";
+    const sample = body["sample"];
+    if (sample !== undefined && (typeof sample !== "string" || sample.length > 100_000)) return bad(reply, "the sample must be text");
+    const kind =
+      typeof sample === "string" && sample.trim() !== ""
+        ? labelTask("anthropic", { messages: [{ role: "user", content: sample }] }).kind
+        : undefined;
+    return predictionsView(new Predictions(db).forAgent(tenantId, agentId, { kind }));
   });
 
   app.post("/console/:tenantId/trials", async (request: ConsoleRequest, reply) => {

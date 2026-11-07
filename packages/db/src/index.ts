@@ -35,3 +35,4 @@ export * from "./quality.js";
 export * from "./endpoints.js";
 export * from "./predictions.js";
 export * from "./trials.js";
+export * from "./routing.js";

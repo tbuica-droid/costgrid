@@ -97,6 +97,7 @@ import { guardedFetch } from "./outbound-guard.js";
 import type { ModelLabeller } from "./task-labeller.js";
 import { registerPredict } from "./predict-api.js";
 import { gradeJob, SpotCheckMemory } from "./grading.js";
+import { RoutingCache } from "./routing-cache.js";
 import { type DeferredJobs, registerDeferred } from "./deferred.js";
 import { ADAPTERS, adapterFor, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -168,6 +169,12 @@ export function readsOf(app: FastifyInstance): ReadPool | undefined {
 
 const DEFERRED = new WeakMap<FastifyInstance, DeferredJobs>();
 const SPOT_CHECKS = new WeakMap<FastifyInstance, SpotCheckMemory>();
+const ROUTING = new WeakMap<FastifyInstance, RoutingCache>();
+
+/** Each server's routing cache, so a rebuild or a settings change can refresh it. */
+export function routingCacheOf(app: FastifyInstance): RoutingCache | undefined {
+  return ROUTING.get(app);
+}
 
 /** Each server's in-memory graded pairs, for the spot-check screen. */
 export function spotChecksOf(app: FastifyInstance): SpotCheckMemory | undefined {
@@ -356,6 +363,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   // Answer specs and the decision log. Tests built without a database go without both.
   const quality = deps.db === undefined ? undefined : new QualityRepository(deps.db);
   const trials = deps.db === undefined ? undefined : new TrialsRepository(deps.db);
+  // Per-request routing and cheap-first, read from memory on the request path.
+  const routingCache = deps.db === undefined ? undefined : new RoutingCache(deps.db);
   // Graded pairs for the owner's spot checks, in memory only (grading.ts).
   const spotChecks = new SpotCheckMemory();
   // Open-model endpoints and each agent's opt-ins (cross-route.ts).
@@ -618,6 +627,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     deps.db === undefined ? undefined : new ReadPool(deps.db, config.readWorker === true ? config.databasePath : undefined);
   if (reads !== undefined) READS.set(app, reads);
   SPOT_CHECKS.set(app, spotChecks);
+  if (routingCache !== undefined) ROUTING.set(app, routingCache);
   app.addHook("onClose", async () => {
     await reads?.close();
   });
@@ -663,7 +673,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
     registerQuality(app, { db: deps.db, accounts: accounts! });
-    registerTrials(app, { db: deps.db, accounts: accounts!, spotChecks });
+    registerTrials(app, { db: deps.db, accounts: accounts!, spotChecks, invalidateRouting: () => routingCache?.invalidate() });
     registerEndpoints(app, {
       db: deps.db,
       accounts: accounts!,
@@ -936,6 +946,52 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         }
       }
 
+      /*
+       * Per-request routing (phase 6, D17): the model the agent's own
+       * evidence chose for this kind of task, from the routing table held in
+       * memory. Only for agents that opted in after an approved trial, only
+       * when no rule or trial chose already, and only to a reachable model.
+       */
+      const free = decision.allowed && decision.route === undefined && trialRoute === undefined && trialTag === undefined;
+      const choice = free ? routingCache?.choice(caller.tenantId, caller.agentId, label.kind) : undefined;
+      const reachable = (model: string) =>
+        substitutionAllowed(requestedModel, model) || crossAllowed(caller.tenantId, caller.agentId, model);
+      const perRequestRoute: typeof decision.route =
+        choice !== undefined && choice.model !== requestedModel && reachable(choice.model)
+          ? {
+              policyId: "per-request",
+              policyName: "per-request routing",
+              fromModel: requestedModel,
+              toModel: choice.model,
+              applied: true,
+              fallback: false,
+              reason:
+                `per-request routing for ${label.kind}: ${Math.round(choice.predictedQualityMilli / 10)}% quality predicted, ` +
+                `${Math.round(choice.confidenceMilli / 10)}% sure, from ${choice.evidenceJobs} judged jobs`,
+            }
+          : undefined;
+
+      /*
+       * Cheap first, then step up (phase 6, D15): a buffered request goes to
+       * the agent's cheap model first, and to the model it asked for only if
+       * that answer clearly fails. Same provider only; never a stream.
+       */
+      const cheap = free && perRequestRoute === undefined && !streaming ? routingCache?.stepUp(caller.tenantId, caller.agentId) : undefined;
+      const stepRoute: typeof decision.route =
+        cheap !== undefined && cheap !== requestedModel && targetAdapterFor(cheap, adapter) === adapter && substitutionAllowed(requestedModel, cheap)
+          ? {
+              policyId: "cheap-first",
+              policyName: "cheap first",
+              fromModel: requestedModel,
+              toModel: cheap,
+              applied: true,
+              fallback: false,
+              reason: `cheap first: ${cheap}, stepping up to ${requestedModel} if the answer clearly fails`,
+            }
+          : undefined;
+      let stepped: string | undefined;
+      let stepId: string | undefined;
+
       const baseRecord = {
         ...(trialTag ?? {}),
         taskKind: label.kind,
@@ -1002,7 +1058,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * be translated faithfully, or whose target has no credential, stays on
        * the model it asked for, with the reason in the decision log.
        */
-      let route = decision.route ?? trialRoute;
+      let route = decision.route ?? trialRoute ?? perRequestRoute ?? stepRoute;
       let notRouted: { model: string; reason: string } | undefined;
       let target = adapter;
       let outgoingBody: unknown = request.body;
@@ -1210,8 +1266,31 @@ export function createServer(deps: ServerDeps): FastifyInstance {
               rejected: [{ model: notRouted.model, why: notRouted.reason }],
             });
           }
+          if (stepped !== undefined) {
+            quality.recordDecision({
+              tenantId: caller.tenantId,
+              callId: callRowId,
+              agentId: caller.agentId,
+              decidedAt: startedAt,
+              kind: "route",
+              requestedModel,
+              chosenModel: servedAs,
+              applied: true,
+              policyId: "cheap-first",
+              reason: `stepped up to ${requestedModel}: ${stepped}`,
+              rejected: [{ model: stepRoute!.toModel, why: stepped }],
+            });
+            return;
+          }
           if (route !== undefined) {
             quality.recordDecision({
+              ...(route === perRequestRoute && choice !== undefined
+                ? {
+                    ...(choice.predictedCost !== null ? { predictedCost: choice.predictedCost } : {}),
+                    predictedQualityMilli: choice.predictedQualityMilli,
+                    confidenceMilli: choice.confidenceMilli,
+                  }
+                : {}),
               tenantId: caller.tenantId,
               callId: callRowId,
               agentId: caller.agentId,
@@ -1222,9 +1301,12 @@ export function createServer(deps: ServerDeps): FastifyInstance {
               applied: route.applied,
               policyId: route.policyId,
               reason: route.applied ? route.reason : `dry run: ${route.reason}`,
-              rejected: route.applied
-                ? [{ model: route.fromModel, why: `rule "${route.policyName}" sends this traffic elsewhere` }]
-                : [{ model: route.toModel, why: `rule "${route.policyName}" is a dry run` }],
+              rejected:
+                route === perRequestRoute && choice !== undefined
+                  ? [...choice.rejected]
+                  : route.applied
+                    ? [{ model: route.fromModel, why: `rule "${route.policyName}" sends this traffic elsewhere` }]
+                    : [{ model: route.toModel, why: `rule "${route.policyName}" is a dry run` }],
             });
           }
           if (adjusted.adjustments.length > 0) {
@@ -1301,7 +1383,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
 
         // `record` runs at most once per request, so reusing the id minted
         // above keeps a synthetic run_id pointing at a call that exists.
-        const id = over.id ?? callId;
+        const id = over.id ?? stepId ?? callId;
         repository.recordCall({
           ...baseRecord,
           ...over,
@@ -1390,15 +1472,53 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       }
 
       // --- Buffered response ------------------------------------------------
-      const text = await upstream.text();
-      let payload: unknown;
-      try {
-        payload = JSON.parse(text);
-      } catch {
-        payload = {
-          type: "error",
-          error: { type: "upstream_invalid_json", message: text.slice(0, 500) },
-        };
+      const readPayload = (body: string): unknown => {
+        try {
+          return JSON.parse(body);
+        } catch {
+          return { type: "error", error: { type: "upstream_invalid_json", message: body.slice(0, 500) } };
+        }
+      };
+      let payload = readPayload(await upstream.text());
+
+      if (route !== undefined && route === stepRoute) {
+        const first = upstream.ok ? target.parseBufferedResponse(payload) : undefined;
+        const check = first === undefined ? undefined : judgeBuffered(first.stopReason, payload).answerCheck;
+        if (!upstream.ok || (check !== undefined && check !== "pass")) {
+          const why = upstream.ok ? `the cheap answer was ${check}` : `the cheap model failed with ${upstream.status}`;
+          // The cheap call is recorded as it was, and counts.
+          record({
+            ...(first !== undefined
+              ? {
+                  usage: first.usage ?? ZERO_USAGE,
+                  modifiers: first.modifiers,
+                  ...(first.model !== undefined ? { model: first.model } : {}),
+                  ...(first.stopReason !== undefined ? { stopReason: first.stopReason } : {}),
+                  ...(check !== undefined ? { answerCheck: check } : {}),
+                  outcome: "ok" as const,
+                }
+              : { outcome: "error" as const, errorMessage: `upstream ${upstream.status}` }),
+          });
+          reply.header("x-costgrid-stepped-up", headerSafe(`${route.toModel}->${requestedModel}`));
+          // From here on the call is the step up: a fresh row, logged as one.
+          stepped = why;
+          route = undefined;
+          stepId = randomUUID();
+          const original = config.injectUsageRequest ? adapter.prepareBody(request.body).body : request.body;
+          const bytes = JSON.stringify(original);
+          const url = new URL(adapter.upstreamPath(requestedModel, false), upstreamCredential!.baseUrl);
+          const headers: Record<string, string> = {
+            "content-type": "application/json",
+            ...(await adapter.authHeaders(upstreamCredential!.apiKey, { method: "POST", url, body: bytes })),
+          };
+          for (const name of adapter.forwardedRequestHeaders) {
+            const value = headerValue(request, name);
+            if (value !== undefined) headers[name] = value;
+          }
+          if (adapter.id === "anthropic" && headers["anthropic-version"] === undefined) headers["anthropic-version"] = "2023-06-01";
+          upstream = await doFetch(url, { method: "POST", headers, body: bytes, signal: AbortSignal.timeout(config.upstreamTimeoutMs) });
+          payload = readPayload(await upstream.text());
+        }
       }
 
       if (!upstream.ok) {

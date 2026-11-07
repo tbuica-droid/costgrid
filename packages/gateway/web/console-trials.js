@@ -60,7 +60,12 @@ function agentRow(a) {
     <td>${
       owner
         ? `<label class="check"><input type="checkbox" data-action="trial-critical" data-agent="${escapeHtml(a.id)}" ${a.critical ? "checked" : ""} /> Critical</label>
-           <label class="check"><input type="checkbox" data-action="trial-auto" data-agent="${escapeHtml(a.id)}" ${a.switching === "auto" ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Switch on its own</label>`
+           <label class="check"><input type="checkbox" data-action="trial-auto" data-agent="${escapeHtml(a.id)}" ${a.switching === "auto" ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Switch on its own</label>
+           <label class="check"><input type="checkbox" data-action="routing-per-request" data-agent="${escapeHtml(a.id)}" ${a.perRequest ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Choose a model per request</label>
+           <form class="step-up-form form-row" data-agent="${escapeHtml(a.id)}" style="margin-top:6px">
+             <input name="model" placeholder="Cheap model to try first" value="${escapeHtml(a.stepUpModel ?? "")}" style="width:200px" aria-label="Cheap model to try first" />
+             ${button("Save", 'type="submit"', "secondary")}
+           </form>`
         : ""
     }</td>
   </tr>`;
@@ -81,8 +86,46 @@ function spotChecks(list) {
     .join("");
 }
 
+function ranking(r) {
+  if (!r) return "";
+  const rows = r.models
+    .map(
+      (m) => `<tr${m.current ? ' style="font-weight:600"' : ""}>
+        <td>${escapeHtml(m.model)}${m.current ? " (now)" : ""}<br /><span class="kpi-sub">${escapeHtml(m.note)}</span></td>
+        <td class="num">${pct(m.quality.mean)}<br /><span class="kpi-sub">${pct(m.quality.low)} to ${pct(m.quality.high)}</span></td>
+        <td class="num">${pct(m.finish.mean)}</td>
+        <td class="num">${m.costPerFinishedJobUsd ? money(m.costPerFinishedJobUsd) : "—"}<br /><span class="kpi-sub">${m.costBasis}</span></td>
+        <td class="num">${pct(m.confidence)}</td>
+        <td style="white-space:normal"><span class="kpi-sub">${m.evidence.judged} judged of ${m.evidence.calls} calls; ${escapeHtml(m.prior)}</span></td>
+      </tr>`,
+    )
+    .join("");
+  return `<div class="card scroll-x" style="margin-top:10px"><p class="kpi-sub" style="margin-top:0">For ${escapeHtml(r.agent)}${r.kind ? `, a ${escapeHtml(r.kind)} task` : ""}. Best first, for "same quality, lower cost".</p>
+    <table><thead><tr><th>Model</th><th class="num">Quality</th><th class="num">Finishes</th><th class="num">Per finished job</th><th class="num">Sure</th><th>Evidence</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+function selfChecks(s) {
+  if (!s) return "";
+  const g = s.grader;
+  return `<div class="card"><p style="margin-top:0">${
+    s.checks.length
+      ? `${s.checks.filter((c) => c.within === 1).length} of ${s.checks.filter((c) => c.within !== null).length} recent predictions fell inside their range.
+         Where they did not, CostGrid trusts its predictions less and is slower to suggest a switch.`
+      : "Predictions are checked against what happened a week after they are made. No check has come due yet."
+  }</p>
+  <p class="kpi-sub">${
+    g.checked
+      ? `The grader agreed with your spot checks ${g.agreed} of ${g.checked} times.${g.trusted ? "" : " That is too seldom, so its verdicts no longer count in trials."}`
+      : "The grader is checked against your spot checks once you have made some."
+  }</p></div>`;
+}
+
 export async function render() {
-  const d = await call("GET", `/console/${state.tenantId}/trials`);
+  const [d, checks] = await Promise.all([
+    call("GET", `/console/${state.tenantId}/trials`),
+    call("GET", `/console/${state.tenantId}/self-checks`).catch(() => null),
+  ]);
   const owner = isOwner();
   return `
     ${pageHead(
@@ -95,6 +138,15 @@ export async function render() {
     <h2>Agents</h2>
     <div class="card scroll-x"><table><thead><tr><th>Agent</th><th>What to test next</th><th>Settings</th></tr></thead>
       <tbody>${d.agents.map(agentRow).join("") || '<tr><td colspan="3" class="kpi-sub">No agent has sent calls through CostGrid in the last 30 days.</td></tr>'}</tbody></table></div>
+    <h2 style="margin-top:26px">Which model is best?</h2>
+    <form id="which-model-form" class="card">
+      <p class="kpi-sub" style="margin-top:0">Pick an agent, and paste a sample request if you like. The sample is read to
+        tell what kind of task it is, and not kept.</p>
+      <select name="agentId" aria-label="Agent">${d.agents.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name ?? a.id)}</option>`).join("")}</select>
+      <textarea name="sample" rows="3" placeholder="Optional: a sample request" style="width:100%;margin-top:8px"></textarea>
+      ${button("Rank the models", 'type="submit"', "secondary")}
+      <div id="which-model-result">${ranking(view.ranking)}</div>
+    </form>
     <h2 style="margin-top:26px">Trials</h2>
     ${d.trials.map(trialCard).join("") || '<p class="kpi-sub">No trials yet.</p>'}
     <h2 style="margin-top:26px">Grading</h2>
@@ -108,10 +160,26 @@ export async function render() {
     <h2 style="margin-top:26px">Spot checks</h2>
     <p class="section-note">Your verdict on a few graded jobs keeps the grader honest. You give yours first; the grader's
       stays hidden until you have.</p>
-    ${spotChecks(d.spotChecks)}`;
+    ${spotChecks(d.spotChecks)}
+    <h2 style="margin-top:26px">How CostGrid checks itself</h2>
+    ${selfChecks(checks)}`;
 }
 
-export async function submit() {
+const view = { ranking: null };
+
+export async function submit(form) {
+  const t = state.tenantId;
+  if (form.id === "which-model-form") {
+    const v = Object.fromEntries(new FormData(form).entries());
+    view.ranking = await call("POST", `/console/${t}/which-model`, { agentId: v.agentId, ...(v.sample ? { sample: v.sample } : {}) });
+    return true;
+  }
+  if (form.classList.contains("step-up-form")) {
+    const model = String(new FormData(form).get("model") ?? "").trim();
+    await call("PUT", `/console/${t}/agents/${encodeURIComponent(form.dataset.agent)}/routing`, { stepUpModel: model === "" ? null : model });
+    state.flash = { kind: "ok", text: model === "" ? "Cheap-first is off." : `Buffered requests now try ${model} first, and step up only if its answer clearly fails.` };
+    return true;
+  }
   return false;
 }
 
@@ -135,6 +203,11 @@ export async function click(target) {
     const body = a === "trial-critical" ? { critical: target.checked } : { switching: target.checked ? "auto" : "suggest" };
     await call("PUT", `/console/${t}/agents/${encodeURIComponent(target.dataset.agent)}/trial-settings`, body);
     state.flash = { kind: "ok", text: "Saved." };
+    return true;
+  }
+  if (a === "routing-per-request") {
+    await call("PUT", `/console/${t}/agents/${encodeURIComponent(target.dataset.agent)}/routing`, { perRequest: target.checked });
+    state.flash = { kind: "ok", text: target.checked ? "This agent now gets the model its own evidence chose for each kind of task." : "Per-request routing is off." };
     return true;
   }
   if (a === "grading-toggle") {

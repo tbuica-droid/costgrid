@@ -581,3 +581,99 @@ Built as designed.
   - **Grading is limited to direct Claude and OpenAI callers.**
 - **Waiting on the owner:** question 4, about holding graded answers in memory.
 
+
+## Phase 6: per-request routing and self-checks
+
+### Design note (7 November 2026)
+
+**What gets built**
+
+1. **A model chosen for each request (D17).** Opt-in per agent
+   (`agents.per_request`), and allowed only for agents with an applied
+   trial (D14).
+   - **The routing table.** A background job builds `routing_table` every
+     hour: for each kind of task the agent does, the cheapest model that is
+     "same quality" as its current one on the agent's **own measured
+     evidence**. At least 30 judged jobs on that kind are needed, never a
+     prior (D8).
+   - **The proxy only looks up a cached map,** keyed by agent and kind, so
+     nothing new is computed before forwarding.
+   - **Where it applies.** It applies only when no rule already chose a model
+     and no trial is assigning the job. The chosen model must be reachable
+     under phase 3's rules.
+   - **What is logged.** The decision log row carries the prediction (cost
+     per call, quality, confidence) and the models rejected, with why.
+2. **Cheap first, then step up (D15).** Per agent: a cheap model, and on for
+   buffered requests only, so streams are untouched and speed-sensitive
+   agents leave it off.
+   - The request goes to the cheap model first.
+   - If the answer clearly fails, the same request goes to the model it asked
+     for, and the caller gets that answer. Clearly fails means an error, cut
+     off, refused, or a failed format check.
+   - Both calls are recorded, under the same run, so the cost of stepping up
+     counts.
+   - Same provider only in this phase. Translation is a route's job, and
+     doing it twice on one request is a risk not worth taking yet.
+3. **The weekly check of predictions.**
+   - **Saved predictions.** Every week the prediction for each agent, kind
+     and model in use is saved (`prediction_checks`).
+   - **Compared.** A week later, quality and cost per call are compared
+     with what happened, and each result is recorded as inside or outside
+     its interval.
+   - **Trust.** Trust per agent is the share inside the interval over the
+     last four checks. Predictions scale their confidence by it and widen
+     their intervals where it is low, so the router plays safer where it was
+     wrong.
+   - **The owner is told.** Results show on the Trials screen, and an alert
+     goes out when trust falls below 50%.
+4. **Checking the grader against the owner.** Agreement is the share of the
+   owner's spot checks (excluding "can't tell") where the grader picked the
+   same answer. With 10 or more checks below 70% agreement, grades stop
+   counting in trials, and the screen and an alert say so.
+5. **"Which model is best for this agent or this sample task?"**
+   - **In the console:** a section on the Trials screen. Pick an agent,
+     optionally paste a sample request (labelled in memory, never stored),
+     and get a ranked table: quality, cost, reliability, confidence and
+     evidence.
+   - **Over the API:** `POST /v1/costgrid/predict` (phase 4), now with trust
+     applied.
+
+**Data model (migration 26)**
+- `agents`: `per_request`, `step_up_model`.
+- `routing_table`: the per-kind choice, with its prediction, confidence and
+  evidence.
+- `prediction_checks`: one row per week, agent, kind and model, with the
+  prediction, what happened and whether it fell inside the interval.
+
+**Risks**
+- **Per-request routing on thin evidence.** It never uses priors, needs 30
+  judged jobs per kind, and runs only after an approved trial. Phase 5's
+  switch-back watches it too.
+- **Stepping up adds delay to failed answers.** It is buffered only and per
+  agent, and the decision log shows when it happened.
+- **Cheap-first costs more if the cheap model fails often.** Every step-up
+  is recorded, so it shows in cost per finished job.
+
+### Done (7 November 2026)
+
+Built as designed.
+- **Code:**
+  - database: migration 26 and `routing.ts`, with trust in
+    `predictions.ts` and grader agreement in `trials.ts`;
+  - gateway: `routing-cache.ts`, `self-check.ts`, per-request routing and
+    step-up in the proxy, and new routes in `console-trials.ts`;
+  - console: the Trials screen gains routing controls, "Which model is best?"
+    and the self-checks.
+- **Latency:** 2.71 ms p99 on `npm run bench` (load average 8).
+- **Not done:**
+  - **Cheap-first is same-provider and buffered only**, as designed.
+  - **The decision log's prediction columns stay empty for owner-written
+    route rules.** Only per-request choices carry predictions.
+
+## v3 build: where it stands
+
+Phases 1 to 6 are built, tested and pushed. Phase 7 (proving savings on real
+customers' traffic against D2, then claims and pricing) needs the owner:
+D3, the customers who'll send one agent's traffic. The open questions are at
+the top of this file.
+

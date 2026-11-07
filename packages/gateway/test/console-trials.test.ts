@@ -64,4 +64,19 @@ describe("trials on the console", () => {
     expect(db.prepare("SELECT owner_verdict AS v FROM grades").get()).toEqual({ v: "candidate" });
     expect((await call("GET", "/spot-checks/c1")).statusCode).toBe(404);
   });
+
+  it("chooses per request only after an approved trial, and ranks models for a pasted sample", async () => {
+    expect((await call("PUT", "/agents/support-bot/routing", { perRequest: true })).statusCode).toBe(400);
+    expect((await call("PUT", "/agents/support-bot/routing", { stepUpModel: "no-such-model" })).statusCode).toBe(400);
+    expect((await call("PUT", "/agents/support-bot/routing", { stepUpModel: "claude-haiku-4-5" })).json()).toEqual({ perRequest: false, stepUpModel: "claude-haiku-4-5" });
+    const t = trials.start(tenantId, { agentId: "support-bot", baselineModel: "a", candidateModel: "b" }) as Trial;
+    trials.setStatus(tenantId, t.id, "passed", "ok");
+    await call("POST", `/trials/${t.id}/approve`);
+    expect((await call("PUT", "/agents/support-bot/routing", { perRequest: true })).json()).toMatchObject({ perRequest: true });
+
+    const ranked = (await call("POST", "/which-model", { agentId: "support-bot", sample: "Please summarise this note" })).json();
+    expect(ranked).toMatchObject({ agent: "support-bot", kind: "summarise" });
+    const checks = (await call("GET", "/self-checks")).json();
+    expect(checks).toMatchObject({ checks: [], grader: { checked: 0, trusted: true } });
+  });
 });

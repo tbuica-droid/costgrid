@@ -67,6 +67,10 @@ export const DEFAULT_MIN_JOBS = 100;
 export const NO_WORSE_TOLERANCE = 0.02;
 export const MIN_JUDGED = 10;
 export const FAST_FAIL_ERRORS = 5;
+/** Spot checks needed before the grader's agreement with the owner is judged. */
+export const MIN_SPOT_CHECKS = 10;
+/** Below this agreement with the owner, grades stop counting in trials. */
+export const MIN_GRADER_AGREEMENT = 0.7;
 
 const COLUMNS = `id, agent_id AS agentId, baseline_model AS baselineModel, candidate_model AS candidateModel,
   share_milli AS shareMilli, min_jobs AS minJobs, status, why, policy_id AS policyId,
@@ -311,6 +315,22 @@ export class TrialsRepository {
     );
   }
 
+  /**
+   * How often the grader picked the same answer as the owner on spot checks
+   * ("can't tell" left out). Graders favour longer answers and their own
+   * family; this is the check on that (v3, phase 6).
+   */
+  graderAgreement(tenantId: string): { checked: number; agreed: number; rate: number | null; trusted: boolean } {
+    const row = this.#db
+      .prepare(
+        `SELECT COUNT(*) AS checked, COALESCE(SUM(CASE WHEN owner_verdict = verdict THEN 1 ELSE 0 END), 0) AS agreed
+         FROM grades WHERE tenant_id = ? AND owner_verdict IS NOT NULL AND owner_verdict != 'unsure'`,
+      )
+      .get(tenantId) as { checked: number; agreed: number };
+    const rate = row.checked === 0 ? null : row.agreed / row.checked;
+    return { ...row, rate, trusted: row.checked < MIN_SPOT_CHECKS || (rate ?? 1) >= MIN_GRADER_AGREEMENT };
+  }
+
   grades(tenantId: string, trialId: string): TrialJudgement["grades"] {
     const out = { candidate: 0, baseline: 0, tie: 0 };
     for (const r of this.#db
@@ -351,7 +371,8 @@ export class TrialsRepository {
       return result("failed", `lower quality: ${pct(candidate.qualityShare)} up to standard against ${pct(baseline.qualityShare)}`);
     }
     const graded = grades.candidate + grades.baseline;
-    if (graded >= MIN_JUDGED && grades.candidate / graded < 0.45) {
+    // A grader the owner disagrees with too often is not counted.
+    if (graded >= MIN_JUDGED && this.graderAgreement(tenantId).trusted && grades.candidate / graded < 0.45) {
       return result("failed", `the grader preferred the current model in ${grades.baseline} of ${graded} comparisons`);
     }
     if (candidate.costPerGoodJob === null || baseline.costPerGoodJob === null || candidate.costPerGoodJob >= baseline.costPerGoodJob) {

@@ -45,16 +45,37 @@ export interface AgentPredictions {
   /** Calls in the window with a label, and in all. */
   readonly labelled: number;
   readonly calls: number;
+  /** 0 to 1, from the weekly check of past predictions; 1 before any check. */
+  readonly trust: number;
   readonly ranked: readonly Ranked[];
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+/** How many recent weekly checks decide an agent's trust. */
+export const TRUST_WINDOW = 4;
 
 export class Predictions {
   readonly #db: Db;
 
   constructor(db: Db) {
     this.#db = db;
+  }
+
+  /**
+   * How far past predictions for this agent can be trusted: the share of its
+   * last checked predictions whose outcome fell inside the predicted range.
+   * 1 with no checks yet.
+   */
+  trust(tenantId: string, agentId: string): number {
+    const rows = this.#db
+      .prepare(
+        `SELECT within FROM prediction_checks WHERE tenant_id = ? AND agent_id = ? AND within IS NOT NULL
+         ORDER BY checked_at DESC LIMIT ?`,
+      )
+      .all(tenantId, agentId, TRUST_WINDOW * 10) as { within: number }[];
+    if (rows.length === 0) return 1;
+    return rows.filter((r) => r.within === 1).length / rows.length;
   }
 
   forAgent(
@@ -179,7 +200,14 @@ export class Predictions {
       callsPerJob,
       labelled: shape.labelled,
       calls: shape.calls,
-      ranked: rankModels(candidates, { kind: opts.kind, current, callsPerJob, ...(opts.mode ? { mode: opts.mode } : {}) }),
+      trust: this.trust(tenantId, agentId),
+      ranked: rankModels(candidates, {
+        kind: opts.kind,
+        current,
+        callsPerJob,
+        trust: this.trust(tenantId, agentId),
+        ...(opts.mode ? { mode: opts.mode } : {}),
+      }),
     };
   }
 }

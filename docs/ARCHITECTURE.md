@@ -377,6 +377,32 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
     (everything else), each switch is compared with its trial's baseline. A
     worse result switches the rule off, with an audit entry and an alert.
 
+### Phase 6: per-request routing and self-checks
+
+- **A model per request, from evidence only.** `RoutingRepository.buildAll`
+  rebuilds `routing_table` hourly for agents that opted in. That is allowed
+  only after an approved trial (D14). For each kind of task, it picks the
+  cheapest model that is "same quality" on the agent's own measured evidence,
+  with at least 30 judged jobs: never a prior (D8).
+  - **The proxy reads it from `RoutingCache`**, an in-memory map refreshed at
+    most once a minute.
+  - **Precedence:** it applies only when no rule and no trial chose a model.
+  - **The decision log** carries the prediction, confidence and the models
+    not chosen.
+- **Cheap first, then step up** (D15), per agent, buffered and same-provider
+  only. If the cheap answer errors or fails a check, the original request is
+  sent to the model it asked for, and the caller gets that answer. Both calls
+  are recorded, and `x-costgrid-stepped-up` says so.
+- **Self-checks** (`self-check.ts`, hourly):
+  - **Predictions.** Weekly snapshots of predictions in use
+    (`prediction_checks`) are compared with the following week. Trust is the
+    share that fell inside its range. It scales confidence and widens
+    intervals, and an alert goes out when it falls below 50%.
+  - **The grader.** Its agreement with the owner's spot checks is measured.
+    Below 70% over 10 or more checks, grades stop counting in trials.
+- **"Which model is best?"** is on the Trials screen (`/console/:t/which-model`)
+  and the API (`/v1/costgrid/predict`).
+
 ## Package layout
 
 ```

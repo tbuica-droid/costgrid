@@ -498,3 +498,28 @@ No secret was ever committed.
 - The smoke test passes. The added work before forwarding measures about 30 µs.
 - The end-to-end bench ran on a loaded machine (load average 13 to 15) and swung between 6 and 63 ms p99 run to run, so it needs a rerun on a quiet machine.
 
+## Version 3, phase 6: a model for each request, and a router that checks itself (7 November 2026)
+
+**What changed**
+- **A model per request.** For an agent that has passed a trial, CostGrid can pick a model per kind of task: the cheapest one its own results show is as good. That choice rests only on the agent's own results (at least 30 judged jobs), never on a guess.
+- **Cheap first, then step up.** An agent can try a cheap model first. If the answer clearly fails, the same request goes to the stronger model, and your software gets that answer. Streams are never tried cheap first.
+- **It checks its own predictions** every week against what happened, trusts itself less where it was wrong, and tells you.
+- **It checks its grader** against your spot checks, and stops using it if the two disagree too often.
+- **"Which model is best?"** On the Trials screen, pick an agent and optionally paste a sample request, and get a ranked list with:
+  - quality;
+  - how often each model finishes;
+  - cost;
+  - how sure it is;
+  - the evidence behind it.
+
+**How it was checked**
+- 1,144 tests pass, including:
+  - routing tables built only from measured evidence;
+  - per-request routing and step-up end to end;
+  - trust falling after a wrong prediction;
+  - the grader-agreement cut-off;
+  - the console gates.
+- The smoke test passes. CostGrid's own latency is 2.7 ms p99.
+
+This completes v3's build (phases 1 to 6). Phase 7, proving savings on real customers' traffic, needs the owner.
+
