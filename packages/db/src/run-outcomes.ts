@@ -300,7 +300,8 @@ export class RunOutcomes {
                   answer_check,
                   -- The latest call that was judged at all comes first.
                   ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY (answer_check IS NULL), started_at DESC, id DESC) AS check_n
-           FROM calls WHERE tenant_id = ? AND started_at >= ? AND started_at < ?
+           -- Grading calls are counted in spend, never as jobs.
+           FROM calls WHERE tenant_id = ? AND purpose = 'work' AND started_at >= ? AND started_at < ?
          )
          SELECT run_id AS runId, MIN(agent_id) AS agentId, MAX(parent_run_id) AS parentRunId,
                 MIN(started_at) AS startedAt, MAX(started_at + duration_ms) AS endedAt,

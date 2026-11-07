@@ -83,6 +83,10 @@ export interface CallRecord {
   readonly taskKind?: TaskKind | undefined;
   readonly taskSize?: TaskSize | undefined;
   readonly labelledBy?: "signals" | "model" | undefined;
+  /** The trial this call belongs to, and which arm; and whether it was work or grading. */
+  readonly trialId?: string | undefined;
+  readonly trialArm?: "candidate" | "baseline" | undefined;
+  readonly purpose?: "work" | "grading" | undefined;
   /** What CostGrid's checks found in the final answer; undefined when it was not judged. */
   readonly answerCheck?: AnswerCheck | undefined;
   /** Changes adjustment rules made to the request, or would have made in a dry run. */
@@ -311,7 +315,7 @@ export class CostGridRepository {
            requested_model, routed, route_dry_run, saving_estimate,
            run_id, parent_run_id, run_depth, run_declared, cost_list,
            reasoning_tokens, reasoning_requested, task_key, task_source, turns, answer_check,
-           task_kind, task_size, labelled_by
+           task_kind, task_size, labelled_by, trial_id, trial_arm, purpose
          ) VALUES (
            @id, @tenantId, @agentId, @department, @provider, @model,
            @startedAt, @durationMs, @streamed,
@@ -322,7 +326,7 @@ export class CostGridRepository {
            @requestedModel, @routed, @routeDryRun, @savingEstimate,
            @runId, @parentRunId, @runDepth, @runDeclared, @costList,
            @reasoningTokens, @reasoningRequested, @taskKey, @taskSource, @turns, @answerCheck,
-           @taskKind, @taskSize, @labelledBy
+           @taskKind, @taskSize, @labelledBy, @trialId, @trialArm, @purpose
          )`,
       )
       .run({
@@ -373,6 +377,9 @@ export class CostGridRepository {
         taskKind: call.taskKind ?? null,
         taskSize: call.taskSize ?? null,
         labelledBy: call.taskKind === undefined ? null : (call.labelledBy ?? "signals"),
+        trialId: call.trialId ?? null,
+        trialArm: call.trialArm ?? null,
+        purpose: call.purpose ?? "work",
       });
   }
 

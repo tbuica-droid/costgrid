@@ -81,7 +81,7 @@ export class Predictions {
                 COALESCE(SUM(CASE WHEN answer_check IN ('not-json', 'missing-field') THEN 1 ELSE 0 END), 0) AS below,
                 COALESCE(SUM(CASE WHEN outcome = 'ok' AND (answer_check IS NULL OR answer_check NOT IN ('cut-off', 'refusal')) THEN 1 ELSE 0 END), 0) AS finished,
                 COALESCE(SUM(CASE WHEN outcome = 'error' OR answer_check IN ('cut-off', 'refusal') THEN 1 ELSE 0 END), 0) AS notFinished
-         FROM calls WHERE tenant_id = ? AND agent_id = ? AND outcome != 'blocked'
+         FROM calls WHERE tenant_id = ? AND agent_id = ? AND outcome != 'blocked' AND purpose = 'work'
            AND started_at >= ? AND started_at < ?${kindSql}
          GROUP BY model`,
       )

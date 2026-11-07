@@ -33,6 +33,7 @@ import * as control from "./console-control.js";
 import * as outcomeSettings from "./console-settings-outcomes.js";
 import * as quality from "./console-quality.js";
 import * as endpoints from "./console-endpoints.js";
+import * as trials from "./console-trials.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
@@ -44,10 +45,11 @@ const PAGES = [
   ["results", "Results", results.render],
   ["settings", "Settings", renderSettings],
   ["advice", "Ways to save", advice.render],
+  ["trials", "Trials", trials.render],
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
 ];
-const SCREENS = [connect, agents, proxy, limits, results, outcomes, verdict, control, outcomeSettings, quality, endpoints, advice, drift, data];
+const SCREENS = [connect, agents, proxy, limits, results, outcomes, verdict, control, outcomeSettings, quality, endpoints, trials, advice, drift, data];
 
 // ------------------------------------------------------------- signed out
 
@@ -272,7 +274,12 @@ document.addEventListener("click", async (event) => {
       state.page = target.dataset.page;
       history.replaceState(null, "", `#${state.page}`);
     } else if (target.dataset.action) {
-      for (const screen of SCREENS) if (await screen.click(target)) break;
+      for (const screen of SCREENS) {
+        const handled = await screen.click(target);
+        // "stay": the screen changed the page in place, and a redraw would undo it.
+        if (handled === "stay") return;
+        if (handled) break;
+      }
     } else if (target.dataset.remove) {
       await call("DELETE", `/console/${state.tenantId}/credentials/${target.dataset.remove}`);
       state.flash = { kind: "ok", text: "Credential removed." };

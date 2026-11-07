@@ -19,10 +19,12 @@ import {
   labelTask,
   parseOpenModel,
   readableText,
+  substitutionAllowed,
   type PricedUsage,
   type PriceModifiers,
   type StreamTranslator,
   type TokenUsage,
+  type WireFormat,
   planFor,
   type PolicyScope,
   type PolicyViolation,
@@ -52,6 +54,8 @@ import {
   OUTCOME_SIGNALS,
   OutcomeSettingsRepository,
   QualityRepository,
+  inCandidateArm,
+  TrialsRepository,
   RunOutcomes,
   SourcesRepository,
   trailingWindow,
@@ -73,6 +77,7 @@ import { registerAdvice } from "./console-advice.js";
 import { registerAgents } from "./console-agents.js";
 import { registerOutcomes } from "./console-outcomes.js";
 import { registerQuality } from "./console-quality.js";
+import { registerTrials } from "./console-trials.js";
 import { registerEndpoints } from "./console-endpoints.js";
 import { registerKeySafety } from "./console-key-safety.js";
 import { registerControl } from "./console-control.js";
@@ -91,8 +96,9 @@ import { formatOf, requestFor, responseFor, streamFor, targetAdapterFor, upstrea
 import { guardedFetch } from "./outbound-guard.js";
 import type { ModelLabeller } from "./task-labeller.js";
 import { registerPredict } from "./predict-api.js";
+import { gradeJob, SpotCheckMemory } from "./grading.js";
 import { type DeferredJobs, registerDeferred } from "./deferred.js";
-import { ADAPTERS, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
+import { ADAPTERS, adapterFor, type ProviderAdapter, type StreamUsageCollector } from "./providers/index.js";
 import { RateLimiter } from "./ratelimit.js";
 import { registerSecurityHeaders } from "./security-headers.js";
 import type { SecretStore } from "./secret-store.js";
@@ -161,6 +167,12 @@ export function readsOf(app: FastifyInstance): ReadPool | undefined {
 }
 
 const DEFERRED = new WeakMap<FastifyInstance, DeferredJobs>();
+const SPOT_CHECKS = new WeakMap<FastifyInstance, SpotCheckMemory>();
+
+/** Each server's in-memory graded pairs, for the spot-check screen. */
+export function spotChecksOf(app: FastifyInstance): SpotCheckMemory | undefined {
+  return SPOT_CHECKS.get(app);
+}
 
 /** Each server's deferred jobs, so `start.ts` can check and price batches. */
 export function deferredOf(app: FastifyInstance): DeferredJobs | undefined {
@@ -343,6 +355,9 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   const doFetch = deps.fetchImpl ?? fetch;
   // Answer specs and the decision log. Tests built without a database go without both.
   const quality = deps.db === undefined ? undefined : new QualityRepository(deps.db);
+  const trials = deps.db === undefined ? undefined : new TrialsRepository(deps.db);
+  // Graded pairs for the owner's spot checks, in memory only (grading.ts).
+  const spotChecks = new SpotCheckMemory();
   // Open-model endpoints and each agent's opt-ins (cross-route.ts).
   const endpoints =
     deps.db === undefined
@@ -369,6 +384,60 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     if (found === undefined) return undefined;
     // The base URL ends in the API's version; the path is relative to it.
     return { apiKey: found.apiKey ?? "", baseUrl: found.baseUrl.endsWith("/") ? found.baseUrl : `${found.baseUrl}/` };
+  }
+
+  /**
+   * One extra call made by CostGrid itself, for side-by-side grading: buffered,
+   * recorded as the agent's grading call so its cost shows in the agent's
+   * costs, and answered as text. Undefined when it could not be made.
+   */
+  async function callModel(
+    who: { tenantId: string; agentId: string; department: string },
+    model: string,
+    format: WireFormat,
+    body: unknown,
+  ): Promise<string | undefined> {
+    const from = adapterFor(format === "openai" ? "openai" : "anthropic");
+    const to = targetAdapterFor(model, from);
+    const translated = requestFor(from, to, { ...(body as object), stream: false }, model);
+    const credential = translated.ok ? resolveTarget(to, who.tenantId, model) : undefined;
+    if (!translated.ok || credential === undefined) return undefined;
+    const bytes = JSON.stringify(translated.body);
+    const url = new URL(to.upstreamPath(upstreamModel(model), false), credential.baseUrl);
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      ...(await to.authHeaders(credential.apiKey, { method: "POST", url, body: bytes })),
+      ...(to.id === "anthropic" ? { "anthropic-version": "2023-06-01" } : {}),
+    };
+    const started = Date.now();
+    const send = to.id === "open" && config.hosted ? guardedFetch(doFetch) : doFetch;
+    const response = await send(url, { method: "POST", headers, body: bytes, signal: AbortSignal.timeout(config.upstreamTimeoutMs) });
+    const payload: unknown = await response.json().catch(() => undefined);
+    const parsed = response.ok ? to.parseBufferedResponse(payload) : undefined;
+    const usage = parsed?.usage ?? ZERO_USAGE;
+    const modifiers = parsed?.modifiers ?? {};
+    const priced = priceCall(who.tenantId, model, usage, modifiers);
+    const rate = repository.rateOverride(who.tenantId, to.id);
+    repository.recordCall({
+      id: randomUUID(),
+      tenantId: who.tenantId,
+      agentId: who.agentId,
+      department: who.department,
+      provider: to.id,
+      model,
+      startedAt: started,
+      durationMs: Date.now() - started,
+      streamed: false,
+      usage,
+      cost: applyRate(priced.cost, rate),
+      costList: priced.cost,
+      priced: parsed?.usage !== undefined && priced.priced,
+      modifiers,
+      outcome: response.ok ? "ok" : "error",
+      statusCode: response.status,
+      purpose: "grading",
+    });
+    return response.ok ? answerOf(payload).text : undefined;
   }
 
   /** The price of a call: the catalog's, or for an open model the owner's for that endpoint. */
@@ -548,6 +617,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   const reads =
     deps.db === undefined ? undefined : new ReadPool(deps.db, config.readWorker === true ? config.databasePath : undefined);
   if (reads !== undefined) READS.set(app, reads);
+  SPOT_CHECKS.set(app, spotChecks);
   app.addHook("onClose", async () => {
     await reads?.close();
   });
@@ -593,6 +663,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
     registerSetup(app, { config, accounts: accounts! });
     registerAdvice(app, { db: deps.db, accounts: accounts!, repository });
     registerQuality(app, { db: deps.db, accounts: accounts! });
+    registerTrials(app, { db: deps.db, accounts: accounts!, spotChecks });
     registerEndpoints(app, {
       db: deps.db,
       accounts: accounts!,
@@ -828,7 +899,45 @@ export function createServer(deps: ServerDeps): FastifyInstance {
       // Held in memory for the local model only, and only when there is one.
       const labelWords = deps.labeller === undefined ? undefined : readableText(request.body);
 
+      /*
+       * A trial (phase 5): a share of this agent's jobs goes to a candidate
+       * model, the rest stays as asked, and both are tagged so they can be
+       * judged side by side. The job's key decides, so all its calls land on
+       * the same model. Only when no rule already chose a model, only for the
+       * model the trial tests, never for a request marked critical, and only
+       * to a candidate this agent may be sent to.
+       */
+      const taskIdentity = tasks.of(headerValue(request, TASK_HEADER), request.body, caller.tenantId);
+      const jobKey = taskIdentity.taskKey ?? runId;
+      const trial =
+        decision.allowed && decision.route === undefined && trials !== undefined
+          ? trials.runningFor(caller.tenantId, caller.agentId)
+          : undefined;
+      let trialTag: { trialId: string; trialArm: "candidate" | "baseline" } | undefined;
+      let trialRoute: typeof decision.route;
+      if (trial !== undefined && trial.baselineModel === requestedModel && headerValue(request, "x-costgrid-critical") !== "true") {
+        const reachable =
+          substitutionAllowed(requestedModel, trial.candidateModel) || crossAllowed(caller.tenantId, caller.agentId, trial.candidateModel);
+        if (inCandidateArm(trial.id, jobKey, trial.shareMilli)) {
+          if (reachable) {
+            trialTag = { trialId: trial.id, trialArm: "candidate" };
+            trialRoute = {
+              policyId: trial.id,
+              policyName: `trial ${trial.id}`,
+              fromModel: requestedModel,
+              toModel: trial.candidateModel,
+              applied: true,
+              fallback: false,
+              reason: `trial ${trial.id}: testing ${trial.candidateModel} on ${trial.shareMilli / 10}% of jobs`,
+            };
+          }
+        } else {
+          trialTag = { trialId: trial.id, trialArm: "baseline" };
+        }
+      }
+
       const baseRecord = {
+        ...(trialTag ?? {}),
         taskKind: label.kind,
         taskSize: label.size,
         tenantId: caller.tenantId,
@@ -843,7 +952,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         runDepth: runStats?.depth ?? 0,
         reasoningRequested: describeReasoning(reasoning),
         // Which job this is part of: the developer's id, or a one-way code of its first message.
-        ...tasks.of(headerValue(request, TASK_HEADER), request.body, caller.tenantId),
+        ...taskIdentity,
       };
 
       if (!decision.allowed) {
@@ -893,7 +1002,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
        * be translated faithfully, or whose target has no credential, stays on
        * the model it asked for, with the reason in the decision log.
        */
-      let route = decision.route;
+      let route = decision.route ?? trialRoute;
       let notRouted: { model: string; reason: string } | undefined;
       let target = adapter;
       let outgoingBody: unknown = request.body;
@@ -922,6 +1031,8 @@ export function createServer(deps: ServerDeps): FastifyInstance {
           };
           reply.header("x-costgrid-not-routed", headerSafe(`${targetModel}: ${notRouted.reason}`));
           route = undefined;
+          // A job the candidate could not take is in neither arm.
+          if (trialTag !== undefined) Object.assign(baseRecord, { trialId: undefined, trialArm: undefined });
         }
       }
       const { apiKey, baseUrl } = upstreamTarget!;
@@ -1357,6 +1468,46 @@ export function createServer(deps: ServerDeps): FastifyInstance {
             policy_id: gateBlock.policyId,
           },
         });
+      }
+
+      /*
+       * Side-by-side grading, for a sampled trial job whose organisation opted
+       * in: after the caller has its answer, never before. A step that asks
+       * for a tool is not an answer to grade.
+       */
+      if (
+        trial !== undefined &&
+        trialTag !== undefined &&
+        trials !== undefined &&
+        (adapter.id === "anthropic" || adapter.id === "openai") &&
+        parsed.stopReason !== "tool_use" &&
+        parsed.stopReason !== "tool_calls"
+      ) {
+        const grading = trials.grading(caller.tenantId);
+        if (grading.enabled && inCandidateArm(`${trial.id}:grade`, jobKey, grading.shareMilli)) {
+          const answer = answerOf(payload).text;
+          if (answer !== undefined) {
+            void gradeJob(
+              {
+                tenantId: caller.tenantId,
+                trialId: trial.id,
+                callId,
+                runId,
+                arm: trialTag.trialArm,
+                format: formatOf(adapter.id),
+                request: request.body,
+                task: readableText(request.body),
+                answer,
+                otherModel: trialTag.trialArm === "candidate" ? trial.baselineModel : trial.candidateModel,
+              },
+              {
+                call: (model, format, body) => callModel(caller, model, format, body),
+                trials,
+                memory: spotChecks,
+              },
+            ).catch((error: unknown) => app.log.warn({ err: error }, "grading a trial job failed; it was skipped"));
+          }
+        }
       }
 
       // In the format the caller spoke, whichever provider answered.

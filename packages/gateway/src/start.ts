@@ -30,6 +30,7 @@ import { KeyControl } from "./key-control.js";
 import { loadFingerprintKey } from "./fingerprint-key.js";
 import type { SecretStore } from "./secret-store.js";
 import { reviewQuickWins } from "./quick-win-review.js";
+import { reviewTrials } from "./trial-review.js";
 import { loadLocalLabeller } from "./task-labeller.js";
 import { alerterOf, assertToolPoliciesEnforceable, createServer, deferredOf, metricsOf, readsOf } from "./server.js";
 
@@ -174,6 +175,14 @@ export async function startGateway(
   let reviewTick = 0;
   const reviewing = setInterval(() => {
     const errorsOnly = reviewTick++ % 12 !== 0;
+    // Trials and the switches they made (trial-review.ts), on the same rhythm.
+    try {
+      const changed = reviewTrials({ db, audit: accounts?.audit ?? new AuditLog(db), alerter: alerterOf(app) }, Date.now(), { errorsOnly });
+      if (changed.length > 0) app.log.info({ changed }, "trials and switches reviewed");
+    } catch (error) {
+      app.log.error({ err: error }, "the trial review failed; nothing was changed");
+      metricsOf(app)?.jobFailed("trial-review");
+    }
     reviewQuickWins(
       {
         db,

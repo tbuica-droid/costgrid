@@ -123,6 +123,9 @@ const TENANT_TABLES = [
   "model_endpoints",
   "endpoint_models",
   "agent_providers",
+  "trials",
+  "grades",
+  "tenant_settings",
   // The local copies only. Anchors already delivered live at the receiver,
   // which is the point of them, and are outside anything this can reach.
   "anchors",

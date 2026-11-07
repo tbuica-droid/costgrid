@@ -186,6 +186,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   ended_at: "BIGINT",
   metered_at: "BIGINT",
   decided_at: "BIGINT",
+  graded_at: "BIGINT",
   input_per_m: "BIGINT",
   output_per_m: "BIGINT",
   cached_input_per_m: "BIGINT",
@@ -223,6 +224,8 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   succeeded: "SMALLINT",
   desktop: "SMALLINT",
   applied: "SMALLINT",
+  critical: "SMALLINT",
+  grading: "SMALLINT",
 
   // Small bounded quantities. int4 is already far more than any of them needs.
   duration_ms: "INTEGER",
@@ -232,6 +235,9 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   rows_written: "INTEGER",
   batch: "INTEGER",
   request_count: "INTEGER",
+  share_milli: "INTEGER",
+  min_jobs: "INTEGER",
+  grading_share_milli: "INTEGER",
   quality_milli: "INTEGER",
   quality_bar_milli: "INTEGER",
   predicted_quality_milli: "INTEGER",

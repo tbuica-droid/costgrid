@@ -27,6 +27,14 @@ before it is built, and closes with what was done.
    (`BENCHMARKS` in `predict.ts`). It is empty, because no published result
    for the current catalog's models could be cited. Which benchmarks should we
    trust, and who checks the figures entered?
+4. **Showing graded answers to the owner (phase 5, D10 and D11).** Spot
+   checks are recorded against the job's run id and task id: the owner looks
+   the job up in their own system and records a verdict, and nothing else is
+   kept. When grading is opted in, the two answers a grader compared are also
+   held **in memory only** (at most 50, gone after 24 hours or a restart) so
+   the owner can read them in the console. They are never written to disk.
+   Is that compatible with "never keeps prompts or answers" as the website
+   puts it, or should the in-memory view be dropped?
 
 ## Phase 1: quick wins that cut cost without changing the model
 
@@ -481,4 +489,95 @@ Built as designed.
   - question 3: which benchmarks to cite.
 - **Not done:** the decision log's prediction columns are still empty for
   route rules. Phase 6, which chooses per request, fills them.
+
+## Phase 5: trials and per-agent routing
+
+### Design note (7 November 2026)
+
+**What gets built**
+
+1. **Trials.** A trial tests one candidate model on a share of one agent's
+   traffic, 5% by default (D16), against the model it uses now.
+   - **Which jobs.** A job is in the trial by a stable hash of its run id (or
+     task id), so every call of a job goes to the same model. The trial's
+     other jobs are the control.
+   - **Calls are tagged.** Each call carries `trial_id` and `trial_arm`
+     (`candidate` or `baseline`). The two arms run at the same time, which
+     is a fairer comparison than before and after.
+   - **Never on critical work.** An agent marked critical gets no trials. A
+     request with `x-costgrid-critical: true` is always kept on the baseline.
+   - **Cross-format candidates** follow phase 3's rules: the agent must have
+     opted in, and the request must translate. Otherwise the job stays on the
+     baseline.
+2. **Judging a trial** (`trials.ts`):
+   - **Compared, per job:** finished share, quality (answer checks, reported
+     scores and signals, grades) and cost per good job.
+   - **Passes** with at least the minimum jobs on each arm (100 by default)
+     when the candidate is no worse on finishing and quality, within 2
+     points (D13), and cheaper per good job.
+   - **Fails** on worse quality or finishing, or quickly on errors (5 failed
+     calls and 5 points above the baseline).
+3. **Side-by-side grading** (opt-in per organisation, on a 1 to 2% sample,
+   D10 and D11).
+   - **What happens.** For a sampled job on a running trial, after the
+     caller has its answer, CostGrid sends the same request to the other
+     arm's model, then asks a stronger model the customer already uses (the
+     grader) which answer is better, with the order shuffled.
+   - **What is kept.** The verdict (candidate, baseline or tie), never the
+     text.
+   - **Cost.** The extra call and the grading call are recorded as the
+     agent's calls, marked as grading, so their cost counts in the agent's
+     costs.
+4. **Owner spot checks.** Each week the console offers a few graded jobs to
+   check (see owner question 4). The owner's verdict is stored beside the
+   grader's; phase 6 compares them.
+5. **Switching (D14).** A passed trial becomes a suggestion with an approve
+   button. Approving it creates a route rule for that agent, from the
+   baseline model to the candidate. An agent that has had a trial approved
+   may be set to switch on its own: a later passed trial is then applied
+   without waiting. Only agents with quality evidence beyond inference qualify
+   (answer checks with a format, reported scores or signals, or grades).
+6. **Switching back.** An hourly review compares each trial-made switch with
+   its trial's baseline figures. If quality, finishing or cost per good job
+   gets worse, the rule is switched off and an alert says why. Failed calls
+   are checked every five minutes, as for quick wins.
+7. **Every switch is recorded.** Approve, automatic switch and switch-back are
+   each a rule in the register (owner `CostGrid trials` when automatic) and
+   an audit-log entry.
+
+**Data model (migration 25)**
+- `trials`: id, agent, baseline model, candidate model, share, minimum jobs,
+  status (`running`, `passed`, `failed`, `stopped`, `applied` or
+  `reverted`), why, started, ended, and the rule it created.
+- `calls`: `trial_id`, `trial_arm`, `purpose` (`work` or `grading`).
+- `grades`: trial, call, the grader's verdict and model, the owner's verdict,
+  and when each was given.
+- `agents`: `critical` and `switching` (`suggest` or `auto`).
+- `tenant_settings`: `grading` on or off, and the grading share.
+
+**Risks**
+- **A trial can hurt the jobs it touches.** The share is small, critical work
+  is never touched, and a trial stops itself on errors.
+- **Grading costs money.** It is opt-in, on a small sample, and counted in
+  the agent's cost.
+- **Graders favour long answers and their own family** (the plan's own
+  warning). Order is shuffled, and phase 6 checks the grader against the
+  owner's spot checks.
+
+### Done (7 November 2026)
+
+Built as designed.
+- **Code:**
+  - database: migration 25 and `trials.ts`;
+  - gateway: trial assignment in the proxy, `grading.ts`, `trial-review.ts`
+    and `console-trials.ts`;
+  - console: `console-trials.js` (a new Trials page).
+- **Latency.** Before forwarding, the trial lookup takes 17 µs. The
+  end-to-end bench could not be run cleanly: the machine was under load
+  (average 13 to 15) and p99 swung between 6 and 63 ms between identical runs.
+  Rerun `npm run bench` on a quiet machine before release.
+- **Not done:**
+  - **Streamed answers are not graded**, because their text isn't held.
+  - **Grading is limited to direct Claude and OpenAI callers.**
+- **Waiting on the owner:** question 4, about holding graded answers in memory.
 

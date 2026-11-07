@@ -474,3 +474,27 @@ No secret was ever committed.
 **How it was checked**
 - 1,124 tests pass, the smoke test passes, and labelling takes 14 microseconds on a 400 KB request.
 
+## Version 3, phase 5: trials before any switch (7 November 2026)
+
+**What changed**
+- **Trials.** The new Trials screen suggests a cheaper model for each agent, and tests it on 5% of that agent's jobs alongside the model it uses now. A trial passes only if:
+  - the work is as good;
+  - as many jobs finish;
+  - a good job costs less.
+
+  It stops by itself on a run of errors. Work marked critical is never tested.
+- **Switching with your approval, then on its own.** A passed trial waits for one click. After you've approved one trial for an agent, you can let it switch on its own. CostGrid switches back by itself, and tells you, if results get worse.
+- **Side-by-side grading (opt-in).** On 1–2% of trial jobs, a stronger model you already use compares the two answers. Only its verdict is kept, and its cost counts in the agent's costs.
+- **Spot checks.** A few graded jobs each week for you to judge, blind, so the grader can be checked against you.
+
+**How it was checked**
+- 1,138 tests pass. They cover:
+  - arm assignment;
+  - judging each way;
+  - automatic switching under D14's conditions;
+  - switch-back;
+  - grading end to end, with a sweep proving no answer is stored;
+  - the console's gates.
+- The smoke test passes. The added work before forwarding measures about 30 µs.
+- The end-to-end bench ran on a loaded machine (load average 13 to 15) and swung between 6 and 63 ms p99 run to run, so it needs a rerun on a quiet machine.
+

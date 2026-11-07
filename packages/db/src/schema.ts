@@ -37,6 +37,7 @@ import { QUICK_WINS_MIGRATION } from "./schema-quickwins.js";
 import { QUALITY_MIGRATION } from "./schema-quality.js";
 import { REACH_MIGRATION } from "./schema-reach.js";
 import { LABELS_MIGRATION } from "./schema-labels.js";
+import { TRIALS_MIGRATION } from "./schema-trials.js";
 
 export interface Migration {
   readonly version: number;
@@ -903,6 +904,7 @@ export const MIGRATIONS: readonly Migration[] = [
   QUALITY_MIGRATION,
   REACH_MIGRATION,
   LABELS_MIGRATION,
+  TRIALS_MIGRATION,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

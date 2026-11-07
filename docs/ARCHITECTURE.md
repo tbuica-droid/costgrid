@@ -339,6 +339,44 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   sample task?" on the read pool. A sample is labelled in memory and not kept.
   Nothing here routes a call (D8).
 
+### Phase 5: trials and per-agent routing
+
+- **Two arms at once.** A trial (`trials.ts`) sends a share of one agent's jobs
+  (5% by default) to a candidate model.
+  - Assignment is by a stable hash of the job's key, so all of a job's calls
+    land on one model. Calls are tagged `trial_id` and `trial_arm`, and arm is
+    judged against arm over the same period.
+  - Critical agents and requests with `x-costgrid-critical: true` are never in
+    a trial.
+  - A candidate the agent can't reach under phase 3's rules leaves the job on
+    the baseline.
+  - The lookup before forwarding takes 17 µs.
+- **Judged per job.** A trial needs these, with a minimum number of jobs on
+  each arm:
+  - jobs finished and quality no worse, within 2 points (D13);
+  - the grader's win rate not below 45%;
+  - a lower cost per good job.
+
+  A burst of failed calls fails it at once.
+- **Grading, opt-in and sampled** (`grading.ts`). After the caller has its
+  answer, CostGrid makes two extra calls:
+  - the same request to the other arm's model;
+  - a request to the provider's highest-priced frontier model, which acts as
+    grader, with both answers in shuffled order.
+
+  Only the verdict is stored (`grades`). The extra calls are
+  `purpose = 'grading'`: they count in spend and are excluded from job
+  detection. The answers stay in memory for spot checks (owner question 4).
+- **Switching is a rule** (`trial-review.ts`).
+  - **Approving** a passed trial writes a route rule for the agent, which
+    shows in the register and the audit log.
+  - **Switching on its own** is allowed after the owner has approved one
+    trial for the agent and set it to switch automatically, and only with
+    quality evidence beyond inference (D14).
+  - **Switching back.** Every five minutes (failed calls) and every hour
+    (everything else), each switch is compared with its trial's baseline. A
+    worse result switches the rule off, with an audit entry and an alert.
+
 ## Package layout
 
 ```
