@@ -1624,6 +1624,7 @@ export function createServer(deps: ServerDeps): FastifyInstance {
                 call: (model, format, body) => callModel(caller, model, format, body),
                 trials,
                 memory: spotChecks,
+                holdAnswers: grading.spotChecks,
               },
             ).catch((error: unknown) => app.log.warn({ err: error }, "grading a trial job failed; it was skipped"));
           }

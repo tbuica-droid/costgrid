@@ -5,36 +5,24 @@ before it is built, and closes with what was done.
 
 ## Questions for the owner
 
-1. **Privacy wording for other providers (phase 3, D6).** Today the app and
-   the website say keys and prompts go "only to OpenAI or Anthropic". With
-   per-agent opt-in, an agent's prompts can also go to an open-model service
-   the owner connects, or to the other of the two. The drafted replacement is
-   in "Phase 3: privacy wording draft" below. It is not live anywhere public.
-   The app shows it only on the opt-in screen itself. Please approve it, or
-   change it, before the website and the docs' privacy sections are updated.
-2. **The local task-labelling model's runtime (phase 4, D7).** Running a small
-   model on the customer's machine needs a runtime. transformers.js with ONNX
-   Runtime is the usual choice, and adds about 470 MB of dependencies to the
-   app and the server image. Phase 4 ships the local-model labeller behind an
-   interface. It works when that package is installed, downloads its model on
-   first use, and otherwise falls back to the signals labeller. Should the
-   runtime be bundled (bigger download), offered as an optional add-on, or left
-   out for now?
-3. **Benchmark results to start predictions from (phase 4, D8).** Predictions
-   start from a weak prior by model tier, labelled "tier prior, not a
-   benchmark", and learn from the customer's own outcomes. The format for real
-   public benchmark results, with source and date for each, is in place
-   (`BENCHMARKS` in `predict.ts`). It is empty, because no published result
-   for the current catalog's models could be cited. Which benchmarks should we
-   trust, and who checks the figures entered?
-4. **Showing graded answers to the owner (phase 5, D10 and D11).** Spot
-   checks are recorded against the job's run id and task id: the owner looks
-   the job up in their own system and records a verdict, and nothing else is
-   kept. When grading is opted in, the two answers a grader compared are also
-   held **in memory only** (at most 50, gone after 24 hours or a restart) so
-   the owner can read them in the console. They are never written to disk.
-   Is that compatible with "never keeps prompts or answers" as the website
-   puts it, or should the in-memory view be dropped?
+Answered on 7 November 2026:
+
+1. **Privacy wording (D6).** Approved. It goes live together with
+   cross-provider routing, and the final text goes to the owner first (see
+   "Phase 3: privacy wording, final" below).
+2. **The local labelling model (D7).** Left out for now. Labels come from the
+   built-in signals, and `COSTGRID_LOCAL_LABELLER` is off by default.
+3. **Benchmarks (D8).** None. Predictions keep the tier guess and learn from
+   the customer's own results.
+4. **Graded answers in memory.** Kept, only while spot checks are turned on
+   (a switch of its own, migration 27). Turning them off forgets every held
+   answer at once. The privacy wording says so.
+6. **Website.** The security headers were republished alone, with no design
+   change (main `a831135`). The redesign waits until the owner has seen
+   screenshots. Pushed history is not rewritten, and future commits carry no
+   `Co-Authored-By` line.
+
+Still open: **D3**, the customers whose traffic proves the savings (phase 7).
 
 ## Phase 1: quick wins that cut cost without changing the model
 
@@ -676,4 +664,38 @@ Phases 1 to 6 are built, tested and pushed. Phase 7 (proving savings on real
 customers' traffic against D2, then claims and pricing) needs the owner:
 D3, the customers who'll send one agent's traffic. The open questions are at
 the top of this file.
+
+### Phase 3: privacy wording, final (7 November 2026, waiting for the owner's OK)
+
+This goes live with cross-provider routing, on the website, in the app and in
+the docs. It replaces "Your keys are only ever sent to OpenAI or Anthropic,
+never to us" on the website's privacy card, and the FAQ answer to "Does it
+read my data?".
+
+**Privacy card: "Your keys and prompts go only where you send them"**
+
+> CostGrid sends each request to the AI provider your agent already uses,
+> OpenAI or Anthropic. It sends a request anywhere else only when you have
+> ticked that destination for that agent and set a rule to route it there:
+> the other of the two, or an open-model service you connected with your own
+> key. That service then handles the request under its own terms. Each key
+> goes only to the service it belongs to, never to us.
+
+**Privacy card: "CostGrid keeps no prompt and no answer"**
+
+> CostGrid reads each request and answer as it passes, to price it and check
+> it, and keeps neither. If you turn on grading, a stronger model from a
+> provider you already use compares two answers on a small sample of test
+> jobs, and only its verdict is kept. If you also turn on spot checks, those
+> two answers are held in the app's memory, never on disk, so you can read
+> them: at most 50, for up to 24 hours, and gone when the app restarts or you
+> turn spot checks off.
+
+**FAQ: "Does it read my data?"**
+
+> It reads each request and answer as it passes, to work out the cost and
+> check the answer, and keeps neither. Requests go to the provider your agent
+> uses, and elsewhere only where you have opted that agent in. If you turn on
+> spot checks, a few graded answers are held in memory, never on disk, for up
+> to 24 hours so you can read them.
 

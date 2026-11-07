@@ -39,6 +39,7 @@ import { REACH_MIGRATION } from "./schema-reach.js";
 import { LABELS_MIGRATION } from "./schema-labels.js";
 import { TRIALS_MIGRATION } from "./schema-trials.js";
 import { ROUTING_MIGRATION } from "./schema-routing.js";
+import { SPOT_CHECKS_MIGRATION } from "./schema-spot-checks.js";
 
 export interface Migration {
   readonly version: number;
@@ -907,6 +908,7 @@ export const MIGRATIONS: readonly Migration[] = [
   LABELS_MIGRATION,
   TRIALS_MIGRATION,
   ROUTING_MIGRATION,
+  SPOT_CHECKS_MIGRATION,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

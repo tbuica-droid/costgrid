@@ -159,8 +159,11 @@ export async function render() {
       ${owner ? button(d.grading.enabled ? "Turn grading off" : "Turn grading on", `type="button" data-action="grading-toggle" data-on="${d.grading.enabled}"`, "secondary") : ""}</div>
     <h2 style="margin-top:26px">Spot checks</h2>
     <p class="section-note">Your verdict on a few graded jobs keeps the grader honest. You give yours first; the grader's
-      stays hidden until you have.</p>
-    ${spotChecks(d.spotChecks)}
+      stays hidden until you have. While spot checks are on, the two answers the grader compared are held in this app's
+      memory, never on disk, so you can read them: at most 50, for 24 hours or until the app restarts. Turning spot
+      checks off forgets them at once.</p>
+    ${owner ? `<p>${button(d.grading.spotChecks ? "Turn spot checks off" : "Turn spot checks on", `type="button" data-action="spot-toggle" data-on="${d.grading.spotChecks}"`, "secondary")}</p>` : ""}
+    ${d.grading.spotChecks ? spotChecks(d.spotChecks) : ""}
     <h2 style="margin-top:26px">How CostGrid checks itself</h2>
     ${selfChecks(checks)}`;
 }
@@ -208,6 +211,11 @@ export async function click(target) {
   if (a === "routing-per-request") {
     await call("PUT", `/console/${t}/agents/${encodeURIComponent(target.dataset.agent)}/routing`, { perRequest: target.checked });
     state.flash = { kind: "ok", text: target.checked ? "This agent now gets the model its own evidence chose for each kind of task." : "Per-request routing is off." };
+    return true;
+  }
+  if (a === "spot-toggle") {
+    await call("PUT", `/console/${t}/spot-checks`, { enabled: target.dataset.on !== "true" });
+    state.flash = { kind: "ok", text: target.dataset.on === "true" ? "Spot checks are off; any answers held in memory are gone." : "Spot checks are on." };
     return true;
   }
   if (a === "grading-toggle") {

@@ -11,10 +11,10 @@ import type { Arm, TrialsRepository } from "@costgrid/db";
  * Only the verdict is stored. Both extra calls are recorded as the agent's
  * grading calls, so what grading costs shows in the agent's costs.
  *
- * The answers themselves are held in memory only (`SpotCheckMemory`): at
- * most 50 per organisation, for 24 hours or until a restart, so the owner can
- * read a pair when spot-checking the grader. They are never written to disk
- * (v3 progress file, owner question 4).
+ * The answers themselves are held in memory only (`SpotCheckMemory`), and
+ * only while the organisation has spot checks on: at most 50, for 24 hours
+ * or until a restart, so the owner can read a pair when checking the grader.
+ * They are never written to disk (owner decision, 7 November 2026).
  */
 
 export type CallModel = (model: string, format: WireFormat, body: unknown) => Promise<string | undefined>;
@@ -80,6 +80,11 @@ export class SpotCheckMemory {
   forget(tenantId: string, callId: string): void {
     this.#byTenant.get(tenantId)?.delete(callId);
   }
+
+  /** Drop everything held for an organisation, when it turns spot checks off. */
+  forgetAll(tenantId: string): void {
+    this.#byTenant.delete(tenantId);
+  }
 }
 
 /**
@@ -99,7 +104,7 @@ export async function gradeJob(
     answer: string;
     otherModel: string;
   },
-  deps: { call: CallModel; trials: TrialsRepository; memory: SpotCheckMemory; random?: () => number },
+  deps: { call: CallModel; trials: TrialsRepository; memory: SpotCheckMemory; holdAnswers: boolean; random?: () => number },
 ): Promise<Arm | "tie" | undefined> {
   const grader = graderFor(g.format);
   if (grader === undefined) return undefined;
@@ -117,6 +122,9 @@ export async function gradeJob(
 
   const verdict: Arm | "tie" = said === "TIE" ? "tie" : (said === "A") === candidateFirst ? "candidate" : "baseline";
   deps.trials.recordGrade(g.tenantId, { trialId: g.trialId, callId: g.callId, runId: g.runId, verdict, graderModel: grader });
-  deps.memory.put(g.tenantId, g.callId, { trialId: g.trialId, runId: g.runId, task: g.task, candidate, baseline, verdict, at: Date.now() });
+  // Held for the owner to read only while spot checks are on.
+  if (deps.holdAnswers) {
+    deps.memory.put(g.tenantId, g.callId, { trialId: g.trialId, runId: g.runId, task: g.task, candidate, baseline, verdict, at: Date.now() });
+  }
   return verdict;
 }

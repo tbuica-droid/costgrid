@@ -228,6 +228,7 @@ const COLUMN_WIDTHS: Readonly<Record<string, "BIGINT" | "INTEGER" | "SMALLINT">>
   desktop: "SMALLINT",
   applied: "SMALLINT",
   per_request: "SMALLINT",
+  spot_checks: "SMALLINT",
   within: "SMALLINT",
   critical: "SMALLINT",
   grading: "SMALLINT",

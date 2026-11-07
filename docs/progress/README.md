@@ -523,3 +523,11 @@ No secret was ever committed.
 
 This completes v3's build (phases 1 to 6). Phase 7, proving savings on real customers' traffic, needs the owner.
 
+## Owner decisions on v3, and the website's security headers (7 November 2026)
+
+- **Website security headers republished on their own.** These are HSTS, refusing to be framed, a permissions policy and an opener policy. The design is unchanged. The redesign waits for the owner to see screenshots.
+- **Spot checks have their own switch.** Graded answers are held in memory, never on disk, only while it is on. Turning it off forgets them at once.
+- **The local labelling model is left out for now.** Labels come from simple signals.
+- **Benchmarks.** None. Predictions start from the tier guess.
+- **The new privacy wording is approved.** It goes live with cross-provider routing, after the owner sees the final text.
+

@@ -93,8 +93,8 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
                 },
         };
       }),
-      // Blind: the grader's verdict is not sent until the owner has given theirs.
-      spotChecks: trials.spotChecks(tenantId).map((s) => ({
+      // Blind: the grader's verdict is not sent until the owner has given theirs. Only while spot checks are on.
+      spotChecks: (trials.grading(tenantId).spotChecks ? trials.spotChecks(tenantId) : []).map((s) => ({
         callId: s.callId,
         runId: s.runId,
         trialId: s.trialId,
@@ -260,6 +260,19 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
     if (typeof sharePct !== "number" || !(sharePct >= 1 && sharePct <= 2)) return bad(reply, "grading samples 1% to 2% of trial jobs");
     trials.setGrading(tenantId, enabled, Math.round(sharePct * 10));
     accounts.audit.record(tenantId, { actor: by(actor.user), action: "grading.set", subject: tenantId, detail: { enabled, sharePct } });
+    return trials.grading(tenantId);
+  });
+
+  /** Spot checks on or off. Off forgets every graded answer held in memory at once. */
+  app.put("/console/:tenantId/spot-checks", async (request: ConsoleRequest, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    const actor = requireRole(request, reply, tenantId, "owner");
+    if (!actor) return;
+    const on = ((request.body ?? {}) as Record<string, unknown>)["enabled"];
+    if (typeof on !== "boolean") return bad(reply, "enabled must be true or false");
+    trials.setSpotChecks(tenantId, on);
+    if (!on) spotChecks.forgetAll(tenantId);
+    accounts.audit.record(tenantId, { actor: by(actor.user), action: "grading.spot-checks", subject: tenantId, detail: { enabled: on } });
     return trials.grading(tenantId);
   });
 

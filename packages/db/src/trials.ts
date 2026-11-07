@@ -175,11 +175,24 @@ export class TrialsRepository {
     );
   }
 
-  grading(tenantId: string): { enabled: boolean; shareMilli: number } {
+  /**
+   * Grading, and spot checks. Spot checks are their own switch: graded answers
+   * are held in memory for the owner to read only while it is on.
+   */
+  grading(tenantId: string): { enabled: boolean; shareMilli: number; spotChecks: boolean } {
     const row = this.#db
-      .prepare("SELECT grading, grading_share_milli AS shareMilli FROM tenant_settings WHERE tenant_id = ?")
-      .get(tenantId) as { grading: number; shareMilli: number } | undefined;
-    return { enabled: row?.grading === 1, shareMilli: row?.shareMilli ?? 15 };
+      .prepare("SELECT grading, grading_share_milli AS shareMilli, spot_checks AS spot FROM tenant_settings WHERE tenant_id = ?")
+      .get(tenantId) as { grading: number; shareMilli: number; spot: number } | undefined;
+    return { enabled: row?.grading === 1, shareMilli: row?.shareMilli ?? 15, spotChecks: row?.spot === 1 };
+  }
+
+  setSpotChecks(tenantId: string, on: boolean, at = Date.now()): void {
+    this.#db
+      .prepare(
+        `INSERT INTO tenant_settings (tenant_id, spot_checks, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT (tenant_id) DO UPDATE SET spot_checks = excluded.spot_checks, updated_at = excluded.updated_at`,
+      )
+      .run(tenantId, on ? 1 : 0, at);
   }
 
   setGrading(tenantId: string, enabled: boolean, shareMilli: number, at = Date.now()): void {

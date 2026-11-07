@@ -28,9 +28,9 @@ export interface BenchmarkResult {
 }
 
 /**
- * Cited benchmark results. Empty: no published result for the current
- * catalog's models could be cited when this was written (see the v3 progress
- * file, owner question 3). Each entry must carry its source and date.
+ * Cited benchmark results. Empty by the owner's decision (7 November 2026):
+ * predictions start from the tier guess and learn from the customer's own
+ * results. Any entry added later must carry its source and date.
  */
 export const BENCHMARKS: readonly BenchmarkResult[] = [];
 

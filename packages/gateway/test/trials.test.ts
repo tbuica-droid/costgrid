@@ -166,8 +166,18 @@ describe("trials through the proxy", () => {
     expect(arms()).toEqual([{ model: "claude-sonnet-4-6", arm: null, purpose: "work" }]);
   });
 
+  it("holds no answer in memory while spot checks are off", async () => {
+    trials.setGrading(T, true, 1000);
+    trials.start(T, { agentId: "support-bot", baselineModel: "claude-sonnet-4-6", candidateModel: "claude-haiku-4-5", shareMilli: 1000 });
+    await send("job-1");
+    await new Promise((r) => setTimeout(r, 30));
+    const callId = (db.prepare("SELECT call_id AS id FROM grades").get() as { id: string }).id;
+    expect(spotChecksOf(app)!.get(T, callId)).toBeUndefined();
+  });
+
   it("grades a sampled job side by side, keeps only the verdict, and counts the cost", async () => {
     trials.setGrading(T, true, 1000);
+    trials.setSpotChecks(T, true);
     const t = trials.start(T, { agentId: "support-bot", baselineModel: "claude-sonnet-4-6", candidateModel: "claude-haiku-4-5", shareMilli: 1000 }) as Trial;
     await send("job-1");
     await new Promise((r) => setTimeout(r, 30));

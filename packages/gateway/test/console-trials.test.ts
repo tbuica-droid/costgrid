@@ -52,7 +52,8 @@ describe("trials on the console", () => {
 
   it("samples only 1% to 2% for grading, and keeps spot checks blind", async () => {
     expect((await call("PUT", "/grading", { enabled: true, sharePct: 5 })).statusCode).toBe(400);
-    expect((await call("PUT", "/grading", { enabled: true, sharePct: 1.5 })).json()).toEqual({ enabled: true, shareMilli: 15 });
+    expect((await call("PUT", "/grading", { enabled: true, sharePct: 1.5 })).json()).toEqual({ enabled: true, shareMilli: 15, spotChecks: false });
+    expect((await call("PUT", "/spot-checks", { enabled: true })).json()).toMatchObject({ spotChecks: true });
     trials.recordGrade(tenantId, { trialId: "tr", callId: "c1", runId: "r1", verdict: "candidate", graderModel: "g" });
     spotChecksOf(app)!.put(tenantId, "c1", { trialId: "tr", runId: "r1", task: "q", candidate: "cand", baseline: "base", verdict: "candidate", at: Date.now() });
     const list = (await call("GET", "/trials")).json();
@@ -78,5 +79,14 @@ describe("trials on the console", () => {
     expect(ranked).toMatchObject({ agent: "support-bot", kind: "summarise" });
     const checks = (await call("GET", "/self-checks")).json();
     expect(checks).toMatchObject({ checks: [], grader: { checked: 0, trusted: true } });
+  });
+
+  it("forgets every held answer when spot checks are turned off", async () => {
+    await call("PUT", "/spot-checks", { enabled: true });
+    spotChecksOf(app)!.put(tenantId, "c9", { trialId: "tr", runId: "r9", task: "q", candidate: "x", baseline: "y", verdict: "tie", at: Date.now() });
+    await call("PUT", "/spot-checks", { enabled: false });
+    expect(spotChecksOf(app)!.get(tenantId, "c9")).toBeUndefined();
+    trials.recordGrade(tenantId, { trialId: "tr", callId: "c9", runId: "r9", verdict: "tie", graderModel: "g" });
+    expect((await call("GET", "/trials")).json().spotChecks).toEqual([]);
   });
 });

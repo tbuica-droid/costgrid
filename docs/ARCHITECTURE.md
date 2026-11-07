@@ -321,8 +321,9 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
   stored (`calls.task_kind`, `task_size`, `labelled_by`).
   - **The local model** (`task-labeller.ts`) refines the label after the
     answer, with a small sentence model compared against a description of each
-    kind. Its runtime is loaded by dynamic import and isn't bundled (owner
-    question 2), so without it the signals label stands.
+    kind. Its runtime is loaded by dynamic import and isn't bundled. The owner
+    chose to leave it out for now, so `COSTGRID_LOCAL_LABELLER` is off by
+    default and the signals label stands.
 - **Predictions are Beta posteriors, and say so.** `predict.ts` (core):
   - Quality and the chance of finishing start from a prior worth four jobs.
     The prior is a cited benchmark (`BENCHMARKS`, empty for now) or the
@@ -366,7 +367,9 @@ The plan is `docs/plans/v3-plan.md`; progress, phase by phase, is in
 
   Only the verdict is stored (`grades`). The extra calls are
   `purpose = 'grading'`: they count in spend and are excluded from job
-  detection. The answers stay in memory for spot checks (owner question 4).
+  detection. The answers are held in memory only while the organisation has
+  spot checks on (their own switch): at most 50, for 24 hours or until a
+  restart. Turning spot checks off forgets them at once.
 - **Switching is a rule** (`trial-review.ts`).
   - **Approving** a passed trial writes a route rule for the agent, which
     shows in the register and the audit log.
