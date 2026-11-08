@@ -289,11 +289,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 /* the problem */
 /* The problem sits on a deep warm-black field with two soft champagne
    glows, top left and bottom right; the cards are frosted over it. */
-#problem { background:
-  radial-gradient(ellipse 55% 60% at 12% 10%, rgba(217, 180, 108, 0.26), transparent 72%),
-  radial-gradient(ellipse 55% 60% at 88% 85%, rgba(179, 139, 56, 0.30), transparent 72%),
-  #0c0b09;
-  /* The site's cool neutrals, warmed to sit on the gold. */
+#problem {
+  /* The site's cool neutrals, warmed to sit on the gold. The field itself is
+     drawn by #problem::before (soft edges, at the end of this file). */
   --surface-2: #1a1814; --bg: #0c0b09; --line: #2e2a22; --line-soft: #24211b; --outline: #4d4637; }
 
 /* The problem: a bento grid of five cards. One column on a phone, two
@@ -419,7 +417,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 
 /* ---------- research page ---------- */
 .label { font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
-.section.deep { background: var(--sidebar); }
+/* .section.deep draws its field in ::before, with soft edges (end of file). */
 .r-hero { padding: 56px 0 64px; }
 .r-hero h1 { font-size: 38px; line-height: 1.08; letter-spacing: -0.03em; margin-top: 14px; max-width: 20ch; }
 @media (min-width: 900px) { .r-hero { padding: 80px 0 88px; } .r-hero h1 { font-size: 56px; } }
@@ -477,3 +475,25 @@ td.evidence { color: var(--ink-2); font-size: 13.5px; }
 .layer b { display: block; color: var(--accent); font-size: 15px; }
 .layer p { margin-top: 6px; font-size: 14.5px; }
 .callout { margin-top: 24px; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 17px; font-weight: 600; color: var(--ink); }
+
+/* Soft edges: each coloured band (the problem's warm field, the research
+   page's darker bands, the hero's glows) is drawn on a masked layer behind
+   the content and fades in over --edge, so nothing moves. Static. */
+:root { --edge: 160px; }
+@media (max-width: 640px) { :root { --edge: 96px; } }
+#problem, .section.deep { position: relative; isolation: isolate; border-top-color: transparent; }
+#problem + .section, .section.deep + .section, main:has(> .section.deep:last-child) + .site-foot { border-top-color: transparent; }
+#problem::before, .section.deep::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--edge), #000 calc(100% - var(--edge)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--edge), #000 calc(100% - var(--edge)), transparent);
+}
+#problem::before { background:
+  radial-gradient(ellipse 55% 60% at 12% 10%, rgba(217, 180, 108, 0.26), transparent 72%),
+  radial-gradient(ellipse 55% 60% at 88% 85%, rgba(179, 139, 56, 0.30), transparent 72%),
+  #0c0b09; }
+.section.deep::before { background: var(--sidebar); }
+.hero-bg { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--edge)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--edge)), transparent);
+}
+
