@@ -88,8 +88,8 @@ export function reviewTrials(deps: TrialReviewDeps, now = Date.now(), opts: { er
         subject: trial.agentId,
         message:
           verdict.status === "passed"
-            ? `Trial of ${trial.candidateModel} for ${trial.agentId} passed: ${verdict.why}.`
-            : `Trial of ${trial.candidateModel} for ${trial.agentId} stopped: ${verdict.why}. Its jobs go to ${trial.baselineModel} again.`,
+            ? `The test of ${trial.candidateModel} for ${trial.agentId} passed: ${verdict.why}. You can switch it on the Tests screen.`
+            : `The test of ${trial.candidateModel} for ${trial.agentId} stopped: ${verdict.why}. All its jobs go to ${trial.baselineModel} again.`,
       },
       now,
     );
@@ -138,7 +138,7 @@ export function reviewTrials(deps: TrialReviewDeps, now = Date.now(), opts: { er
         kind: "switched-back",
         dedupeKey: `switch:${trial.id}:reverted`,
         subject: trial.agentId,
-        message: `${trial.agentId} is back on ${trial.baselineModel}: ${why}. The rule that switched it is off and kept in the register.`,
+        message: `${trial.agentId} is back on ${trial.baselineModel}, because ${why}. The switch is off, and kept in your list of rules.`,
       },
       now,
     );

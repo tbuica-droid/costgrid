@@ -115,7 +115,7 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
     if (perRequest !== undefined && typeof perRequest !== "boolean") return bad(reply, "perRequest must be true or false");
     // D14: choosing a model per request is switching on its own, so only after an approved trial.
     if (perRequest === true && !trials.hasApplied(tenantId, agentId)) {
-      return bad(reply, "approve one passed trial for this agent first; then it may choose a model per request");
+      return bad(reply, "Switch this agent once yourself, after a test passes. Then it can pick a model for each request.");
     }
     if (step !== undefined && step !== null && (typeof step !== "string" || findModelPrice(step) === undefined)) {
       return bad(reply, "the cheap model must be one CostGrid can price");
@@ -172,15 +172,15 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
     const agentId = typeof body["agentId"] === "string" ? body["agentId"] : "";
     const candidate = typeof body["candidateModel"] === "string" ? body["candidateModel"] : "";
     const sharePct = body["sharePct"] ?? 5;
-    if (typeof sharePct !== "number" || !(sharePct >= 1 && sharePct <= 20)) return bad(reply, "the share must be from 1% to 20% (D16 suggests about 5%)");
+    if (typeof sharePct !== "number" || !(sharePct >= 1 && sharePct <= 20)) return bad(reply, "Test on 1% to 20% of jobs. About 5% is a good start.");
     const minJobs = body["minJobs"] ?? 100;
     if (typeof minJobs !== "number" || !Number.isInteger(minJobs) || minJobs < 20 || minJobs > 100_000) {
       return bad(reply, "the minimum must be a whole number of jobs, at least 20");
     }
     const p = new Predictions(db).forAgent(tenantId, agentId);
-    if (p.current === undefined) return bad(reply, "this agent has sent no calls through CostGrid yet");
+    if (p.current === undefined) return bad(reply, "This agent hasn't sent any requests through CostGrid yet.");
     if (!p.ranked.some((r) => r.model === candidate)) {
-      return bad(reply, "that model is not one this agent may be sent to: opt it in, and price it if it is an open model");
+      return bad(reply, "This agent can't use that model yet. Allow it under Settings, and give it a price if it's an open model.");
     }
     const started = trials.start(tenantId, {
       agentId,
@@ -206,13 +206,13 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
     const trial = trials.get(tenantId, id);
     if (trial === undefined) return reply.code(404).send({ error: "no such trial" });
     if (action === "stop") {
-      if (trial.status !== "running") return bad(reply, "only a running trial can be stopped");
+      if (trial.status !== "running") return bad(reply, "Only a running test can be stopped.");
       trials.setStatus(tenantId, id, "stopped", "stopped by the owner");
       accounts.audit.record(tenantId, { actor: by(actor.user), action: "trial.stopped", subject: id, detail: { agent: trial.agentId } });
       return { id, status: "stopped" };
     }
     if (action === "approve") {
-      if (trial.status !== "passed") return bad(reply, "only a passed trial can be applied");
+      if (trial.status !== "passed") return bad(reply, "Only a test that passed can be switched on.");
       const policyId = applyTrial({ db, audit: accounts.audit }, tenantId, trial, by(actor.user));
       return { id, status: "applied", policyId };
     }
@@ -230,7 +230,7 @@ export function registerTrials(app: FastifyInstance, deps: TrialsDeps): void {
     if (switching !== undefined && switching !== "suggest" && switching !== "auto") return bad(reply, "switching must be suggest or auto");
     // D14: an agent may switch on its own only after a trial the owner applied.
     if (switching === "auto" && !trials.hasApplied(tenantId, agentId)) {
-      return bad(reply, "approve one passed trial for this agent first; then it may switch on its own");
+      return bad(reply, "Switch this agent once yourself, after a test passes. Then it can switch on its own.");
     }
     const ok = trials.setAgentSettings(tenantId, agentId, {
       ...(typeof critical === "boolean" ? { critical } : {}),

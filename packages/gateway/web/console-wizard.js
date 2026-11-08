@@ -86,7 +86,7 @@ export async function render() {
     : renderAgents(agentList.value, presets, connected);
 
   return `
-    ${pageHead("Set up CostGrid", "Three steps to see what each successful AI job costs you.")}
+    ${pageHead("Set up CostGrid", "Three steps to see what each finished AI job really costs you.")}
     ${flashBanner()}
     <ol class="stepper">
       ${step(1, "Sign in", "done", signedIn)}

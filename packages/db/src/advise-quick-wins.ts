@@ -51,12 +51,11 @@ export function lowerReasoningProposals(db: Db, tenantId: string, range: TimeRan
     out.push({
       kind: "lower-reasoning",
       intent: "finding",
-      headline: `${signal.agentId} thinks at length for short answers: try effort ${target}`,
+      headline: `${signal.agentId} thinks hard to give short answers: turn it down to ${target}`,
       evidence:
-        `${signal.calls} call(s) gave a short answer (under 200 tokens) after at least four times as much ` +
-        `reasoning, $${dollars} of reasoning in all. Most of its calls ask for effort ${effort}. ` +
-        "Turned down one level, it is measured on cost per finished job and switched back on its own " +
-        "if it costs more or fewer jobs finish.",
+        `${signal.calls} answers were short but took four times as long to think about, costing $${dollars} ` +
+        `in thinking. Most of its requests ask for "${effort}" effort. Turned down one notch, CostGrid checks ` +
+        "what each finished job costs, and turns it back up on its own if it costs more or fewer jobs get done.",
       rule: { kind: "lower-reasoning", effort: target },
       scope: { kind: "agent", agentId: signal.agentId },
       backtest: undefined,

@@ -1,7 +1,6 @@
 /**
  * The console's frame: a sidebar that folds to a rail of icons, a drawer on
- * small screens, a dock of the screens people use most, and a confirmation
- * dialog that replaces the browser's own.
+ * small screens, and a confirmation dialog that replaces the browser's own.
  *
  * Navigation itself is unchanged: every item here is a `[data-page]` button,
  * which console.js already handles. This file only lays them out.
@@ -10,9 +9,6 @@
 import { escapeHtml, icon } from "./ui.js";
 
 const FOLDED_KEY = "costgrid:nav-folded";
-
-/** The screens on the dock, in order. The rest stay in the sidebar and the drawer. */
-const DOCK = ["results", "advice", "limits", "setup"];
 
 function remember(folded) {
   try {
@@ -43,7 +39,7 @@ export function initShell() {
       remember(folded);
       return;
     }
-    if (event.target.closest("#menu-open, #menu-open-top")) {
+    if (event.target.closest("#menu-open-top")) {
       document.body.classList.add("nav-open");
       document.querySelector("#nav .nav-item")?.focus();
       return;
@@ -56,29 +52,6 @@ export function initShell() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") document.body.classList.remove("nav-open");
   });
-}
-
-/** The dock: the most used screens, one tap away, plus the full menu on small screens. */
-export function renderDock(pages, current, signedIn) {
-  const dock = document.getElementById("dock");
-  if (!dock) return;
-  if (!signedIn) {
-    dock.hidden = true;
-    dock.innerHTML = "";
-    return;
-  }
-  const labels = new Map(pages.map(([id, label]) => [id, label]));
-  dock.hidden = false;
-  dock.innerHTML =
-    DOCK.filter((id) => labels.has(id))
-      .map(
-        (id) => `<button type="button" class="dock-item" data-page="${id}" aria-current="${id === current}"
-          aria-label="${escapeHtml(labels.get(id))}">${icon(id)}<span class="dock-tip">${escapeHtml(labels.get(id))}</span></button>`,
-      )
-      .join("") +
-    `<button type="button" class="dock-item dock-menu" id="menu-open" aria-label="All screens">
-      <svg class="icon" viewBox="0 0 17 17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h11M3 8.5h11M3 12h11"/></svg>
-      <span class="dock-tip">All screens</span></button>`;
 }
 
 /**

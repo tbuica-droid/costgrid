@@ -1,8 +1,7 @@
 /*
  * The console's frame (console-shell.js): a sidebar that folds to a rail of
- * icons and opens while the pointer is on it, a drawer and dock on small
- * screens, the confirmation dialog, quiet scrollbars, and the liquid-metal
- * button for the few actions that change what CostGrid does to calls.
+ * icons and opens while the pointer is on it, a drawer on small screens, the
+ * confirmation dialog, and quiet scrollbars.
  *
  * Tokens only, so the light theme follows without a second set of rules.
  */
@@ -81,38 +80,9 @@
   }
   body.nav-open .sidebar { transform: none; }
   body.nav-open .nav-scrim { opacity: 1; pointer-events: auto; }
-  main { padding-bottom: 96px; }
 }
 
-/* -------------------------------------------------------------------- dock */
-
-.dock {
-  position: fixed; z-index: 40; left: 50%; bottom: 14px; transform: translateX(-50%);
-  display: flex; gap: 4px; padding: 6px; border-radius: 18px;
-  background: color-mix(in srgb, var(--cg-surface) 88%, transparent);
-  border: 1px solid var(--cg-line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.6);
-  animation: dock-float 4s ease-in-out infinite;
-}
-.dock[hidden] { display: none; }
-@keyframes dock-float { 0%, 100% { translate: 0 -2px; } 50% { translate: 0 2px; } }
-.dock-item {
-  position: relative; display: grid; place-items: center; width: 46px; height: 46px; border: 0; border-radius: 12px;
-  background: transparent; color: var(--cg-ink-2); cursor: pointer;
-  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
-}
-.dock-item .icon { width: 20px; height: 20px; }
-.dock-item:hover, .dock-item:focus-visible { background: var(--cg-surface-2); color: var(--cg-ink); transform: translateY(-2px) scale(1.08); }
-.dock-item[aria-current="true"] { color: var(--cg-accent); background: var(--cg-nav-active); }
-.dock-tip {
-  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
-  padding: 5px 9px; border-radius: 7px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
-  background: var(--cg-ink); color: var(--cg-bg); opacity: 0; pointer-events: none; transition: opacity 150ms ease;
-}
-.dock-item:hover .dock-tip, .dock-item:focus-visible .dock-tip { opacity: 1; }
-/* Wide windows have the sidebar; the dock is for phones and narrow windows. */
-@media (min-width: 901px) { .dock { display: none; } }
-@media (prefers-reduced-motion: reduce) { .dock { animation: none; } .shell, .sidebar, .sidebar-inner { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .shell, .sidebar, .sidebar-inner { transition: none; } }
 
 /* ------------------------------------------------------------------ dialog */
 
@@ -133,18 +103,3 @@ dialog.dlg::backdrop { background: rgba(4, 5, 8, 0.7); backdrop-filter: blur(4px
   border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--cg-ink-3); cursor: pointer;
 }
 .dlg-x:hover { color: var(--cg-ink); background: var(--cg-surface-2); border-color: var(--cg-line); }
-
-/* ---------------------------------------------------- liquid-metal button */
-
-@property --metal-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
-.btn-metal {
-  border: 2px solid transparent; color: #fff7e3; font-weight: 700; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  background:
-    linear-gradient(180deg, #23252b, #07080a) padding-box,
-    conic-gradient(from var(--metal-angle), #6b5428, #f6e2b3, #b38b38, #fffaf0, #8a6a2e, #e9cf95, #6b5428) border-box;
-  box-shadow: 0 10px 26px -14px rgba(217, 180, 108, 0.6);
-  animation: metal-spin 6s linear infinite;
-}
-.btn-metal:hover { color: #fff; animation-duration: 2.4s; border-color: transparent; }
-@keyframes metal-spin { to { --metal-angle: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .btn-metal { animation: none; } }

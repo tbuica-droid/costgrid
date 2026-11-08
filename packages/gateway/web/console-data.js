@@ -100,7 +100,7 @@ export async function render() {
   ]);
 
   return `
-    ${pageHead("Your data", "Where it is, whether it has been touched, and how to take it away.")}
+    ${pageHead("Your data", "Where it's kept, proof nobody has changed it, and how to take it with you.")}
     ${flashBanner()}
 
     <h2 style="margin-top:22px">Backup</h2>

@@ -61,9 +61,8 @@ export async function render() {
   return `
     ${pageHead(
       "What changed",
-      `What your agents started doing that they never did before, compared
-      against the 30 days before the window. Nothing here reads content: it is names, counts and
-      who handed work to whom.`,
+      `Things your agents started doing that they never did before, compared with the 30 days
+      before. Only names and counts are used, never what anyone wrote.`,
       `<form id="drift-window" class="form-row">
         <select name="days" aria-label="Window">
           ${[1, 7, 30].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} day${d === 1 ? "" : "s"}</option>`).join("")}

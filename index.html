@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0b0d12" />
-    <title>CostGrid: cut your AI bill, pay for work that gets done</title>
-    <meta name="description" content="Cut your OpenAI and Claude bill. CostGrid finds where your AI agents waste money and cuts it: half-price batch work, cached prompts, lighter reasoning and cheaper models where they do the job. Free Mac app. Never keeps your data." />
-    <meta property="og:title" content="CostGrid: cut your AI bill" />
-    <meta property="og:description" content="Pay for the AI work that gets done, not for every try. Half-price batch work, cached prompts, lighter reasoning and cheaper models, each tested on your own traffic first." />
+    <title>CostGrid: find and cut the waste in your AI bill</title>
+    <meta name="description" content="Your AI agents are wasting money. CostGrid shows what every finished job really costs, then cuts the waste: half-price batch work, cheaper repeat prompts, less overthinking, cheaper models where they do just as well. Free Mac app." />
+    <meta property="og:title" content="Your AI is wasting money. CostGrid finds it and cuts it." />
+    <meta property="og:description" content="See what every finished job really costs, then pay less for it. Every change is tried on your own work first, and undone if it stops paying. Free Mac app." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://costgrid.dev/" />
     <meta property="og:site_name" content="CostGrid" />
@@ -16,7 +16,6 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
     <link rel="preload" href="fonts/plus-jakarta-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="site.css" />
-    <link rel="stylesheet" href="site-motion.css" />
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -41,43 +40,34 @@
           CostGrid
         </a>
         <nav class="site-nav" aria-label="Site">
-          <a href="#save">Cut the bill</a>
+          <a href="#save">How it saves</a>
           <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
           <a href="#privacy">Privacy</a>
           <a href="./research.html">Research</a>
         </nav>
-        <a class="btn btn-accent btn-sm" href="#download" data-dialog-open="dl-dialog">Download free</a>
+        <a class="btn btn-accent btn-sm only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download free</a>
+        <a class="btn btn-accent btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Get it for your Mac</a>
       </div></div>
     </header>
 
     <main>
-      <!-- Hero. The video (served from this site, media/) sits in a framed card that grows to fill
-           the screen as you scroll (site-motion.js). Without the script, or with reduced motion, it is
-           a still section and the video never loads. -->
-      <section class="xhero" id="top" aria-labelledby="heroTitle">
-        <div class="xhero-stick">
-          <div class="xhero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span></div>
-          <div class="xhero-media" aria-hidden="true">
-            <div class="xhero-still"></div>
-            <video data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video>
-            <div class="xhero-shade"></div>
+      <!-- Hero: says what CostGrid does in one look, with the download one click away. The video is
+           served from this site (media/) and starts only for visitors who allow motion (hero.js). -->
+      <section class="hero" id="top">
+        <div class="hero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span>
+          <video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
+        <div class="wrap hero-in">
+          <span class="overline">For businesses running AI agents</span>
+          <h1 id="heroTitle"><span class="line">Your AI is wasting money.</span> <span class="line hero-accent">CostGrid finds it and cuts it.</span></h1>
+          <script src="hero.js"></script>
+          <p class="sub">See what every finished job really costs, then pay less for it. Every change is tried on your own work first, and undone if it stops paying.</p>
+          <div class="cta-row">
+            <a class="btn btn-accent btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download free for Mac</a>
+            <a class="btn btn-accent btn-lg only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
+            <a class="btn btn-lg glass" href="#save">See how it saves money</a>
           </div>
-          <div class="xhero-copy">
-            <span class="overline">For businesses running AI agents on OpenAI or Claude</span>
-            <h1 id="heroTitle"><span class="half half-l">Cut your</span> <span class="half half-r">AI bill.</span></h1>
-            <p class="sub">Stop paying for every try. CostGrid finds where your agents waste money and cuts it: half-price batch work, cached prompts, lighter reasoning, and cheaper models wherever they do the job just as well.</p>
-            <div class="cta-row">
-              <a class="btn btn-metal btn-lg" href="#download" data-dialog-open="dl-dialog">Download free for Mac</a>
-              <a class="btn btn-lg glass" href="#save" data-dialog-open="how-dialog">How it cuts the bill</a>
-            </div>
-            <p class="proof"><span>Free to start</span><span>Tested on your traffic first</span><span>Undoes itself if quality drops</span><span>Never keeps your prompts</span></p>
-          </div>
-          <div class="xhero-after" aria-hidden="true">
-            <p>Every job priced. Every waste cut.</p>
-            <span>See what each finished job really costs, then pay less for it.</span>
-          </div>
-          <p class="xhero-hint" aria-hidden="true">Scroll</p>
+          <p class="small">Free · No sign-up · Runs on your Mac · Never keeps your prompts<span class="only-mac"> · <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Older Intel Mac?</a></span></p>
         </div>
       </section>
 
@@ -138,7 +128,7 @@
       <section class="section" id="problem">
         <div class="wrap">
           <span class="overline">The problem</span>
-          <h2 class="head">Your AI bill counts attempts, not finished jobs.</h2>
+          <h2 class="head">Your AI bill charges for every try, not just the jobs that got done.</h2>
           <div class="bento">
             <article class="bento-card bento-a">
               <div class="bento-swoosh">
@@ -215,65 +205,35 @@
         </div>
       </section>
 
-      <section class="section" id="how">
+      <section class="section" id="save">
         <div class="wrap">
-          <span class="overline">How it works</span>
-          <h2 class="head">Connect. See the waste. Cut it.</h2>
-          <div class="grid g3" style="margin-top: 40px">
-            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add an admin key, or drop in the usage file you can download from OpenAI or Claude, and CostGrid imports your last 90 days. The key goes into your Mac's Keychain, and if you give it an expiry date, CostGrid stops using it then. Then say which agent uses each key.</p></div>
-            <div class="card"><span class="step-no">Step 2</span><h3>See which jobs got done</h3><p>If your agents send requests through CostGrid (a small change for whoever set them up), CostGrid estimates which jobs finished from how each agent behaved. Their software can also report it exactly. Otherwise, enter how many jobs finished each month.</p></div>
-            <div class="card"><span class="step-no">Step 3</span><h3>See the real cost per job</h3><p>Failed and retried attempts are charged to the jobs that worked. Each agent gets one plain sentence, such as steady, mostly failing, unpredictable, too early to say, or spending with nothing finished. Add how long a person takes and it compares the two. All figures are indicative.</p></div>
+          <span class="overline">How it saves money</span>
+          <h2 class="head">Six ways to a smaller AI bill.</h2>
+          <p class="lede">Point your agents at CostGrid (a one-line change for whoever set them up) and it stops just showing the waste and starts cutting it. Nothing changes until you say so.</p>
+          <div class="grid g3 save-grid">
+            <div class="card save-card"><span class="save-big">Half price</span><h3>Work that can wait</h3><p>Overnight reports, bulk summaries, tagging. CostGrid sends them through OpenAI's and Claude's batch services, which charge half the normal price.</p></div>
+            <div class="card save-card"><span class="save-big">A tenth</span><h3>Instructions you send every time</h3><p>Most agents send the same long instructions with every request. CostGrid marks them so Claude charges a tenth of the price for the repeats.</p></div>
+            <div class="card save-card"><span class="save-big">Less thinking</span><h3>Agents that overthink easy jobs</h3><p>You pay for every word an AI thinks. When an agent thinks at length to give a short answer, CostGrid turns it down a notch.</p></div>
+            <div class="card save-card"><span class="save-big">Cheaper model</span><h3>Simple work on an expensive model</h3><p>CostGrid tries a cheaper model on a small share of the work, side by side, and only switches when the answers are just as good.</p></div>
+            <div class="card save-card"><span class="save-big">No runaways</span><h3>Agents stuck in a loop</h3><p>Set a limit per job, per day or per month, and a runaway agent stops before it runs up the bill.</p></div>
+            <div class="card save-card"><span class="save-big">Less waste</span><h3>Money spent on jobs that fail</h3><p>See how much of your bill goes on attempts that never finish, agent by agent, and fix the worst one first.</p></div>
+          </div>
+          <div class="save-safe">
+            <p><b>Nothing changes until you say so.</b> Each saving starts as a test that only records what it would have done.</p>
+            <p><b>Measured on your own work.</b> You see the cost of a finished job before and after, not a guess.</p>
+            <p><b>Undone if it stops paying.</b> If a change costs more, or fewer jobs get done, CostGrid switches it back and tells you.</p>
           </div>
         </div>
       </section>
 
-      <section class="section" id="save">
+      <section class="section" id="how">
         <div class="wrap">
-          <span class="overline">Lower bill</span>
-          <h2 class="head">Six ways CostGrid makes your AI bill smaller.</h2>
-          <p class="lede">Send your agents' requests through CostGrid (a one-line change for whoever set them up) and it stops reporting waste and starts cutting it. Each saving is tried as a dry run first, measured on your own traffic, and switched back on its own if it stops paying.</p>
-          <div class="wins">
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-              <span class="win-big">Half price</span>
-              <h3>Work that can wait</h3>
-              <p>Overnight reports, bulk summaries, tagging. CostGrid sends them through OpenAI's and Claude's batch services, which charge half the normal price, then hands the answers back.</p>
-            </article>
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10c0 1.7 4 3 9 3s9-1.3 9-3V7"/><ellipse cx="12" cy="7" rx="9" ry="3"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></div>
-              <span class="win-big">A tenth</span>
-              <h3>The same instructions, sent again and again</h3>
-              <p>Most agents send the same long instructions with every request. CostGrid marks them for caching, so Claude bills the repeats at a tenth of the normal input price.</p>
-            </article>
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg></div>
-              <span class="win-big">Less thinking</span>
-              <h3>Agents that overthink simple jobs</h3>
-              <p>You pay for every word an AI "thinks". When an agent thinks at length to give a short answer, CostGrid turns the thinking down a notch and checks that jobs still get done.</p>
-            </article>
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></div>
-              <span class="win-big">Cheaper model</span>
-              <h3>Simple work on an expensive model</h3>
-              <p>CostGrid spots work a cheaper model can do, shows you what switching would have saved, and makes the switch when you say so.</p>
-            </article>
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></div>
-              <span class="win-big">No runaways</span>
-              <h3>Agents stuck in a loop</h3>
-              <p>A limit per job, per day or per month stops a runaway agent before it runs up the bill. Or it keeps the agent working on a cheaper model instead.</p>
-            </article>
-            <article class="win-card">
-              <div class="win-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
-              <span class="win-big">Less waste</span>
-              <h3>Money spent on jobs that fail</h3>
-              <p>CostGrid shows what share of your bill goes on attempts that never finish, agent by agent, so you fix the worst one first.</p>
-            </article>
-          </div>
-          <div class="safety">
-            <div><b>Dry run first</b><span>Each saving records what it would change, and changes nothing, until you switch it on.</span></div>
-            <div><b>Measured on your traffic</b><span>Cost per finished job before and after, not a guess based on list prices.</span></div>
-            <div><b>Undoes itself</b><span>If a saving costs more, or fewer jobs finish, CostGrid switches it back and tells you.</span></div>
+          <span class="overline">How it works</span>
+          <h2 class="head">Up and running in three steps.</h2>
+          <div class="grid g3" style="margin-top: 40px">
+            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add a key, or drop in the usage file you can download from either one. CostGrid brings in your last 90 days and shows what each of your agents costs. Your key stays in your Mac's Keychain.</p></div>
+            <div class="card"><span class="step-no">Step 2</span><h3>See what each finished job costs</h3><p>Point your agents at CostGrid, a one-line change for whoever set them up. It sees which jobs got done and which failed, and adds failed attempts to the cost of the ones that worked.</p></div>
+            <div class="card"><span class="step-no">Step 3</span><h3>Switch on the savings</h3><p>CostGrid suggests ways to save. Each one runs as a test first, so you see the saving before anything changes, and it keeps checking after you switch it on.</p></div>
           </div>
         </div>
       </section>
@@ -322,70 +282,70 @@
       <section class="section" id="pricing">
         <div class="wrap">
           <span class="overline">Pricing</span>
-          <h2 class="head">Start cutting for free.</h2>
+          <h2 class="head">See the waste for free. Cut it when you're ready.</h2>
           <div class="plans">
             <div class="plan">
               <h3>View</h3>
               <p class="price">Free</p>
-              <p class="muted" style="margin-top: 6px">See where the money goes.</p>
+              <p class="muted" style="margin-top: 6px">See where your AI money goes.</p>
               <ul>
-                <li>Costs per agent</li>
-                <li>Cost per successful job</li>
-                <li>Share of spend on failed attempts</li>
-                <li>How much the cost of the same job varies</li>
-                <li>Comparison with your estimate for a person</li>
+                <li>What each agent costs</li>
+                <li>What each finished job costs</li>
+                <li>How much goes on attempts that fail</li>
+                <li>How much the same job's cost jumps around</li>
+                <li>How it compares with a person doing it</li>
                 <li>Warnings about risky key setups</li>
-                <li>Half-price batch work, prompt caching and lighter reasoning</li>
-                <li>Move work to a cheaper model, tested first</li>
+                <li>Budgets, limits and a stop button</li>
               </ul>
-              <p class="small" style="margin-top: 12px">Failed-attempt share and cost spread need the agent's requests to go through CostGrid; for other agents you can enter a monthly count of finished jobs. The app also includes budgets, limits and a stop button for AI traffic you send through CostGrid, with alerts on your Mac.</p>
-              <a class="btn btn-accent" href="#download">Download for Mac</a>
+              <p class="small" style="margin-top: 12px">Failed attempts and the cost of each job need your agents to go through CostGrid. For other agents, you can type in how many jobs got done each month.</p>
+              <a class="btn btn-accent" href="#download">Download free</a>
             </div>
             <div class="plan control">
               <h3>View and control</h3>
               <p class="price">Pricing on request</p>
               <p class="muted" style="margin-top: 6px">Everything in View, plus:</p>
               <ul>
-                <li>Pause an agent's Claude keys with one click (OpenAI has no way to pause a key)</li>
-                <li>A monthly cap per agent, checked against the provider's usage report</li>
-                <li>Alerts when an agent is paused or a cap is reached</li>
-                <li>Measured stop time: we time how long a pause takes to work and show you the number</li>
+                <li>All six ways to save: batch work, repeat prompts, less overthinking, cheaper models</li>
+                <li>Cheaper models tried on a small share of work first, and switched only when they pass</li>
+                <li>Open models, and moving work between Claude and OpenAI</li>
+                <li>Pause an agent's Claude keys with one click</li>
+                <li>A monthly cap per agent, with an alert when it's reached</li>
               </ul>
               <a class="btn" href="#setup">Contact us for a quote</a>
             </div>
           </div>
-          <p class="small" style="margin-top: 20px">A cap acts on the provider's usage report, which runs behind, so spending stops some time after the cap is crossed, not at once. Tell us about your setup below and we'll send you a quote.</p>
+          <p class="small" style="margin-top: 20px">A monthly cap works from the provider's usage report, which runs a little behind, so spending stops shortly after the cap is passed, not to the cent. Tell us about your setup below and we'll send you a quote.</p>
         </div>
       </section>
 
       <section class="section" id="privacy">
         <div class="wrap">
-          <span class="overline">Privacy and key safety</span>
-          <h2 class="head">Your data stays on your computer.</h2>
+          <span class="overline">Privacy and keys</span>
+          <h2 class="head">Your data stays yours.</h2>
           <div class="facts">
-            <div class="card"><h3>Runs on your computer</h3><p>CostGrid is a Mac app. It works out your costs on your own machine, not on our servers.</p></div>
-            <div class="card"><h3>Never keeps prompts or AI answers</h3><p>To notice when the same job is asked again, CostGrid turns the first message of each job into a one-way code on your computer. The words are never saved, the code can't be turned back into them, it never leaves your computer, and it's deleted with your other call records. You can turn this off in Settings.</p></div>
-            <div class="card"><h3>Keys locked with your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them is kept in the Keychain, where macOS keeps your saved passwords. Your keys are only ever sent to OpenAI or Anthropic, never to us. An admin key you connect goes straight into the Keychain, never into CostGrid's own files, and CostGrid stops using it on the expiry date you chose.</p></div>
-            <div class="card"><h3>Nothing leaves unless you choose</h3><p>Nothing is sent from your computer unless you turn it on. With View and control, pausing a key sends Anthropic only that key's id and whether to turn it off or on, and the app shows you exactly that before you press anything.</p></div>
-            <div class="card"><h3>One key per agent, with an expiry date</h3><p>We recommend it. You see each agent's cost on its own, you can switch one off without touching the others, and a key with an expiry date stops working on its own.</p></div>
-            <div class="card"><h3>What this protects against</h3><p>Your keys aren't sitting readable in plain files, settings or code, and a copied CostGrid folder holds only encrypted keys it can't unlock on another Mac. It can't protect against malware already running on the same Mac; that is out of scope.</p></div>
+            <div class="card"><h3>Your prompts only go where you choose</h3><p>When one of your agents asks AI to do something, CostGrid passes the request to the AI company that agent already uses, OpenAI or Anthropic. It only sends it somewhere else if you've said that's fine for that agent and set up a rule to do it, for example to the other of those two, or to a service running open models that you've connected with your own account. That service then looks after the request under its own terms. Your keys only ever go to the service they belong to. We never see them.</p></div>
+            <div class="card"><h3>We don't keep your prompts or answers</h3><p>CostGrid reads each request and answer as it goes by, to work out what it cost and whether it came back right. Then it lets them go. If you turn on grading, a stronger AI you already use compares two answers on a small sample of test jobs, and all we keep is which one it preferred. If you also turn on spot checks, those two answers wait in the app's memory, never saved to disk, so you can read them yourself. We hold at most 50, for no more than a day, and they're gone as soon as the app restarts or you switch spot checks off.</p></div>
+            <div class="card"><h3>It runs on your Mac</h3><p>CostGrid works out your costs on your own computer, not on our servers.</p></div>
+            <div class="card"><h3>Repeat jobs, spotted without the words</h3><p>To notice when the same job is asked twice, CostGrid keeps a one-way code of the job's first message. It can't be turned back into words, it never leaves your Mac, and you can switch it off.</p></div>
+            <div class="card"><h3>Keys locked in your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them sits in your Mac's Keychain, next to your saved passwords. A copied CostGrid folder is useless on another Mac.</p></div>
+            <div class="card"><h3>One key per agent, with an end date</h3><p>We suggest it. You see each agent's cost on its own, you can switch one off without touching the rest, and a key with an end date stops working by itself.</p></div>
           </div>
         </div>
       </section>
 
       <section class="section" id="faq">
         <div class="wrap">
-          <span class="overline">FAQ</span>
+          <span class="overline">Questions</span>
           <h2 class="head">Straight answers.</h2>
           <div class="faq">
-            <details><summary>How does it lower my bill?</summary><p>Six ways: half-price batch work for jobs that can wait, caching for instructions sent again and again, less "thinking" for agents that overthink, cheaper models where they do the job, limits that stop runaway agents, and a clear view of the money spent on jobs that fail. The first five need your agents' requests to go through CostGrid.</p></details>
-            <details><summary>Will it make my AI worse?</summary><p>Every saving starts as a dry run that changes nothing, so you can see what it would do. Once you switch one on, CostGrid compares cost and finished jobs before and after on your own traffic. If it costs more, or fewer jobs finish, it switches back on its own and tells you.</p></details>
-            <details><summary>Does it read my data?</summary><p>CostGrid never stores your prompts, your customers' messages or the AI's answers, and sends them only to the AI provider you already use. It saves usage records and, if job matching is on, a one-way code made from each job's first message.</p></details>
-            <details><summary>Does it stop hallucinations?</summary><p>No. CostGrid does not detect hallucinations or check whether an answer is right. It shows what failed and re-run attempts cost you, so you can see which agents waste the most money and fix those first.</p></details>
-            <details><summary>Do I need to be technical?</summary><p>No. Download the app and connect OpenAI or Claude. If a freelancer or someone else set up your AI, CostGrid writes a message you can send them, asking for what it needs.</p></details>
-            <details><summary>What does it work with?</summary><p>OpenAI and Claude today, including agents built in tools like n8n, as long as they run on your own OpenAI or Claude account. To read usage directly, CostGrid needs a key made by someone with an admin or owner role on that account. Without one, drop in the usage file that a developer or billing user can download.</p></details>
-            <details><summary>Is there a Windows version?</summary><p>It's coming. CostGrid is Mac only today.</p></details>
-            <details><summary>Is it open source?</summary><p>No, it's source-available. You can read the code under the Functional Source License (FSL-1.1-ALv2), and each version becomes available under the Apache 2.0 licence two years after its release. The LCSO method behind the numbers is published under CC BY 4.0, so anyone can use it with credit.</p></details>
+            <details><summary>How does it lower my bill?</summary><p>Six ways: half price for work that can wait, a tenth of the price for instructions sent again and again, less thinking for agents that overthink, cheaper models where they do just as well, limits that stop runaway agents, and a clear view of the money spent on jobs that fail. All but the last need your agents to go through CostGrid.</p></details>
+            <details><summary>Will it make my AI worse?</summary><p>It's built not to. Every saving starts as a test that changes nothing, so you see what it would do. A cheaper model is tried on a small share of the work first, side by side, and only used if the answers are just as good. If anything gets worse after a change, CostGrid switches it back on its own and tells you.</p></details>
+            <details><summary>Does it read my data?</summary><p>It looks at each request and answer as it passes, to see what it cost and whether it worked, and doesn't keep either. Your requests go to the AI company your agent already uses, and only go anywhere else if you've said so for that agent. If you turn on spot checks, a few answers are held in memory, never saved, for up to a day so you can read them yourself.</p></details>
+            <details><summary>Do I need to be technical?</summary><p>No. Download the app and connect OpenAI or Claude. If a freelancer or someone else set up your AI, CostGrid writes a message you can send them, saying exactly what it needs.</p></details>
+            <details><summary>What does it work with?</summary><p>OpenAI and Claude, including agents built in tools like n8n, as long as they use your own account. To read your usage directly, CostGrid needs a key made by an admin or owner of that account. Without one, drop in the usage file anyone with billing access can download.</p></details>
+            <details><summary>Does it stop made-up answers?</summary><p>Not directly. CostGrid doesn't check whether an answer is true. It does check whether an answer came back cut off, refused or in the wrong format, counts what failed attempts cost you, and shows which agents waste the most.</p></details>
+            <details><summary>Is there a Windows version?</summary><p>It's on the way. CostGrid is Mac only for now.</p></details>
+            <details><summary>Is it open source?</summary><p>You can read all of the code. It's published under the Functional Source License (FSL-1.1-ALv2), and each version becomes Apache 2.0 open source two years after it's released. The method behind the numbers is free for anyone to use, with credit.</p></details>
           </div>
         </div>
       </section>
@@ -393,22 +353,20 @@
       <section class="section" id="download">
         <div class="wrap">
           <span class="overline">Download</span>
-          <h2 class="head">Get CostGrid for Mac.</h2>
-          <p class="lede">Free to use. No sign-in needed.</p>
+          <h2 class="head">Find out where your AI money goes.</h2>
+          <p class="lede">Free. No sign-up. Your first numbers in minutes.</p>
           <div class="dl-box">
-            <p class="muted">Most Macs sold since late 2020 have an Apple chip. Not sure? Click the Apple menu, then About This Mac: it says Apple or Intel next to "Chip" or "Processor".</p>
             <div class="dl-btns">
-              <a class="btn btn-accent btn-lg" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg">Download for Apple chip</a>
-              <a class="btn btn-lg" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg">Download for Intel</a>
-              <span class="small">Windows: coming soon</span>
+              <a class="btn btn-accent btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download for Mac</a>
+              <a class="btn btn-accent btn-lg only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
+              <a class="btn btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Older Intel Mac</a>
             </div>
-            <div class="note">
+            <p class="small" style="margin-top: 14px">Most Macs from late 2020 on have an Apple chip. Not sure? Apple menu → About This Mac says Apple or Intel next to Chip.</p>
+            <div class="note" id="first-open">
               <strong>The first time you open it</strong><br /><br />
-              CostGrid isn't registered with Apple yet, so macOS will say it can't check the app
-              and stop it from opening. That's expected. To get past it once: open
-              <strong>System Settings → Privacy &amp; Security</strong>, scroll down to the message
-              about CostGrid, and click <strong>Open Anyway</strong>. After that it opens like any
-              other app.
+              CostGrid isn't registered with Apple yet, so your Mac will say it can't check the app and won't open it.
+              That's expected, and you only do this once: open <strong>System Settings → Privacy &amp; Security</strong>,
+              scroll down to the message about CostGrid, and click <strong>Open Anyway</strong>.
             </div>
           </div>
         </div>
@@ -427,11 +385,6 @@
                   <label for="signinEmail">Email</label>
                   <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" />
                   <p class="err" id="signinErr">Enter a valid email address.</p>
-                </div>
-                <!-- Honeypot: hidden from people and screen readers, so only bots fill it in. site.js drops any sign-in that does. -->
-                <div aria-hidden="true" style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden">
-                  <label for="signinWebsite">Website</label>
-                  <input id="signinWebsite" name="website" type="text" tabindex="-1" autocomplete="off" />
                 </div>
                 <button type="submit" class="btn btn-accent" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
                 <p class="small" style="text-align: center; margin-top: 12px">No password: we email you a one-time link. The account is for this website only.</p>
@@ -491,95 +444,27 @@
       </section>
     </main>
 
-    <!-- Revealed like a curtain as the page ends (site-motion.css); a plain footer on small screens. -->
-    <div class="cine">
-      <footer class="cine-foot">
-        <div class="cine-aurora" aria-hidden="true"></div>
-        <div class="cine-grid" aria-hidden="true"></div>
-        <div class="cine-giant" aria-hidden="true">COSTGRID</div>
-        <div class="cine-marquee" aria-hidden="true">
-          <div class="cine-track">
-            <span>Half-price batch work</span><span class="star">✦</span><span>Cached prompts</span><span class="star">✦</span><span>Lighter reasoning</span><span class="star">✦</span><span>Cheaper models that pass the test</span><span class="star">✦</span><span>Runaway agents stopped</span><span class="star">✦</span><span>Never keeps your prompts</span><span class="star">✦</span>
-            <span>Half-price batch work</span><span class="star">✦</span><span>Cached prompts</span><span class="star">✦</span><span>Lighter reasoning</span><span class="star">✦</span><span>Cheaper models that pass the test</span><span class="star">✦</span><span>Runaway agents stopped</span><span class="star">✦</span><span>Never keeps your prompts</span><span class="star">✦</span>
-          </div>
+    <footer class="site-foot">
+      <div class="wrap">
+        <div class="foot-facts">
+          <span>Never keeps prompts or answers</span>
+          <span>Keys locked with your Mac's Keychain</span>
+          <span>Source-available under FSL-1.1-ALv2</span>
         </div>
-        <div class="cine-main">
-          <h2>Ready to cut your AI bill?</h2>
-          <p>Free to start. Connect OpenAI or Claude and see where the money goes in minutes.</p>
-          <div class="cine-pills">
-            <a class="pill-glass" data-magnetic href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-              Mac with Apple chip</a>
-            <a class="pill-glass" data-magnetic href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-              Mac with Intel</a>
-          </div>
-          <nav class="cine-links" aria-label="Footer">
-            <a class="pill-glass sm" data-magnetic href="./research.html">Research</a>
-            <a class="pill-glass sm" data-magnetic href="./research.html#lcso">The LCSO method</a>
-            <a class="pill-glass sm" data-magnetic href="./demo/">Demo</a>
-            <a class="pill-glass sm" data-magnetic href="#privacy">Privacy</a>
-            <a class="pill-glass sm" data-magnetic href="#setup">Get a quote</a>
+        <div class="foot-bot">
+          <span>costgrid.dev · built by Tomas Buica</span>
+          <nav aria-label="Footer">
+            <a href="./research.html">Research</a>
+            <a href="./research.html#lcso">The LCSO method</a>
+            <a href="./demo/">Demo (needs a sign-in link)</a>
+            <a href="#download">Download</a>
           </nav>
         </div>
-        <div class="cine-bottom">
-          <div class="cine-facts"><span>Never keeps prompts or answers</span><span>Keys locked with your Mac's Keychain</span><span>Source-available under FSL-1.1-ALv2</span></div>
-          <span>costgrid.dev · built by Tomas Buica</span>
-          <button type="button" class="pill-glass cine-top" data-magnetic data-to-top aria-label="Back to top">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
-          </button>
-        </div>
-      </footer>
-    </div>
-
-    <!-- Quick jumps, shown once the hero is behind you. -->
-    <nav class="dock" aria-label="Jump to">
-      <a href="#save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg><span class="tip">Cut the bill</span></a>
-      <a href="#how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="tip">How it works</span></a>
-      <a href="#pricing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42Z"/><path d="M7 7h.01"/></svg><span class="tip">Pricing</span></a>
-      <a href="#privacy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/></svg><span class="tip">Privacy</span></a>
-      <a href="#faq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg><span class="tip">Questions</span></a>
-      <a class="go" href="#download" data-dialog-open="dl-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg><span class="tip">Download free</span></a>
-    </nav>
-
-    <dialog class="dlg" id="how-dialog" aria-labelledby="how-dialog-title">
-      <div class="dialog-head">
-        <h2 id="how-dialog-title">How CostGrid cuts your AI bill</h2>
-        <p>Four steps, and nothing changes until you say so.</p>
       </div>
-      <div class="dialog-body">
-        <ol class="dlg-steps">
-          <li><span class="dlg-no">1</span><div><b>Connect OpenAI or Claude</b><span>Import 90 days of usage in a minute. You see the cost of every finished job, agent by agent.</span></div></li>
-          <li><span class="dlg-no">2</span><div><b>CostGrid finds the waste</b><span>Overthinking, repeated instructions, work that could wait, expensive models on simple jobs, runaway loops.</span></div></li>
-          <li><span class="dlg-no">3</span><div><b>It tries each fix as a dry run</b><span>It shows what would have changed and what it would have saved, on your own traffic.</span></div></li>
-          <li><span class="dlg-no">4</span><div><b>You switch it on, and it keeps checking</b><span>Cost per finished job is measured before and after. If a fix stops paying, it switches back and tells you.</span></div></li>
-        </ol>
-      </div>
-      <div class="dialog-foot">
-        <a class="btn" href="#save">See all six savings</a>
-        <a class="btn btn-accent" href="#download" data-dialog-open="dl-dialog">Download free</a>
-      </div>
-      <button type="button" class="dialog-x" data-dialog-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </dialog>
-
-    <dialog class="dlg" id="dl-dialog" aria-labelledby="dl-dialog-title">
-      <div class="dialog-head">
-        <h2 id="dl-dialog-title">Download CostGrid for Mac</h2>
-        <p>Free, no sign-in needed. Pick your Mac's chip.</p>
-      </div>
-      <div class="dialog-body">
-        <div class="dl-choice">
-          <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg"><span>Apple chip (M1 and later)<small>Most Macs sold since late 2020</small></span><span aria-hidden="true">↓</span></a>
-          <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg"><span>Intel<small>Older Macs</small></span><span aria-hidden="true">↓</span></a>
-        </div>
-        <p class="small" style="margin-top: 14px">Not sure? Apple menu → About This Mac shows "Apple" or "Intel" next to Chip or Processor. The first time you open it, macOS asks you to allow it in System Settings → Privacy &amp; Security. <a href="#download">More help</a></p>
-      </div>
-      <button type="button" class="dialog-x" data-dialog-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-    </dialog>
+    </footer>
 
     <script src="vendor/supabase-js-2.117.1.js"></script>
     <script src="auth.js"></script>
     <script src="site.js"></script>
-    <script src="site-motion.js"></script>
   </body>
 </html>

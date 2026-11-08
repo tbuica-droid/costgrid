@@ -102,9 +102,9 @@ export class TrialsRepository {
     t: { agentId: string; baselineModel: string; candidateModel: string; shareMilli?: number; minJobs?: number },
     at = Date.now(),
   ): Trial | string {
-    if (this.agentSettings(tenantId, t.agentId).critical) return "this agent's work is marked critical, so it is never tested on";
-    if (this.runningFor(tenantId, t.agentId) !== undefined) return "this agent already has a trial running";
-    if (t.baselineModel === t.candidateModel) return "the candidate must differ from the model it uses now";
+    if (this.agentSettings(tenantId, t.agentId).critical) return "This agent's work is marked critical, so it's never tested.";
+    if (this.runningFor(tenantId, t.agentId) !== undefined) return "This agent already has a test running.";
+    if (t.baselineModel === t.candidateModel) return "Pick a different model from the one it uses now.";
     const id = `trial_${randomUUID().slice(0, 8)}`;
     this.#db
       .prepare(

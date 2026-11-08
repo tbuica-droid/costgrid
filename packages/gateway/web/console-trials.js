@@ -1,44 +1,54 @@
 /**
- * Trials: test a cheaper model on a small share of one agent's jobs, side by
- * side with the model it uses now, and switch only on evidence (v3, phase 5).
+ * Tests (trials in the code): try a cheaper model on a small share of one
+ * agent's jobs, side by side with the model it uses now, and switch only on
+ * evidence (v3, phases 5 and 6).
  */
 
 import { call, flashBanner, state } from "./console-api.js";
 import { isOwner } from "./console-outcomes.js";
-import { button, escapeHtml, money, pageHead, relativeTime } from "./ui.js";
+import { button, escapeHtml, pageHead, relativeTime } from "./ui.js";
+
+/** Per-job costs are often under a cent, so show four decimals below a dollar. */
+const money = (usd) => {
+  const n = Number(usd);
+  return `$${n < 1 ? n.toFixed(4) : n.toFixed(2)}`;
+};
 
 const STATUS = {
-  running: '<span class="tag monitor">running</span>',
-  passed: '<span class="tag on">passed: waiting for you</span>',
+  running: '<span class="tag monitor">testing</span>',
+  passed: '<span class="tag on">passed: ready to switch</span>',
   applied: '<span class="tag on">switched</span>',
-  failed: '<span class="tag off">did not pass</span>',
+  failed: '<span class="tag off">didn\'t pass</span>',
   stopped: '<span class="tag off">stopped</span>',
   reverted: '<span class="tag off">switched back</span>',
 };
 
 const pct = (x) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
 
+/** Agent names by id, for headings; filled on each render. */
+let names = {};
+
 function trialCard(t) {
   const owner = isOwner();
   const line = (label, c, b) => `<tr><td>${label}</td><td class="num">${c}</td><td class="num">${b}</td></tr>`;
   return `<div class="card" style="margin-bottom:12px">
-    <p style="margin:0 0 8px">${STATUS[t.status] ?? escapeHtml(t.status)} <strong>${escapeHtml(t.agentId)}</strong>:
-      ${escapeHtml(t.candidateModel)} instead of ${escapeHtml(t.baselineModel)}, on ${t.shareMilli / 10}% of jobs
+    <p style="margin:0 0 8px">${STATUS[t.status] ?? escapeHtml(t.status)} <strong>${escapeHtml(names[t.agentId] ?? t.agentId)}</strong>:
+      trying ${escapeHtml(t.candidateModel)} instead of ${escapeHtml(t.baselineModel)} on ${t.shareMilli / 10}% of jobs
       <span class="kpi-sub">since ${relativeTime(t.startedAt)}</span></p>
     ${
       t.candidate
         ? `<div class="scroll-x"><table><thead><tr><th></th><th class="num">${escapeHtml(t.candidateModel)}</th><th class="num">${escapeHtml(t.baselineModel)}</th></tr></thead><tbody>
             ${line("Jobs", t.candidate.jobs, t.baseline.jobs)}
-            ${line("Finished", pct(t.candidate.finishedShare), pct(t.baseline.finishedShare))}
-            ${line("Up to standard", pct(t.candidate.qualityShare), pct(t.baseline.qualityShare))}
+            ${line("Got done", pct(t.candidate.finishedShare), pct(t.baseline.finishedShare))}
+            ${line("Good enough", pct(t.candidate.qualityShare), pct(t.baseline.qualityShare))}
             ${line("Cost per good job", t.candidate.costPerGoodJobUsd ? money(t.candidate.costPerGoodJobUsd) : "—", t.baseline.costPerGoodJobUsd ? money(t.baseline.costPerGoodJobUsd) : "—")}
-            ${t.grades.candidate + t.grades.baseline + t.grades.tie ? line("Grader preferred", t.grades.candidate, t.grades.baseline) : ""}
+            ${t.grades.candidate + t.grades.baseline + t.grades.tie ? line("AI judge preferred", t.grades.candidate, t.grades.baseline) : ""}
           </tbody></table></div>`
         : ""
     }
     <p class="kpi-sub" style="margin-top:8px">${escapeHtml(t.progress ?? t.why ?? "")}</p>
-    ${owner && t.status === "running" ? button("Stop this trial", `type="button" data-action="trial-stop" data-id="${escapeHtml(t.id)}"`, "secondary") : ""}
-    ${owner && t.status === "passed" ? button("Switch this agent", `type="button" data-action="trial-approve" data-id="${escapeHtml(t.id)}"`, "metal") : ""}
+    ${owner && t.status === "running" ? button("Stop this test", `type="button" data-action="trial-stop" data-id="${escapeHtml(t.id)}"`, "secondary") : ""}
+    ${owner && t.status === "passed" ? button("Switch this agent", `type="button" data-action="trial-approve" data-id="${escapeHtml(t.id)}"`) : ""}
   </div>`;
 }
 
@@ -51,19 +61,19 @@ function agentRow(a) {
       a.critical
         ? '<span class="tag warn">critical: never tested</span>'
         : s
-          ? `Try <strong>${escapeHtml(s.model)}</strong>: predicted ${s.costPerFinishedJobUsd ? money(s.costPerFinishedJobUsd) : "?"} a finished job
-             against ${s.currentCostPerFinishedJobUsd ? money(s.currentCostPerFinishedJobUsd) : "?"} now,
-             ${Math.round(s.confidence * 100)}% sure. <span class="kpi-sub">${escapeHtml(s.prior)}</span>
+          ? `Try <strong>${escapeHtml(s.model)}</strong>: about ${s.costPerFinishedJobUsd ? money(s.costPerFinishedJobUsd) : "?"} a finished job,
+             against ${s.currentCostPerFinishedJobUsd ? money(s.currentCostPerFinishedJobUsd) : "?"} now. We're ${Math.round(s.confidence * 100)}% sure,
+             so a test will tell. <span class="kpi-sub">Based on: ${escapeHtml(s.prior)}</span>
              ${owner ? button("Test it on 5% of jobs", `type="button" data-action="trial-start" data-agent="${escapeHtml(a.id)}" data-model="${escapeHtml(s.model)}"`, "secondary") : ""}`
-          : '<span class="kpi-sub">Nothing to test right now.</span>'
+          : '<span class="kpi-sub">Nothing worth testing right now.</span>'
     }</td>
     <td>${
       owner
-        ? `<label class="check"><input type="checkbox" data-action="trial-critical" data-agent="${escapeHtml(a.id)}" ${a.critical ? "checked" : ""} /> Critical</label>
+        ? `<label class="check"><input type="checkbox" data-action="trial-critical" data-agent="${escapeHtml(a.id)}" ${a.critical ? "checked" : ""} /> Critical: never test</label>
            <label class="check"><input type="checkbox" data-action="trial-auto" data-agent="${escapeHtml(a.id)}" ${a.switching === "auto" ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Switch on its own</label>
-           <label class="check"><input type="checkbox" data-action="routing-per-request" data-agent="${escapeHtml(a.id)}" ${a.perRequest ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Choose a model per request</label>
+           <label class="check"><input type="checkbox" data-action="routing-per-request" data-agent="${escapeHtml(a.id)}" ${a.perRequest ? "checked" : ""} ${a.canSwitchOnItsOwn ? "" : "disabled"} /> Pick the best model for each request</label>
            <form class="step-up-form form-row" data-agent="${escapeHtml(a.id)}" style="margin-top:6px">
-             <input name="model" placeholder="Cheap model to try first" value="${escapeHtml(a.stepUpModel ?? "")}" style="width:200px" aria-label="Cheap model to try first" />
+             <input name="model" placeholder="Cheaper model to try first" value="${escapeHtml(a.stepUpModel ?? "")}" style="width:200px" aria-label="Cheaper model to try first" />
              ${button("Save", 'type="submit"', "secondary")}
            </form>`
         : ""
@@ -101,7 +111,7 @@ function ranking(r) {
     )
     .join("");
   return `<div class="card scroll-x" style="margin-top:10px"><p class="kpi-sub" style="margin-top:0">For ${escapeHtml(r.agent)}${r.kind ? `, a ${escapeHtml(r.kind)} task` : ""}. Best first, for "same quality, lower cost".</p>
-    <table><thead><tr><th>Model</th><th class="num">Quality</th><th class="num">Finishes</th><th class="num">Per finished job</th><th class="num">Sure</th><th>Evidence</th></tr></thead>
+    <table><thead><tr><th>Model</th><th class="num">Good enough</th><th class="num">Gets done</th><th class="num">Per finished job</th><th class="num">How sure</th><th>Based on</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
@@ -116,8 +126,8 @@ function selfChecks(s) {
   }</p>
   <p class="kpi-sub">${
     g.checked
-      ? `The grader agreed with your spot checks ${g.agreed} of ${g.checked} times.${g.trusted ? "" : " That is too seldom, so its verdicts no longer count in trials."}`
-      : "The grader is checked against your spot checks once you have made some."
+      ? `The AI judge agreed with you ${g.agreed} of ${g.checked} times.${g.trusted ? "" : " That's too seldom, so its verdicts no longer count in tests."}`
+      : "Once you've done a few spot checks, the AI judge is checked against you."
   }</p></div>`;
 }
 
@@ -127,16 +137,17 @@ export async function render() {
     call("GET", `/console/${state.tenantId}/self-checks`).catch(() => null),
   ]);
   const owner = isOwner();
+  names = Object.fromEntries(d.agents.map((a) => [a.id, a.name ?? a.id]));
   return `
     ${pageHead(
-      "Trials",
-      `Before CostGrid moves an agent to a cheaper model, it tests it on a small share of that agent's jobs, side by
-      side with the model it uses now. A trial passes only if the work is as good, as many jobs finish, and a good job
-      costs less. Work marked critical is never tested.`,
+      "Tests",
+      `Before CostGrid moves an agent to a cheaper model, it tries that model on a few of the agent's jobs, side by
+      side with the one it uses now. It only suggests the switch if the work is just as good, just as many jobs get
+      done, and each good job costs less. Work you mark as critical is never tested.`,
     )}
     ${flashBanner()}
-    <h2>Agents</h2>
-    <div class="card scroll-x"><table><thead><tr><th>Agent</th><th>What to test next</th><th>Settings</th></tr></thead>
+    <h2>Your agents</h2>
+    <div class="card scroll-x"><table><thead><tr><th>Agent</th><th>What to try next</th><th>Settings</th></tr></thead>
       <tbody>${d.agents.map(agentRow).join("") || '<tr><td colspan="3" class="kpi-sub">No agent has sent calls through CostGrid in the last 30 days.</td></tr>'}</tbody></table></div>
     <h2 style="margin-top:26px">Which model is best?</h2>
     <form id="which-model-form" class="card">
@@ -147,19 +158,19 @@ export async function render() {
       ${button("Rank the models", 'type="submit"', "secondary")}
       <div id="which-model-result">${ranking(view.ranking)}</div>
     </form>
-    <h2 style="margin-top:26px">Trials</h2>
-    ${d.trials.map(trialCard).join("") || '<p class="kpi-sub">No trials yet.</p>'}
-    <h2 style="margin-top:26px">Grading</h2>
+    <h2 style="margin-top:26px">Tests so far</h2>
+    ${d.trials.map(trialCard).join("") || '<p class="kpi-sub">No tests yet. Start one from your agents above.</p>'}
+    <h2 style="margin-top:26px">AI judge</h2>
     <div class="card"><p style="margin-top:0">${
       d.grading.enabled
-        ? `On, for ${d.grading.shareMilli / 10}% of trial jobs.`
+        ? `On, for ${d.grading.shareMilli / 10}% of test jobs.`
         : "Off."
-    } With grading on, a stronger model from a provider you already use compares the two models' answers on a small
-      sample of trial jobs. It sees those requests, and its cost is counted in the agent's costs.</p>
-      ${owner ? button(d.grading.enabled ? "Turn grading off" : "Turn grading on", `type="button" data-action="grading-toggle" data-on="${d.grading.enabled}"`, "secondary") : ""}</div>
+    } With it on, a stronger AI you already use compares the two models' answers on a small sample of test jobs.
+      It sees those requests, and what it costs is added to the agent's costs.</p>
+      ${owner ? button(d.grading.enabled ? "Turn the AI judge off" : "Turn the AI judge on", `type="button" data-action="grading-toggle" data-on="${d.grading.enabled}"`, "secondary") : ""}</div>
     <h2 style="margin-top:26px">Spot checks</h2>
-    <p class="section-note">Your verdict on a few graded jobs keeps the grader honest. You give yours first; the grader's
-      stays hidden until you have. While spot checks are on, the two answers the grader compared are held in this app's
+    <p class="section-note">Your own verdict on a few judged jobs keeps the AI judge honest. You give yours first; the
+      judge's stays hidden until you have. While spot checks are on, the two answers the grader compared are held in this app's
       memory, never on disk, so you can read them: at most 50, for 24 hours or until the app restarts. Turning spot
       checks off forgets them at once.</p>
     ${owner ? `<p>${button(d.grading.spotChecks ? "Turn spot checks off" : "Turn spot checks on", `type="button" data-action="spot-toggle" data-on="${d.grading.spotChecks}"`, "secondary")}</p>` : ""}
@@ -191,14 +202,14 @@ export async function click(target) {
   const a = target.dataset.action;
   if (a === "trial-start") {
     await call("POST", `/console/${t}/trials`, { agentId: target.dataset.agent, candidateModel: target.dataset.model, sharePct: 5 });
-    state.flash = { kind: "ok", text: "Trial started on 5% of this agent's jobs. It is judged as the jobs come in." };
+    state.flash = { kind: "ok", text: "Test started on 5% of this agent's jobs. You'll see how it does as the jobs come in." };
     return true;
   }
   if (a === "trial-stop" || a === "trial-approve") {
     await call("POST", `/console/${t}/trials/${encodeURIComponent(target.dataset.id)}/${a === "trial-stop" ? "stop" : "approve"}`);
     state.flash = {
       kind: "ok",
-      text: a === "trial-stop" ? "Trial stopped." : "Switched. CostGrid keeps checking and switches back on its own if results get worse.",
+      text: a === "trial-stop" ? "Test stopped." : "Switched. CostGrid keeps an eye on it and switches back on its own if results get worse.",
     };
     return true;
   }
@@ -220,7 +231,7 @@ export async function click(target) {
   }
   if (a === "grading-toggle") {
     await call("PUT", `/console/${t}/grading`, { enabled: target.dataset.on !== "true", sharePct: 1.5 });
-    state.flash = { kind: "ok", text: "Grading setting saved." };
+    state.flash = { kind: "ok", text: "Saved." };
     return true;
   }
   if (a === "spot-read") {

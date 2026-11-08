@@ -138,8 +138,8 @@ export async function render() {
   return `
     ${pageHead(
       "Results",
-      `Whether the spending is worth it: cost per result that worked, what a typical and a bad
-      run cost, where reasoning money goes, and the full monthly cost.`,
+      `Is the money well spent? What each finished job costs, what a typical and a bad one
+      cost, how much goes on thinking, and the full monthly bill.`,
       actions,
     )}
     ${flashBanner()}

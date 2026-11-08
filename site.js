@@ -149,3 +149,18 @@
     if (event === "SIGNED_IN" && user) byId("setup").scrollIntoView({ behavior: "smooth" });
   });
 })();
+
+/*
+ * After a download starts, show how to open the app the first time: macOS
+ * stops apps it can't check, and that one step is where installs are lost.
+ */
+(function () {
+  document.querySelectorAll("[data-download]").forEach(function (link) {
+    link.addEventListener("click", function () {
+      setTimeout(function () {
+        var help = document.getElementById("first-open");
+        if (help) help.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 400);
+    });
+  });
+})();

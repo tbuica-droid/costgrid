@@ -207,10 +207,10 @@ export class Advisor {
       out.push({
         kind: "route-to-cheaper",
         intent: "saving",
-        headline: `${row.agentId} could run ${row.model} work on ${target}`,
+        headline: `${row.agentId} could do its ${row.model} work on ${target}`,
         evidence:
-          `${row.calls} call(s) averaging ${Math.round(meanOutput)} output tokens. ` +
-          "Short answers, on one of the most expensive models you run.",
+          `${row.calls.toLocaleString("en-US")} requests with short answers (about ${Math.round(meanOutput)} tokens each), ` +
+          "on one of the most expensive models you use. Short work is often done just as well by a cheaper one.",
         rule,
         scope,
         backtest,
@@ -281,8 +281,8 @@ export class Advisor {
       out.push({
         kind: "unguarded-spend",
         intent: "guardrail",
-        headline: `${row.department} has no spending cap`,
-        evidence: `${row.calls} call(s) over this window, and no budget rule covering them.`,
+        headline: `${row.department} has no spending limit`,
+        evidence: `${row.calls.toLocaleString("en-US")} requests in this period, and nothing to stop the spending if an agent runs away.`,
         rule,
         scope,
         backtest: this.#backtester.run(tenantId, scope, rule, range),
@@ -335,8 +335,8 @@ export class Advisor {
         intent: "finding",
         headline: `${row.agentId} is paying for answers that get cut off`,
         evidence:
-          `${row.truncated} of ${row.calls} call(s) (${(rate * 100).toFixed(0)}%) ended at ` +
-          "max_tokens. A truncated answer is billed in full and is usually retried.",
+          `${row.truncated} of ${row.calls} answers (${(rate * 100).toFixed(0)}%) ran out of room and stopped ` +
+          "mid-way. You pay for a cut-off answer in full, and it usually gets asked again.",
         rule: undefined,
         scope: { kind: "agent", agentId: row.agentId },
         backtest: undefined,
@@ -390,15 +390,13 @@ export class Advisor {
       out.push({
         kind: "cache-opportunity",
         intent: "finding",
-        headline: `${row.agentId} re-sends a large prompt and reuses none of it`,
+        headline: `${row.agentId} pays full price for the same long instructions every time`,
         evidence:
-          `${row.calls} call(s) averaging ${Math.round(meanInput).toLocaleString("en-US")} input ` +
-          `tokens, with ${(hitRate * 100).toFixed(0)}% of readable input coming from cache. ` +
-          "If part of that prompt is the same every time, caching it bills the repeated " +
-          "part at a fraction of the normal rate." +
+          `${row.calls.toLocaleString("en-US")} requests, each about ${Math.round(meanInput).toLocaleString("en-US")} tokens long, ` +
+          `and only ${(hitRate * 100).toFixed(0)}% reused from before. If part of each request is the same every time, ` +
+          "caching it means the repeats cost a fraction of the price." +
           (claude
-            ? " CostGrid can mark the tools and system prompt for caching, measure it, and switch it " +
-              "back off on its own if the cache writes cost more than the reads save."
+            ? " CostGrid can set that up for you, check it pays, and turn it off again on its own if it doesn't."
             : ""),
         rule: claude ? { kind: "add-cache" } : undefined,
         scope: { kind: "agent", agentId: row.agentId },
@@ -477,11 +475,10 @@ export class Advisor {
       out.push({
         kind: "unused-capability",
         intent: "guardrail",
-        headline: `${agentId} can reach ${tools.length} tool(s) it never used`,
+        headline: `${agentId} has ${tools.length} tool${tools.length === 1 ? "" : "s"} it never uses`,
         evidence:
-          `Granted but never invoked in this window: ${tools.join(", ")}. ` +
-          "Capability an agent is not exercising is blast radius with nothing on " +
-          "the other side of it.",
+          `Allowed but never used in this period: ${tools.join(", ")}. ` +
+          "A tool an agent doesn't need is only a risk, with nothing gained in return.",
         rule: { kind: "tool-denylist", tools },
         scope: { kind: "agent", agentId },
         // Not backtested: tool rules fire on the tool list in a request, and
@@ -556,12 +553,11 @@ export class Advisor {
       out.push({
         kind: "long-run",
         intent: "guardrail",
-        headline: `${agentId} has runs of ${peak.steps} steps`,
+        headline: `${agentId} has jobs that take ${peak.steps} steps`,
         evidence:
-          `Longest run in this window: ${peak.steps} call(s) (${peak.runId}), ` +
-          `${money(spend)} across all its long runs. CostGrid cannot see whether that ` +
-          "is a loop or long legitimate work, but a cap is the difference between " +
-          "finding out at step 40 and finding out on the invoice.",
+          `Its longest job took ${peak.steps} requests (${peak.runId}), and its long jobs cost ` +
+          `${money(spend)} in all. CostGrid can't tell a loop from long, real work, but a step limit ` +
+          "means you find out at step 40, not on the bill.",
         rule,
         scope,
         backtest: this.#backtester.run(tenantId, scope, rule, range),
@@ -606,12 +602,11 @@ export class Advisor {
       {
         kind: "no-run-context",
         intent: "finding",
-        headline: "No traffic carries a run id, so run-level rules cannot fire",
+        headline: "Your requests don't say which job they belong to, so per-job limits can't work",
         evidence:
-          `${row.calls} call(s) in this window, none with an x-costgrid-run header. ` +
-          "Per-run budgets, step caps, depth limits and the transitive half of a tool " +
-          "boundary all need one. They can be created without it and will sit there " +
-          "doing nothing.",
+          `${row.calls.toLocaleString("en-US")} requests in this period, none with an x-costgrid-run header. ` +
+          "Limits per job (spend, steps, how far work is handed on) need it. Whoever set up your " +
+          "agents can add it in one line; until then those limits would sit there doing nothing.",
         rule: undefined,
         scope: { kind: "tenant" },
         backtest: undefined,

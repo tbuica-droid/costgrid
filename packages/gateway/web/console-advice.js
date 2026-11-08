@@ -14,22 +14,22 @@ const view = { days: 30, proposals: [], lastRun: null };
 
 const HEADINGS = {
   saving: "Saves money now",
-  guardrail: "Bounds a risk, saves nothing today",
-  finding: "Worth knowing, nothing to install",
+  guardrail: "Protects you, though it saves nothing today",
+  finding: "Worth knowing",
 };
 
 function backtestLine(b, intent) {
   if (!b) return "";
   if (b.callsAffected === 0) {
     return intent === "guardrail"
-      ? "Replayed: would not have fired once over this window. It sits above everything you actually did, which is how a guardrail should be set."
-      : "Replayed over this window: would never have fired.";
+      ? "Checked against your recent usage: it would never have kicked in. It sits just above what you really spend, which is where a safety limit belongs."
+      : "Checked against your recent usage: it would never have kicked in.";
   }
-  const verb = b.basis === "estimated" ? "would have saved about" : "would not have spent";
+  const verb = b.basis === "estimated" ? "would have saved about" : "would have avoided";
   const amount = b.amountUsd === null ? "an amount it could not price" : money(b.amountUsd);
   return (
-    `Replayed: ${count(b.callsAffected)} of ${count(b.callsInScope)} calls, ${verb} ${amount}.` +
-    (b.unpriceable > 0 ? ` ${count(b.unpriceable)} calls could not be priced and are excluded.` : "") +
+    `Checked against your recent usage: on ${count(b.callsAffected)} of ${count(b.callsInScope)} requests, it ${verb} ${amount}.` +
+    (b.unpriceable > 0 ? ` ${count(b.unpriceable)} requests couldn't be priced and are left out.` : "") +
     ` ${b.caveat}`
   );
 }
@@ -41,9 +41,9 @@ function proposalCard(p, index) {
     ${p.backtest ? `<p class="kpi-sub" style="margin-bottom:10px">${escapeHtml(backtestLine(p.backtest, p.intent))}</p>` : ""}
     ${
       p.command
-        ? `${button("Try it as a dry run", `type="button" data-action="advise-apply" data-index="${index}"`, "metal")}
-           <span class="kpi-sub" style="margin-left:10px">Installed as a dry run: it records what it
-             would have done and changes nothing.</span>`
+        ? `${button("Try it as a test", `type="button" data-action="advise-apply" data-index="${index}"`)}
+           <span class="kpi-sub" style="margin-left:10px">Set up as a test: it records what it would have
+             done, and changes nothing until you switch it on.</span>`
         : '<p class="kpi-sub">No rule to write. This one is a change in your own code.</p>'
     }
   </div>`;
@@ -86,9 +86,9 @@ function autopilotSection(pilot) {
           ? "Nothing is changed on your account unless you switch this on."
           : `At most ${count(s.maxActions)} change${s.maxActions === 1 ? "" : "s"} per run, and none covering more than ${s.maxImpactPct}% of your spend.`
       }</p>
-    <p class="kpi-sub"><strong>Monitor</strong> creates rules that measure and change nothing.
-      <strong>Apply</strong> also switches on routing that already replayed with a saving. It can never
-      refuse a call or set a budget, at any level.</p>
+    <p class="kpi-sub"><strong>Monitor</strong> sets up ideas as tests that only record what they would do.
+      <strong>Apply</strong> also switches on model moves that already showed a saving on your usage. It never
+      blocks a request or sets a budget, whatever the level.</p>
     <form id="autopilot-form" class="form-row end" style="margin:16px 0 14px">
       <label class="field"><span class="field-label">Level</span>
         <select name="level">
@@ -131,9 +131,9 @@ export async function render() {
   return `
     ${pageHead(
       "Ways to save",
-      `Where your agents are spending more than they need to, found in your own traffic. Each
-      suggestion starts as a dry run that changes nothing: you see what it would have done, then switch
-      it on from Limits. CostGrid never applies one on its own.`,
+      `Places your agents spend more than they need to, found in your own usage. Each idea starts as a
+      test that changes nothing, so you can see what it would have saved first. You switch it on yourself,
+      from Limits. CostGrid never does it for you.`,
       `<form id="advice-window" class="form-row">
         <select name="days" aria-label="Window">
           ${[7, 30, 90].map((d) => `<option value="${d}" ${d === view.days ? "selected" : ""}>${d} days</option>`).join("")}

@@ -37,17 +37,18 @@ import * as trials from "./console-trials.js";
 import { renderSettings } from "./console-settings.js";
 import * as wizard from "./console-wizard.js";
 import { button, escapeHtml, field, icon, pageHead, setAppearance } from "./ui.js";
-import { initShell, renderDock } from "./console-shell.js";
+import { initShell } from "./console-shell.js";
 
 const PAGES = [
+  // In the order an owner meets them: set up, see the costs, save, then the rest.
   ["setup", "Setup", wizard.render],
-  ["limits", "Limits", limits.render],
   ["results", "Results", results.render],
-  ["settings", "Settings", renderSettings],
   ["advice", "Ways to save", advice.render],
-  ["trials", "Trials", trials.render],
+  ["trials", "Tests", trials.render],
+  ["limits", "Limits", limits.render],
   ["drift", "What changed", drift.render],
   ["data", "Data", data.render],
+  ["settings", "Settings", renderSettings],
 ];
 const SCREENS = [connect, agents, proxy, limits, results, outcomes, verdict, control, outcomeSettings, quality, endpoints, trials, advice, drift, data];
 
@@ -113,7 +114,6 @@ function renderNav() {
   const nav = document.getElementById("nav");
   const workspace = document.getElementById("workspace");
   if (!state.user || !state.tenantId) {
-    renderDock(PAGES, state.page, false);
     nav.innerHTML = "";
     workspace.hidden = true;
     workspace.innerHTML = "";
@@ -136,7 +136,6 @@ function renderNav() {
     ([id, label]) =>
       `<button class="nav-item" data-page="${id}" aria-current="${id === state.page}" title="${escapeHtml(label)}">${icon(id)}<span class="nav-label">${escapeHtml(label)}</span></button>`,
   ).join("");
-  renderDock(PAGES, state.page, true);
 }
 
 async function render() {

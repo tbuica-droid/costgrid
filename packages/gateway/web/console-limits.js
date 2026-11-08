@@ -182,7 +182,7 @@ function registerSection(d) {
             ? small(
                 r.action === "monitor" ? "Start changing calls" : "Back to dry run",
                 `data-action="limits-act" data-id="${escapeHtml(r.id)}" data-to="${r.action === "monitor" ? "warn" : "monitor"}"`,
-                r.action === "monitor" ? "metal" : "",
+                r.action === "monitor" ? "primary" : "",
               ) + " "
             : ""
         }${
@@ -273,8 +273,8 @@ export async function render() {
   return `
     ${pageHead(
       "Limits",
-      `Every limit is checked before a call is sent. A call over a limit that refuses is
-      answered "over budget" by CostGrid and never reaches the provider, so it is never billed.`,
+      `Set how much your agents may spend, and stop one in a click. Limits are checked before each
+      request goes out, so a request over a hard limit never reaches the AI company and is never billed.`,
     )}
     ${flashBanner()}
     ${control ? `<h2 style="margin-top:22px">Agents' keys at the provider</h2>${controlSection(control)}` : ""}
@@ -282,25 +282,25 @@ export async function render() {
     ${stopsSection(d)}
     <h2 style="margin-top:26px">Set a limit</h2>
     ${newLimitForm(d)}
-    <h2 style="margin-top:26px">Rule register</h2>
-    <p class="section-note">Every rule, who owns it, why it exists, what it did in the last 30 days and every
-      change to it. A rule with no owner is flagged: unowned rules are how limits drift out of date.</p>
+    <h2 style="margin-top:26px">Your rules</h2>
+    <p class="section-note">Every rule, who looks after it, why it's there, what it did in the last 30 days, and every
+      change made to it. A rule nobody looks after is flagged, because that's how limits go stale.</p>
     ${registerSection(d)}
     <h2 style="margin-top:26px">Did switching to a cheaper model save money?</h2>
-    <p class="section-note">A cheaper model can cost more overall if it thinks longer or needs more steps. This
-      measures it on your traffic instead of assuming.</p>
+    <p class="section-note">A cheaper model can end up costing more if it thinks longer or needs more tries. This
+      checks it on your own work instead of guessing.</p>
     ${measuredSection(d.measured)}
-    <h2 style="margin-top:26px">Did lowering reasoning or caching pay?</h2>
-    <p class="section-note">Savings that keep the same model. Each one is measured on your traffic and switched
-      back to a dry run on its own if it costs more or fewer jobs finish.</p>
+    <h2 style="margin-top:26px">Did thinking less or caching pay off?</h2>
+    <p class="section-note">Savings that keep the same model. Each one is checked on your own work, and turned back
+      into a test on its own if it costs more or fewer jobs get done.</p>
     ${wins ? quickWinsSection(wins.quickWins) : '<p class="kpi-sub">Could not load this just now.</p>'}
-    <h2 style="margin-top:26px">Why calls were changed</h2>
-    <p class="section-note">Every time CostGrid sent a call to another model or sent it differently, or would have in
-      a dry run, with the reason and the models it did not choose. The newest 100.</p>
+    <h2 style="margin-top:26px">Why requests were changed</h2>
+    <p class="section-note">Each time CostGrid sent a request to a different model or sent it differently (or would
+      have, in a test), with the reason and the models it passed over. The latest 100.</p>
     ${decisionsSection(decisions)}
     <h2 style="margin-top:26px">Alerts</h2>
-    <p class="section-note">You are told when a limit is reached, a call is refused, traffic is switched to a
-      cheaper model, or a run costs far more than that agent's runs usually do. Once each, not once per call.</p>
+    <p class="section-note">We tell you when a limit is reached, a request is stopped, an agent is moved to a cheaper
+      model or switched back, or a job costs far more than usual. Once each time, not once per request.</p>
     ${alertsSection(d)}`;
 }
 

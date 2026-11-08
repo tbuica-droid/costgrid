@@ -175,10 +175,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .site-head.floating .site-nav { display: flex; flex-basis: auto; order: 0; }
 }
 
-/* Full-screen hero */
-.hero { position: relative; isolation: isolate; overflow: hidden; min-height: 100vh; min-height: 100svh;
-  display: flex; flex-direction: column; }
-.hero-in { position: relative; flex: 1; width: 100%; padding-top: 112px; padding-bottom: 120px; text-align: center;
+/* Hero: short enough that the product picture shows on a laptop screen without scrolling. */
+.hero { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; }
+.hero-in { position: relative; flex: 1; width: 100%; padding-top: 136px; padding-bottom: 64px; text-align: center;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
 .hero h1 { max-width: 1000px; font-size: 38px; line-height: 1.08; letter-spacing: -0.04em; }
 @media (min-width: 640px) { .hero h1 { font-size: 52px; } }
@@ -188,18 +187,27 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 /* The two-line break is for wide screens; on a phone the sentence wraps where it fits. */
 .hero h1 .line + .line::before { content: " "; }
 @media (min-width: 640px) { .hero h1 .line { display: block; } .hero h1 .line + .line::before { content: none; } }
-.hero h1 .word { display: inline-block; white-space: nowrap; }
-.hero h1 .ch { display: inline-block; }
+.hero h1 .hero-accent { color: var(--accent); }
 .hero .sub { max-width: 700px; font-size: 18px; color: var(--ink-2); }
 @media (min-width: 900px) { .hero .sub { font-size: 20px; } }
 .cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; margin-top: 8px; }
 .hero .small { font-size: 14px; }
-.hero-tag { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 16px 40px; }
-.hero-tag p { border-radius: 12px; padding: 12px 22px; font-size: 15.5px; font-weight: 500; color: var(--ink);
-  text-align: center; text-wrap: balance; }
-@media (min-width: 640px) { .hero-tag p { font-size: 17px; } }
-@media (min-width: 900px) { .hero-tag { padding-bottom: 56px; } .hero-tag p { font-size: 20px; } }
-@media (max-height: 640px) { .hero-tag { position: static; padding-top: 0; } .hero-in { padding-bottom: 32px; } }
+
+/* Phones can't install a Mac app: they get "email myself the link" instead of a download. */
+.only-phone { display: none !important; }
+@media (max-width: 760px) and (pointer: coarse) {
+  .only-mac { display: none !important; }
+  .only-phone { display: inline-flex !important; }
+}
+
+/* Six ways to save */
+.save-grid { margin-top: 40px; }
+.save-big { display: block; margin-bottom: 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); }
+.save-safe { display: grid; gap: 14px; margin-top: 24px; padding: 20px 22px; border-radius: 12px;
+  border: 1px solid var(--accent-line); background: var(--accent-wash); }
+@media (min-width: 900px) { .save-safe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.save-safe p { color: var(--ink-2); font-size: 15.5px; }
+.save-safe b { display: block; color: var(--ink); }
 
 /* The moving background: two slow glows and the grid the product is named after. */
 .hero-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(120% 80% at 50% 0%, #121826 0%, var(--bg) 60%); }
@@ -229,11 +237,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 @keyframes glow-a { to { transform: translate3d(28vmax, 18vmax, 0) scale(1.15); } }
 @keyframes glow-b { to { transform: translate3d(-24vmax, -14vmax, 0) scale(0.9); } }
 
-/* Entrance, only once hero.js has set it up (no script: everything shows at once). */
-.hero.animate .fade { opacity: 0; transition: opacity 1000ms ease; transition-delay: var(--delay, 0ms); }
-.hero.animate .ch { opacity: 0; transform: translateX(-18px); transition: opacity 500ms ease, transform 500ms ease; }
-.hero.animate.in .fade { opacity: 1; }
-.hero.animate.in .ch { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .hero-bg::before, .glow { animation: none; }
   .hero-video { display: none; }
