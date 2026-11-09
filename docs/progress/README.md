@@ -532,3 +532,18 @@ This completes v3's build (phases 1 to 6). Phase 7, proving savings on real cust
 - **Benchmarks.** None. Predictions start from the tier guess.
 - **The new privacy wording is approved.** It goes live with cross-provider routing, after the owner sees the final text.
 
+
+## Checked against the real Claude and OpenAI APIs (8 November 2026)
+
+With the owner's go-ahead, a few real calls went through CostGrid on the owner's own accounts. The whole run cost less than one cent.
+
+- **Passed, on both providers:**
+  - CostGrid's cost matched each provider's own token counts exactly, for normal and streamed calls.
+  - Less overthinking: effort was turned down, and the providers accepted it.
+  - Repeat prompts were read from the cache and priced at the cache rate.
+  - Batch jobs ran at half price.
+  - A Claude request was answered by OpenAI and an OpenAI request by Claude, streamed and not, and each was metered at the model that answered.
+  - The grader picked the right answer.
+- **Fixed: a call moved to a cheaper model could be refused.** Some models take fewer effort levels than CostGrid assumed. Opus 4.6 and Sonnet 4.6 refuse `xhigh`, and Opus 4.5 stops at `high`. Sonnet 4.5, Haiku 4.5, GPT-4.1 and GPT-4o take no effort setting at all. A call moved to one of them now carries a level the model takes, or none.
+- **Fixed: a batch could lose its cost if the app quit while recording it.** The batch was marked as recorded before its results were read. Now the mark and the costs are saved together.
+- **Not wrong, just cautious.** Newer OpenAI models also take `none` and `xhigh`, which CostGrid doesn't use yet.
