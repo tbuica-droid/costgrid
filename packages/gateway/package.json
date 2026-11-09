@@ -1,12 +1,12 @@
 {
   "name": "@costgrid/gateway",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "dependencies": {
-    "@costgrid/core": "2.0.0",
-    "@costgrid/db": "2.0.0",
+    "@costgrid/core": "3.0.0",
+    "@costgrid/db": "3.0.0",
     "fastify": "^5.2.0"
   }
 }

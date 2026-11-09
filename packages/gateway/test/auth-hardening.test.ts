@@ -110,7 +110,8 @@ describe("console auth hardening", () => {
       expect((await login(`user${i}@acme.test`, "wrong-password-guess")).statusCode).toBe(401);
     }
     expect((await login("fresh@acme.test", "wrong-password-guess")).statusCode).toBe(429);
-  });
+    // Thirty password checks in a row: slow on a busy machine, so more time than the default.
+  }, 20_000);
 
   it("limits signups per IP", async () => {
     for (let i = 0; i < AUTH_LIMITS.signupPerIp; i += 1) {

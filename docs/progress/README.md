@@ -16,6 +16,7 @@ Updated 24 October 2026.
 | 3 October | Closing the gap between the twelve research sources and the product, at the end of this file. |
 | 15 October | Licence switched to FSL-1.1-ALv2. A gap report compared the code with the version 2 direction (cost per successful job, desktop first, View and View and control) and checked what the OpenAI and Anthropic admin APIs allow. |
 | 23 to 24 October | Version 2, round 1: the LCSO engine, a new look for the app and the website, and a rebuilt website. Details below. |
+| 4 to 8 November | Version 3: a router that picks the cheapest model good enough for each job, tested on your own work first. A simpler website and app in plain words, with the headline "Reduce your AI costs. Every request, optimised." Version 3.0.0 released and the site published on 8 November. Details below. |
 
 ## What the feedback said
 
