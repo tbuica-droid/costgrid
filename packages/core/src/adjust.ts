@@ -177,6 +177,51 @@ function lowerReasoning(
   return changes.length === 0 ? undefined : { body: next, change: changes.join(" ") };
 }
 
+/**
+ * Fit the effort a request names to the model it is now going to, when
+ * CostGrid moved it to another model of the same provider. A level the model
+ * takes is kept; otherwise the nearest one it takes, at or below what was
+ * asked if there is one; and a model that takes none gets the field removed.
+ * The model may think a little differently, but the call is answered rather
+ * than refused.
+ */
+export function fitEffort(format: BodyFormat, model: string, body: unknown): unknown {
+  const request = record(body);
+  if (request === undefined) return body;
+  const accepted = effortsAccepted(model, provider(format));
+  const fit = (asked: ReasoningEffort): ReasoningEffort | undefined =>
+    accepted.includes(asked)
+      ? asked
+      : (accepted.filter((e) => effortRank(e) < effortRank(asked)).pop() ?? accepted[0]);
+
+  if (format === "anthropic") {
+    const config = record(request["output_config"]);
+    const asked = config?.["effort"];
+    if (config === undefined || !isReasoningEffort(asked)) return body;
+    const to = fit(asked);
+    if (to === asked) return body;
+    const { effort: _dropped, ...rest } = config;
+    const next: Json = { ...request, output_config: to === undefined ? rest : { ...rest, effort: to } };
+    if (to === undefined && Object.keys(rest).length === 0) delete next["output_config"];
+    return next;
+  }
+
+  const next: Json = { ...request };
+  const asked = request["reasoning_effort"];
+  if (isReasoningEffort(asked)) {
+    const to = fit(asked);
+    if (to === undefined) delete next["reasoning_effort"];
+    else next["reasoning_effort"] = to;
+  }
+  const nested = record(request["reasoning"]);
+  if (nested !== undefined && isReasoningEffort(nested["effort"])) {
+    const to = fit(nested["effort"]);
+    if (to === undefined) delete next["reasoning"];
+    else next["reasoning"] = { ...nested, effort: to };
+  }
+  return next;
+}
+
 /** True when any part of a Claude request already asks for caching. */
 export function usesCacheControl(request: Json): boolean {
   const marked = (block: unknown): boolean => record(block)?.["cache_control"] !== undefined;

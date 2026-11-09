@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   adjustmentRulesFor,
   applyAdjustments,
+  effortsAccepted,
+  fitEffort,
   oneLevelBelow,
   usesCacheControl,
   type Policy,
@@ -178,5 +180,32 @@ describe("oneLevelBelow", () => {
     expect(oneLevelBelow("low", "openai", "o3")).toBeUndefined();
     expect(oneLevelBelow("medium", "openai", "o4-mini-2025-04-16")).toBe("low");
     expect(oneLevelBelow("high", "openai", "o3-pro")).toBeUndefined();
+  });
+});
+
+describe("effort levels, as the live APIs answered on 8 November 2026", () => {
+  it("knows which Claude models take which levels, and which take none", () => {
+    expect(effortsAccepted("claude-opus-5-5", "anthropic")).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    expect(effortsAccepted("claude-opus-4-6", "anthropic")).toEqual(["low", "medium", "high", "max"]);
+    expect(effortsAccepted("claude-sonnet-4-6", "anthropic")).toEqual(["low", "medium", "high", "max"]);
+    expect(effortsAccepted("claude-opus-4-5", "anthropic")).toEqual(["low", "medium", "high"]);
+    expect(effortsAccepted("claude-haiku-4-5", "anthropic")).toEqual([]);
+    expect(effortsAccepted("claude-sonnet-4-5-20250929", "anthropic")).toEqual([]);
+    expect(effortsAccepted("gpt-4.1-mini", "openai")).toEqual([]);
+    // max on Opus 4.6 steps down to high, not to the xhigh it refuses.
+    expect(oneLevelBelow("max", "anthropic", "claude-opus-4-6")).toBe("high");
+  });
+
+  it("fits a moved call's effort to its new model, or drops it", () => {
+    const claude = { model: "claude-haiku-4-5", output_config: { effort: "high" }, messages: [] };
+    expect(fitEffort("anthropic", "claude-haiku-4-5", claude)).toEqual({ model: "claude-haiku-4-5", messages: [] });
+    expect(fitEffort("anthropic", "claude-opus-4-6", { output_config: { effort: "xhigh", format: "x" } })).toEqual({
+      output_config: { effort: "high", format: "x" },
+    });
+    const kept = { output_config: { effort: "high" } };
+    expect(fitEffort("anthropic", "claude-sonnet-5-5", kept)).toBe(kept);
+    expect(fitEffort("openai", "gpt-4o-mini", { reasoning_effort: "high", messages: [] })).toEqual({ messages: [] });
+    expect(fitEffort("openai", "o3", { reasoning_effort: "minimal" })).toEqual({ reasoning_effort: "low" });
+    expect(fitEffort("openai", "gpt-5-pro", { reasoning: { effort: "low" } })).toEqual({ reasoning: { effort: "high" } });
   });
 });

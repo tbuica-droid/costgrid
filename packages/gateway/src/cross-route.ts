@@ -3,6 +3,7 @@ import {
   claudeToOpenAi,
   ClaudeToOpenAiStream,
   findModelPrice,
+  fitEffort,
   isOpenModel,
   openAiResponseToClaude,
   openAiToClaude,
@@ -53,7 +54,11 @@ export function upstreamModel(model: string): string {
  */
 export function requestFor(caller: ProviderAdapter, target: ProviderAdapter, body: unknown, model: string): Translated<unknown> {
   const name = upstreamModel(model);
-  if (formatOf(caller.id) === formatOf(target.id)) return { ok: true, body: target.withModel(body, name) };
+  if (formatOf(caller.id) === formatOf(target.id)) {
+    // The effort a caller named may not exist on the model it is moved to.
+    const moved = target.withModel(body, name);
+    return { ok: true, body: target.id === "open" ? moved : fitEffort(formatOf(target.id), name, moved) };
+  }
   if (caller.id === "bedrock" || caller.id === "vertex") {
     return { ok: false, reason: `${caller.id} requests are not translated to other formats yet` };
   }

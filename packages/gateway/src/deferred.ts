@@ -5,6 +5,7 @@ import {
   applyAdjustments,
   applyRate,
   evaluatePolicies,
+  fitEffort,
   type PolicyScope,
   priceUsage,
   type RequestContext,
@@ -305,7 +306,10 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
         rejected.push({ custom_id: customId, reason: `Blocked by CostGrid policy "${decision.blockedBy!.policyName}": ${decision.blockedBy!.reason}` });
         continue;
       }
-      const routed = decision.route?.applied === true ? adapter.withModel(params, decision.route.toModel) : params;
+      const routed =
+        decision.route?.applied === true
+          ? fitEffort(provider === "openai" ? "openai" : "anthropic", decision.route.toModel, adapter.withModel(params, decision.route.toModel))
+          : params;
       const adjusted = applyAdjustments(
         adjustmentRulesFor(policies, context),
         provider === "openai" ? "openai" : "anthropic",

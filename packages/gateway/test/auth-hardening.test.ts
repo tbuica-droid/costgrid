@@ -35,7 +35,9 @@ const HOSTED: GatewayConfig = {
  * how often, what a session cookie looks like and how it ends, and that one
  * organisation cannot reach another's records by changing an id.
  */
-describe("console auth hardening", () => {
+// Every test here checks passwords on purpose, and a check is slow by design,
+// so on a busy machine they need more than the default five seconds.
+describe("console auth hardening", { timeout: 20_000 }, () => {
   let db: ReturnType<typeof openDatabase>;
   let accounts: AccountsRepository;
   let repository: CostGridRepository;
@@ -110,8 +112,7 @@ describe("console auth hardening", () => {
       expect((await login(`user${i}@acme.test`, "wrong-password-guess")).statusCode).toBe(401);
     }
     expect((await login("fresh@acme.test", "wrong-password-guess")).statusCode).toBe(429);
-    // Thirty password checks in a row: slow on a busy machine, so more time than the default.
-  }, 20_000);
+  });
 
   it("limits signups per IP", async () => {
     for (let i = 0; i < AUTH_LIMITS.signupPerIp; i += 1) {

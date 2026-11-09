@@ -125,6 +125,14 @@ describe("routing across providers and to open models", () => {
   const lastCall = () =>
     db.prepare("SELECT model, requested_model AS requested, cost_total AS cost, priced FROM calls ORDER BY rowid DESC LIMIT 1").get();
 
+  it("drops an effort level the cheaper model of the same provider does not take, so the call is answered", async () => {
+    route("claude-haiku-4-5");
+    const res = await claudeCall({ output_config: { effort: "high" } });
+    expect(res.statusCode).toBe(200);
+    expect(sent[0]!.body["model"]).toBe("claude-haiku-4-5");
+    expect(sent[0]!.body["output_config"]).toBeUndefined();
+  });
+
   it("serves a Claude request from an opted-in open model, and answers in Claude's format", async () => {
     endpoints.setDestinations("t1", "support-bot", ["open:local"]);
     route(OPEN);

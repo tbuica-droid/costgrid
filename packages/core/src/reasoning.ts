@@ -136,26 +136,32 @@ export function parseOpenAiReasoningTokens(raw: unknown): number | undefined {
 }
 
 /**
- * The effort levels a model accepts, cheapest first.
+ * The effort levels a model accepts, cheapest first; empty when it takes none.
  *
- * Lowering effort to a level the model does not take makes the provider
- * reject the call outright, so adjustments only ever choose from this list.
- * Conservative on purpose: a model not named here gets low, medium and high,
- * which every model that takes an effort level accepts.
+ * Lowering effort to a level the model does not take, or moving a call that
+ * names an effort to a model without one, makes the provider reject the call
+ * outright, so adjustments and model switches only ever choose from this list.
  *
  *   - OpenAI `minimal` exists only on the original GPT-5 family (gpt-5,
  *     gpt-5-mini, gpt-5-nano). The o-series takes low, medium and high, and
  *     later GPT-5.x releases replaced `minimal` with their own lowest setting.
- *   - The `-pro` models run at high only.
- *   - Claude takes low, medium and high everywhere effort exists; xhigh and max
- *     only on newer models, where a request asking for them proves they exist.
+ *     The `-pro` models run at high only. GPT-4.1 and GPT-4o do not reason and
+ *     reject `reasoning_effort`.
+ *   - Claude, checked against the live API on 8 November 2026: Opus 4.6 and
+ *     Sonnet 4.6 take max but not xhigh, Opus 4.5 stops at high, and Sonnet
+ *     4.5, Haiku 4.5 and everything older take no effort at all. Newer models
+ *     take all five; so does a model not named here.
  */
 export function effortsAccepted(model: string, provider: string): readonly ReasoningEffort[] {
-  const id = model.toLowerCase().replace(/-\d{4}-\d{2}-\d{2}$/, "");
+  const id = model.toLowerCase().replace(/-\d{4}-\d{2}-\d{2}$|-\d{8}$/, "");
   if (provider === "openai") {
+    if (/^(gpt-4\.1|gpt-4o|chatgpt-4o)/.test(id)) return [];
     if (/(^|-)pro$/.test(id)) return ["high"];
     if (/^gpt-5(-mini|-nano)?$/.test(id)) return ["minimal", "low", "medium", "high"];
     return ["low", "medium", "high"];
   }
+  if (/^claude-(3|haiku-3|instant)|^claude-(sonnet|haiku)-4-5$|^claude-(sonnet|opus)-4(-1)?$/.test(id)) return [];
+  if (id === "claude-opus-4-5") return ["low", "medium", "high"];
+  if (id === "claude-opus-4-6" || id === "claude-sonnet-4-6") return ["low", "medium", "high", "max"];
   return ["low", "medium", "high", "xhigh", "max"];
 }
