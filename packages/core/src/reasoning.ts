@@ -28,12 +28,12 @@
 /**
  * Effort levels, cheapest first.
  *
- * The union of both providers' vocabularies. OpenAI's `minimal` sits below
- * `low`; Anthropic's `xhigh` and `max` sit above `high`. Order is the only
+ * The union of both providers' vocabularies. OpenAI's `none` (no reasoning)
+ * and `minimal` sit below `low`; `xhigh` and Anthropic's `max` sit above `high`. Order is the only
  * thing compared, so a level one provider does not offer never matches
  * anything it sends.
  */
-export const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+export const EFFORT_LEVELS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
 export type ReasoningEffort = (typeof EFFORT_LEVELS)[number];
 
@@ -135,6 +135,12 @@ export function parseOpenAiReasoningTokens(raw: unknown): number | undefined {
   return value;
 }
 
+/** OpenAI models that take every level from none to xhigh. */
+const OPENAI_NONE_TO_XHIGH = new Set([
+  "gpt-6.1-terra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+  "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2",
+]);
+
 /**
  * The effort levels a model accepts, cheapest first; empty when it takes none.
  *
@@ -142,11 +148,12 @@ export function parseOpenAiReasoningTokens(raw: unknown): number | undefined {
  * names an effort to a model without one, makes the provider reject the call
  * outright, so adjustments and model switches only ever choose from this list.
  *
- *   - OpenAI `minimal` exists only on the original GPT-5 family (gpt-5,
- *     gpt-5-mini, gpt-5-nano). The o-series takes low, medium and high, and
- *     later GPT-5.x releases replaced `minimal` with their own lowest setting.
- *     The `-pro` models run at high only. GPT-4.1 and GPT-4o do not reason and
- *     reject `reasoning_effort`.
+ *   - OpenAI, as its API listed each model's levels on 8 November 2026: the
+ *     original GPT-5 family takes minimal to high; later GPT-5.x and GPT-6
+ *     models take none (no reasoning) to xhigh, except GPT-6 Astra, GPT-6.1
+ *     Sol and o3, which start at low, and GPT-5.1, which stops at high. The
+ *     `-pro` models run at high only. GPT-4.1 and GPT-4o do not reason and
+ *     reject `reasoning_effort`. A model not named here gets low to high.
  *   - Claude, checked against the live API on 8 November 2026: Opus 4.6 and
  *     Sonnet 4.6 take max but not xhigh, Opus 4.5 stops at high, and Sonnet
  *     4.5, Haiku 4.5 and everything older take no effort at all. Newer models
@@ -158,6 +165,9 @@ export function effortsAccepted(model: string, provider: string): readonly Reaso
     if (/^(gpt-4\.1|gpt-4o|chatgpt-4o)/.test(id)) return [];
     if (/(^|-)pro$/.test(id)) return ["high"];
     if (/^gpt-5(-mini|-nano)?$/.test(id)) return ["minimal", "low", "medium", "high"];
+    if (OPENAI_NONE_TO_XHIGH.has(id)) return ["none", "low", "medium", "high", "xhigh"];
+    if (id === "gpt-5.1") return ["none", "low", "medium", "high"];
+    if (id === "gpt-6-astra" || id === "gpt-6.1-sol" || id === "o3") return ["low", "medium", "high", "xhigh"];
     return ["low", "medium", "high"];
   }
   if (/^claude-(3|haiku-3|instant)|^claude-(sonnet|haiku)-4-5$|^claude-(sonnet|opus)-4(-1)?$/.test(id)) return [];

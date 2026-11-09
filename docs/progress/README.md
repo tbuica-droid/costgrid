@@ -546,4 +546,4 @@ With the owner's go-ahead, a few real calls went through CostGrid on the owner's
   - The grader picked the right answer.
 - **Fixed: a call moved to a cheaper model could be refused.** Some models take fewer effort levels than CostGrid assumed. Opus 4.6 and Sonnet 4.6 refuse `xhigh`, and Opus 4.5 stops at `high`. Sonnet 4.5, Haiku 4.5, GPT-4.1 and GPT-4o take no effort setting at all. A call moved to one of them now carries a level the model takes, or none.
 - **Fixed: a batch could lose its cost if the app quit while recording it.** The batch was marked as recorded before its results were read. Now the mark and the costs are saved together.
-- **Not wrong, just cautious.** Newer OpenAI models also take `none` and `xhigh`, which CostGrid doesn't use yet.
+- **More room to save on OpenAI.** Most newer OpenAI models also take `none`, which means no reasoning at all, and `xhigh`. CostGrid now knows each model's exact levels, so less overthinking can turn reasoning off where the model allows it. Released as 3.0.1.

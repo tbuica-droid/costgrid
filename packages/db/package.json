@@ -1,6 +1,6 @@
 {
   "name": "@costgrid/db",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,7 @@
     }
   },
   "dependencies": {
-    "@costgrid/core": "3.0.0",
+    "@costgrid/core": "3.0.1",
     "better-sqlite3": "^13.0.3"
   }
 }

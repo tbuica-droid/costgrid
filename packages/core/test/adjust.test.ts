@@ -196,6 +196,24 @@ describe("effort levels, as the live APIs answered on 8 November 2026", () => {
     expect(oneLevelBelow("max", "anthropic", "claude-opus-4-6")).toBe("high");
   });
 
+  it("knows OpenAI's levels, including none, as its API listed them", () => {
+    expect(effortsAccepted("gpt-5.4-nano", "openai")).toEqual(["none", "low", "medium", "high", "xhigh"]);
+    expect(effortsAccepted("gpt-6.1-sol", "openai")).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(effortsAccepted("gpt-5.1", "openai")).toEqual(["none", "low", "medium", "high"]);
+    expect(effortsAccepted("gpt-5-mini", "openai")).toEqual(["minimal", "low", "medium", "high"]);
+    // A model not listed keeps the safe default.
+    expect(effortsAccepted("gpt-7-preview", "openai")).toEqual(["low", "medium", "high"]);
+    expect(oneLevelBelow("low", "openai", "gpt-5.4-nano")).toBe("none");
+    expect(oneLevelBelow("low", "openai", "gpt-6.1-sol")).toBeUndefined();
+  });
+
+  it("turns reasoning off with a none rule where the model allows it, and to its lowest elsewhere", () => {
+    const none = [policy({ kind: "lower-reasoning", effort: "none" })];
+    expect(applyAdjustments(none, "openai", { model: "gpt-5.4-nano", reasoning_effort: "high" }, "gpt-5.4-nano").body).toMatchObject({ reasoning_effort: "none" });
+    expect(applyAdjustments(none, "openai", { model: "gpt-5-mini", reasoning_effort: "high" }, "gpt-5-mini").body).toMatchObject({ reasoning_effort: "minimal" });
+    expect(applyAdjustments(none, "anthropic", { output_config: { effort: "high" } }, "claude-sonnet-5-5").body).toMatchObject({ output_config: { effort: "low" } });
+  });
+
   it("fits a moved call's effort to its new model, or drops it", () => {
     const claude = { model: "claude-haiku-4-5", output_config: { effort: "high" }, messages: [] };
     expect(fitEffort("anthropic", "claude-haiku-4-5", claude)).toEqual({ model: "claude-haiku-4-5", messages: [] });

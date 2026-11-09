@@ -1,6 +1,6 @@
 {
   "name": "@costgrid/desktop",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "CostGrid for one computer: the gateway and its console in a window.",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "release": "electron-builder --mac --publish always"
   },
   "dependencies": {
-    "@costgrid/gateway": "3.0.0",
+    "@costgrid/gateway": "3.0.1",
     "@napi-rs/keyring": "2.1.0"
   },
   "devDependencies": {
