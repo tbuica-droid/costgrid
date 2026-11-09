@@ -37,12 +37,12 @@ export const CATALOG_PROVENANCE: readonly CatalogProvenance[] = [
   {
     provider: "anthropic",
     source: "https://platform.claude.com/docs/en/about-claude/pricing",
-    verifiedAt: "2026-10-03",
+    verifiedAt: "2026-11-08",
   },
   {
     provider: "openai",
     source: "https://developers.openai.com/api/docs/pricing",
-    verifiedAt: "2026-10-03",
+    verifiedAt: "2026-11-08",
   },
 ];
 
@@ -374,6 +374,11 @@ const OPENAI_CATALOG: Record<string, CatalogEntry> = {
     input: "2.00", output: "10.00", cacheRead: "0.10", cacheWrite: "2.50",
     long: { input: "4.00", output: "15.00", cacheRead: "0.20", cacheWrite: "5.00" },
   },
+  "gpt-6.1-terra": {
+    displayName: "GPT-6.1 Terra", tier: "mid",
+    input: "1.00", output: "5.00", cacheRead: "0.05", cacheWrite: "1.25",
+    long: { input: "2.00", output: "7.50", cacheRead: "0.10", cacheWrite: "2.50" },
+  },
   "gpt-6-sol": {
     displayName: "GPT-6 Sol", tier: "mid",
     input: "2.00", output: "10.00", cacheRead: "0.20", cacheWrite: "2.50",
@@ -434,20 +439,20 @@ const OPENAI_CATALOG: Record<string, CatalogEntry> = {
 
   "gpt-4.1": { displayName: "GPT-4.1", tier: "mid", input: "2.00", output: "8.00", cacheRead: "0.50" },
   "gpt-4.1-mini": { displayName: "GPT-4.1 mini", tier: "small", input: "0.40", output: "1.60", cacheRead: "0.10" },
-  "gpt-4.1-nano": { displayName: "GPT-4.1 nano", tier: "small", input: "0.10", output: "0.40", cacheRead: "0.025" },
+  "gpt-4.1-nano": { displayName: "GPT-4.1 nano", tier: "small", input: "0.10", output: "0.40", cacheRead: "0.025", retired: true },
 
   "gpt-4o": { displayName: "GPT-4o", tier: "mid", input: "2.50", output: "10.00", cacheRead: "1.25" },
   // Priced differently from the gpt-4o alias, so it is listed explicitly —
   // an exact id match beats the longest-prefix fallback.
-  "gpt-4o-2024-05-13": { displayName: "GPT-4o (2024-05-13)", tier: "mid", input: "5.00", output: "15.00" },
+  "gpt-4o-2024-05-13": { displayName: "GPT-4o (2024-05-13)", tier: "mid", input: "5.00", output: "15.00", retired: true },
   "gpt-4o-mini": { displayName: "GPT-4o mini", tier: "small", input: "0.15", output: "0.60", cacheRead: "0.075" },
 
-  "o1": { displayName: "o1", tier: "frontier", input: "15.00", output: "60.00", cacheRead: "7.50" },
-  "o1-pro": { displayName: "o1-pro", tier: "frontier", input: "150.00", output: "600.00" },
+  "o1": { displayName: "o1", tier: "frontier", input: "15.00", output: "60.00", cacheRead: "7.50", retired: true },
+  "o1-pro": { displayName: "o1-pro", tier: "frontier", input: "150.00", output: "600.00", retired: true },
   "o3": { displayName: "o3", tier: "mid", input: "2.00", output: "8.00", cacheRead: "0.50" },
   "o3-pro": { displayName: "o3-pro", tier: "frontier", input: "20.00", output: "80.00" },
-  "o3-mini": { displayName: "o3-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.55" },
-  "o4-mini": { displayName: "o4-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.275" },
+  "o3-mini": { displayName: "o3-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.55", retired: true },
+  "o4-mini": { displayName: "o4-mini", tier: "small", input: "1.10", output: "4.40", cacheRead: "0.275", retired: true },
 
   // --- Legacy, still served. Catalogued so their calls price rather than
   // --- landing in the unpriced bucket.
