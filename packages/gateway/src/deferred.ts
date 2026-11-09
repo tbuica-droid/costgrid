@@ -134,6 +134,9 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
   };
   const adapterFor = (id: string) => ADAPTERS.find((a) => a.id === id);
 
+  /** Batches this process is reading results for right now. */
+  const metering = new Set<string>();
+
   async function refresh(batch: DeferredBatch, now: number): Promise<DeferredBatch> {
     if (FINISHED_STATUSES.has(batch.status)) return batch;
     if (batch.checkedAt !== null && now - batch.checkedAt < CHECK_EVERY_MS) return batch;
@@ -148,13 +151,16 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
   /**
    * Price every result line at the batch rate and record each as a call.
    *
-   * All or nothing: the lines are reduced to usage in memory, then every call
-   * is written in one transaction. A failure part-way gives the claim back,
-   * so the next sweep tries again and nothing is counted twice.
+   * All or nothing: the lines are reduced to usage in memory, then the claim
+   * and every call are written in one transaction. A failure, or the app
+   * quitting, part-way leaves nothing behind, so the next sweep tries again;
+   * the claim inside the transaction means nothing is counted twice, even by
+   * another process, and `metering` stops this one reading the results twice.
    */
   async function meter(batch: DeferredBatch, now = Date.now()): Promise<boolean> {
     if (!FINISHED_STATUSES.has(batch.status) || batch.meteredAt !== null) return false;
-    if (!batches.claimForMetering(batch.id, now)) return false;
+    if (metering.has(batch.id)) return false;
+    metering.add(batch.id);
     try {
       const adapter = adapterFor(batch.provider)!;
       const client = clients[batch.provider]!;
@@ -221,15 +227,17 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
         }
       }
 
-      db.transaction(() => {
+      return db.transaction(() => {
+        if (!batches.claimForMetering(batch.id, now)) return false;
         for (const r of records) repository.recordCall(r);
         batches.setCost(batch.id, total);
+        return true;
       })();
-      return true;
     } catch (error) {
-      batches.releaseClaim(batch.id);
       log.warn({ err: error, batch: batch.id }, "pricing a finished batch failed; it will be tried again");
       return false;
+    } finally {
+      metering.delete(batch.id);
     }
   }
 

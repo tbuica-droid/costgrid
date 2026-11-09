@@ -180,10 +180,6 @@ export class DeferredBatches {
     );
   }
 
-  /** Give a claim back when pricing failed part-way, so the next sweep tries again. */
-  releaseClaim(id: string): void {
-    this.#db.prepare("UPDATE deferred_batches SET metered_at = NULL, cost_total = 0 WHERE id = ?").run(id);
-  }
 
   setCost(id: string, cost: Nanodollars): void {
     this.#db.prepare("UPDATE deferred_batches SET cost_total = ? WHERE id = ?").run(cost, id);

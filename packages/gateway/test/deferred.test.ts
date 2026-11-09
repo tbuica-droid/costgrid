@@ -27,6 +27,10 @@ class StubProviders {
   calls: { method: string; path: string; body?: unknown; headers: Record<string, string> }[] = [];
   ended = false;
   submitted: unknown[] = [];
+  /** Reading results fails this many more times. */
+  resultsFailures = 0;
+  /** Reading results waits on this, to look at the batch mid-read. */
+  resultsGate: Promise<void> | undefined;
 
   fetch = (async (input: unknown, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -55,6 +59,11 @@ class StubProviders {
       );
     }
     if (url.pathname === "/v1/messages/batches/msgbatch_1/results") {
+      await this.resultsGate;
+      if (this.resultsFailures > 0) {
+        this.resultsFailures -= 1;
+        return json({ error: "unavailable" }, 503);
+      }
       return new Response(
         [
           JSON.stringify({
@@ -162,6 +171,28 @@ describe("deferred jobs at the batch rate", () => {
     const results = await app.inject({ method: "GET", url: `/v1/costgrid/deferred/${created.id}/results`, headers: headers() });
     expect(results.statusCode).toBe(200);
     expect(results.body).toContain("secret answer");
+  });
+
+  it("prices a batch whose pricing stopped part-way exactly once, later", async () => {
+    const { id } = (await submit(anthropicBatch)).json() as { id: string };
+    stub.ended = true;
+    stub.resultsFailures = 1;
+    await deferredOf(app)!.sweep(Date.now() + 120_000);
+    // Nothing recorded, and nothing left claimed: the batch is still waiting to be priced.
+    expect(db.prepare("SELECT COUNT(*) AS n FROM calls").get()).toEqual({ n: 0 });
+    expect(db.prepare("SELECT metered_at AS m FROM deferred_batches WHERE id = ?").get(id)).toEqual({ m: null });
+
+    // While results are being read, nothing is marked, so an app that quits
+    // now leaves the batch to be priced next time. Two checks at once still
+    // record each call once.
+    let open!: () => void;
+    stub.resultsGate = new Promise((resolve) => (open = resolve));
+    const sweeps = Promise.all([deferredOf(app)!.sweep(Date.now() + 240_000), deferredOf(app)!.sweep(Date.now() + 240_000)]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(db.prepare("SELECT metered_at AS m FROM deferred_batches WHERE id = ?").get(id)).toEqual({ m: null });
+    open();
+    await sweeps;
+    expect(db.prepare("SELECT COUNT(*) AS n FROM calls").get()).toEqual({ n: 2 });
   });
 
   it("stores no prompt and no answer", async () => {
