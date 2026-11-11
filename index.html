@@ -1,470 +1,401 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0b0d12" />
-    <title>CostGrid: reduce your AI costs, with every request optimised</title>
-    <meta name="description" content="Reduce your AI API costs, with every request optimised and the quality kept. CostGrid shows what every finished job really costs, then cuts the waste: half-price batch work, cheaper repeat prompts, less overthinking, cheaper models where they do just as well. Free Mac app." />
+    <title>CostGrid: reduce your AI costs, every request optimised</title>
+    <meta name="description" content="CostGrid is a gateway between your AI agents and OpenAI or Claude. It prices every request, blocks spend over budget before it is sent, and applies batch, prompt caching, lower reasoning effort or a smaller model. Free, on your Mac or your own servers." />
     <meta property="og:title" content="Reduce your AI costs. Every request, optimised." />
-    <meta property="og:description" content="See what every finished job really costs, then pay less for it. Every change is tried on your own work first, and undone if it stops paying. Free Mac app." />
+    <meta property="og:description" content="A gateway between your agents and OpenAI or Claude. Prices every request, enforces budgets before money is spent, and sends work the cheaper way. Free, self-hosted." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://costgrid.dev/" />
     <meta property="og:site_name" content="CostGrid" />
     <link rel="canonical" href="https://costgrid.dev/" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
-    <link rel="preload" href="fonts/plus-jakarta-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="site.css" />
+    <link rel="preload" href="fonts/plus-jakarta-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="home.css" />
+    <link rel="stylesheet" href="home-product.css" />
+    <link rel="stylesheet" href="home-sections.css" />
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "CostGrid",
-      "description": "A Mac app for businesses that run their own AI agents on OpenAI or Claude. It shows the real cost of every successful job, which agents waste money, and what to fix first. It runs on your computer and never keeps prompts or AI answers.",
+      "description": "A gateway between your AI agents and OpenAI or Claude, run on your Mac or your own servers. It prices every request, enforces budgets before money is spent, and applies batch, prompt caching, lower reasoning effort or a smaller model. It never stores prompts or answers.",
       "url": "https://costgrid.dev/",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "macOS",
-      "offers": [
-        { "@type": "Offer", "name": "View", "price": "0", "priceCurrency": "USD" }
-      ],
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "macOS, Linux (self-hosted gateway)",
+      "offers": [{ "@type": "Offer", "name": "View", "price": "0", "priceCurrency": "USD" }],
       "author": { "@type": "Person", "name": "Tomas Buica" }
     }
     </script>
   </head>
   <body>
-    <header class="site-head floating">
-      <div class="wrap"><div class="glass head-in">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap"><div class="top-in">
         <a class="brand" href="./" aria-label="CostGrid home">
-          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
+          <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
           CostGrid
         </a>
-        <nav class="site-nav" aria-label="Site">
-          <a href="#save">How it saves</a>
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#privacy">Privacy</a>
-          <a href="./research.html">Research</a>
+        <nav class="nav" aria-label="Site">
+          <a href="#save">Savings</a><a href="#how">How it works</a><a href="#faq">Questions</a><a href="./research.html">Research</a>
         </nav>
-        <a class="btn btn-accent btn-sm only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download free</a>
-        <a class="btn btn-accent btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Get it for your Mac</a>
+        <a class="btn btn-gold btn-sm only-mac" href="#download">Download</a>
+        <a class="btn btn-gold btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email me the link</a>
       </div></div>
     </header>
 
-    <main>
-      <!-- Hero: says what CostGrid does in one look, with the download one click away. The video is
-           served from this site (media/) and starts only for visitors who allow motion (hero.js). -->
+    <main id="main">
+      <!-- Hero: what CostGrid is, where it sits, and the download. The video (media/, hero.js) loads after the page. -->
       <section class="hero" id="top">
-        <div class="hero-bg" aria-hidden="true"><span class="glow glow-a"></span><span class="glow glow-b"></span>
-          <video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
-        <div class="wrap hero-in">
-          <span class="overline">For businesses running AI agents</span>
-          <h1 id="heroTitle"><span class="line">Reduce your AI costs.</span> <span class="line hero-accent">Every request, optimised.</span></h1>
-          <script src="hero.js"></script>
-          <p class="sub">See what every finished job really costs, then pay less for it. Every change is tried on your own work first, and undone if it stops paying.</p>
-          <div class="cta-row">
-            <a class="btn btn-accent btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download free for Mac</a>
-            <a class="btn btn-accent btn-lg only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
-            <a class="btn btn-lg glass" href="#save">See how it saves money</a>
+        <div class="hero-bg" aria-hidden="true"><video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
+        <div class="wrap hero-wrap hero-grid">
+          <div>
+            <span class="eyebrow">For AI agents you run yourself</span>
+            <h1 class="display">Reduce your AI costs. <span class="quiet">Every request, optimised.</span></h1>
+            <p class="lede">CostGrid is a gateway between your agents and OpenAI or Claude. It prices every request, blocks spend over budget before it is sent, and moves work to the cheaper option: batch, cached prompts, lower effort or a smaller model.</p>
+            <div class="cta">
+              <a class="btn btn-gold only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8m0 0L4.5 7M8 10.5 11.5 7M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Download for Mac</a>
+              <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
+              <a class="btn btn-ghost" href="#save">See the six savings</a>
+            </div>
+            <p class="meta">Runs on your Mac or on servers you control · Free · Never stores prompts<span class="only-mac"> · <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Intel Mac</a></span></p>
           </div>
-          <p class="small">Free · No sign-up · Runs on your Mac · Never keeps your prompts<span class="only-mac"> · <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Older Intel Mac?</a></span></p>
+
+          <figure class="frame gw" data-feed aria-label="Example: requests passing through CostGrid, with the saving on each">
+            <div class="frame-bar"><span class="live">127.0.0.1:8787</span><span class="tag">Example traffic · list prices</span></div>
+            <svg class="gw-flow" viewBox="0 0 640 176" role="img" aria-label="Your agents send requests to CostGrid, which forwards them to OpenAI or Anthropic">
+              <text class="cap" x="18" y="22">YOUR AGENTS</text>
+              <text class="cap" x="486" y="47">PROVIDERS</text>
+              <path id="w1" class="wire" d="M156 49 C200 49 200 95 246 95"/>
+              <path id="w2" class="wire" d="M156 96 L246 95"/>
+              <path id="w3" class="wire" d="M156 143 C200 143 200 95 246 95"/>
+              <path id="w4" class="wire" d="M394 95 C440 95 440 72 486 72"/>
+              <path id="w5" class="wire" d="M394 95 C440 95 440 120 486 120"/>
+              <rect class="node" x="18" y="34" width="138" height="30" rx="8"/><text class="lbl" x="32" y="53.5">support-replies</text>
+              <rect class="node" x="18" y="81" width="138" height="30" rx="8"/><text class="lbl" x="32" y="100.5">nightly-summaries</text>
+              <rect class="node" x="18" y="128" width="138" height="30" rx="8"/><text class="lbl" x="32" y="147.5">ticket-triage</text>
+              <rect class="hub" x="246" y="62" width="148" height="66" rx="12"/>
+              <text class="hub-t" x="320" y="92" text-anchor="middle">CostGrid</text>
+              <text class="hub-s" x="320" y="111" text-anchor="middle">price · limit · save</text>
+              <rect class="node" x="486" y="57" width="136" height="30" rx="8"/><text class="lbl" x="554" y="76.5" text-anchor="middle">OpenAI</text>
+              <rect class="node" x="486" y="105" width="136" height="30" rx="8"/><text class="lbl" x="554" y="124.5" text-anchor="middle">Anthropic</text>
+              <circle class="pulse" r="2.6"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
+              <circle class="pulse" r="2.6"><animateMotion dur="1.4s" repeatCount="indefinite" begin="0.5s"><mpath href="#w2"/></animateMotion></circle>
+              <circle class="pulse" r="2.6"><animateMotion dur="1.7s" repeatCount="indefinite" begin="0.9s"><mpath href="#w3"/></animateMotion></circle>
+              <circle class="pulse" r="2.6"><animateMotion dur="1.5s" repeatCount="indefinite" begin="0.3s"><mpath href="#w4"/></animateMotion></circle>
+              <circle class="pulse" r="2.6"><animateMotion dur="1.5s" repeatCount="indefinite" begin="1.1s"><mpath href="#w5"/></animateMotion></circle>
+            </svg>
+            <p class="gw-path" aria-hidden="true">Your agents <i>→</i> <b>CostGrid</b> <i>→</i> OpenAI · Anthropic</p>
+            <div class="feed" role="table" aria-label="Recent requests, example traffic">
+              <div class="feed-head" role="row"><span role="columnheader">Agent</span><span class="hm" role="columnheader">Model</span><span role="columnheader">Applied</span><span role="columnheader">Cost</span></div>
+              <div class="feed-body" role="rowgroup"></div>
+            </div>
+            <dl class="gw-foot">
+              <div><dt>Requests</dt><dd data-n>0</dd></div>
+              <div><dt>Saved on these</dt><dd class="g" data-s>$0</dd></div>
+              <div><dt>Blocked</dt><dd data-b>0</dd></div>
+              <p>Costs at OpenAI's and Anthropic's published rates.</p>
+            </dl>
+          </figure>
         </div>
       </section>
 
-      <!-- Product shot: a preview of the Results screen being built, in HTML. Example data. -->
-      <section class="wrap shot" aria-label="Preview of the Results screen">
-        <figure class="win" style="margin: 0">
-          <div class="win-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="t">CostGrid</span></div>
-          <div class="win-body">
-            <aside class="app-side" aria-hidden="true">
-              <div class="biz"><b>Northwind Dental</b><span>Example business</span></div>
-              <div class="app-nav">
-                <span><svg width="17" height="17" viewBox="0 0 17 17"><path d="M2.5 8.5 8.5 3l6 5.5M4 7.5v6h9v-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Overview</span>
-                <span class="on"><svg width="17" height="17" viewBox="0 0 17 17"><path d="M3.5 13.5v-5M8.5 13.5v-10M13.5 13.5v-7" fill="none" stroke="#d9b46c" stroke-width="1.8" stroke-linecap="round"/></svg>Results</span>
-                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="6" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 14c.8-2.5 2.7-3.6 5-3.6s4.2 1.1 5 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Agents</span>
-                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="8.5" cy="8.5" r="5.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 5.5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Limits</span>
-                <span><svg width="17" height="17" viewBox="0 0 17 17"><circle cx="6" cy="11" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7.9 9.1 5.4-5.4M11.2 5.8l1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Keys</span>
-                <span><svg width="17" height="17" viewBox="0 0 17 17"><path d="M3 5h11M3 8.5h11M3 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Settings</span>
+      <section class="sec" id="results">
+        <div class="wrap">
+          <div class="sec-head split rise">
+            <div><span class="eyebrow">The Results screen</span><h2 class="h2">What each agent costs per finished job.</h2></div>
+            <p class="lede">Retries and failed calls included, agent by agent.</p>
+          </div>
+          <figure class="frame rise" aria-label="Preview of CostGrid's Results screen, with example data">
+            <div class="frame-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>CostGrid</span><span class="tag">Example data</span></div>
+            <div class="app">
+              <div class="app-side" aria-hidden="true">
+                <div class="app-org"><b>Northwind Dental</b><span>Example business</span></div>
+                <span><i></i>Setup</span><span class="on"><i></i>Results</span><span><i></i>Ways to save</span><span><i></i>Tests</span><span><i></i>Limits</span><span><i></i>What changed</span><span><i></i>Data</span><span><i></i>Settings</span>
+                <div class="app-plan"><b>View · Free</b>View and control adds pausing Claude keys and a monthly cap.</div>
               </div>
-              <div class="plan-box"><b>View · Free</b><span>View and control can pause a runaway agent's Claude keys.</span><span style="color: var(--ink); font-weight: 600">Ask for a quote →</span></div>
-            </aside>
-            <div class="app-main">
-              <span class="example-tag">The Results screen · example data</span>
-              <div class="app-top">
-                <div>
-                  <h2>Results</h2>
-                  <span class="sub">September 2026 · figures below for Support replies · OpenAI and Claude</span>
+              <div class="app-main">
+                <div class="app-head">
+                  <div><h3>Results</h3><p>September 2026 · OpenAI and Claude · figures for Support replies</p></div>
+                  <div class="app-btns" aria-hidden="true"><span>September 2026</span><span>Export statement</span><span class="g">Add an agent</span></div>
                 </div>
-                <div class="app-btns" aria-hidden="true">
-                  <span class="fake-btn">September 2026 ▾</span>
-                  <span class="fake-btn">Export statement</span>
-                  <span class="fake-btn primary">Add an agent</span>
+                <div class="kpis">
+                  <div class="kpi"><span class="k">Cost per finished job</span><span class="v g">$0.39</span><span class="n">retries included</span></div>
+                  <div class="kpi"><span class="k">Spent on jobs that didn't finish</span><span class="v">38.2%</span><span class="n">$1,160 of $3,040</span></div>
+                  <div class="kpi"><span class="k">Jobs finished</span><span class="v">7,800</span><span class="n">of 9,800 with an outcome</span></div>
+                  <div class="kpi"><span class="k">Bad job vs typical</span><span class="v">3.2×</span><span class="n">95th percentile vs median</span></div>
                 </div>
-              </div>
-              <div class="kpis">
-                <div class="kpi"><span class="k">Cost per finished job</span><span class="v gold">$0.39</span><span class="n">AI bill, retries included · indicative</span></div>
-                <div class="kpi"><span class="k">Spent on jobs that didn't finish</span><span class="v">38.2%</span><span class="n">$1,160 of $3,040</span></div>
-                <div class="kpi"><span class="k">Jobs finished</span><span class="v">7,800</span><span class="n">of 9,800 with an outcome</span></div>
-                <div class="kpi"><span class="k">Compared with a person</span><span class="v">6%</span><span class="n">of your estimate for a person</span></div>
-              </div>
-              <div class="table-box">
                 <table class="agents">
                   <caption class="sr-only">Example agents and what each finished job cost</caption>
-                  <thead><tr><th scope="col">Agent</th><th scope="col" class="r">Jobs done</th><th scope="col" class="r">Cost / finished job</th><th scope="col" class="r">On failures</th><th scope="col">In plain words</th></tr></thead>
+                  <thead><tr><th scope="col">Agent</th><th scope="col" class="r hide-s">Jobs done</th><th scope="col" class="r">Cost / finished job</th><th scope="col" class="r hide-s">On failures</th><th scope="col" class="hide-s">Summary</th></tr></thead>
                   <tbody>
-                    <tr><td><div class="name">Support replies</div><div class="kind">Customer support</div></td><td class="r">7,800</td><td class="r" style="font-weight: 600">$0.39</td><td class="r">38%</td><td class="means">A bad job costs 3.2× a typical one. A per-job limit would catch the runaways.</td></tr>
-                    <tr><td><div class="name">Lead research</div><div class="kind">Sales leads</div></td><td class="r">1,240</td><td class="r" style="font-weight: 600">$0.84</td><td class="r">22%</td><td class="means">Steady from job to job.</td></tr>
-                    <tr><td><div class="name">Invoice entry</div><div class="kind">Data entry</div></td><td class="r">3,410</td><td class="r" style="font-weight: 600">$0.06</td><td class="r">61%</td><td class="means">Most of the money goes on jobs that don't finish.</td></tr>
-                    <tr><td><div class="name">Blog drafts</div><div class="kind">Content</div></td><td class="r">0</td><td class="r">—</td><td class="r">—</td><td class="means"><span class="pill bad">Spending, nothing finished</span> $46.20 spent and no job has finished yet.</td></tr>
+                    <tr><td><div class="nm">Support replies</div><div class="kd">Customer support</div></td><td class="r hide-s">7,800</td><td class="r">$0.39</td><td class="r hide-s">38%</td><td class="sum hide-s">A bad job costs 3.2× a typical one. A per-job limit would catch the runaways.</td></tr>
+                    <tr><td><div class="nm">Lead research</div><div class="kd">Sales leads</div></td><td class="r hide-s">1,240</td><td class="r">$0.84</td><td class="r hide-s">22%</td><td class="sum hide-s">Steady from job to job.</td></tr>
+                    <tr><td><div class="nm">Invoice entry</div><div class="kd">Data entry</div></td><td class="r hide-s">3,410</td><td class="r">$0.06</td><td class="r hide-s">61%</td><td class="sum hide-s">Most of the money goes on jobs that don't finish.</td></tr>
+                    <tr><td><div class="nm">Blog drafts</div><div class="kd">Content</div></td><td class="r hide-s">0</td><td class="r">—</td><td class="r hide-s">—</td><td class="sum hide-s"><span class="pill-bad">Nothing finished</span>$46.20 spent, no job finished yet.</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p class="small">Example data. All figures are indicative. "Compared with a person" uses your own estimate of the minutes a person takes and what their hour costs.</p>
             </div>
-          </div>
-        </figure>
+          </figure>
+          <p class="small results-more" id="example">Example data, indicative figures. <a href="./research.html#example">A worked example, all costs included →</a></p>
+        </div>
       </section>
 
-      <section class="section" id="problem">
+      <section class="sec" id="problem">
         <div class="wrap">
-          <span class="overline">The problem</span>
-          <h2 class="head">Your AI bill charges for every try, not just the jobs that got done.</h2>
-          <div class="bento">
-            <article class="bento-card bento-a">
-              <div class="bento-swoosh">
-                <svg viewBox="0 0 254 104" aria-hidden="true"><path fill="currentColor" d="M112.891 97.7022C140.366 97.0802 171.004 94.6715 201.087 87.5116C210.43 85.2881 219.615 82.6412 228.284 78.2473C232.198 76.3179 235.905 73.9942 239.348 71.3124C241.85 69.2557 243.954 66.7571 245.555 63.9408C249.34 57.3235 248.281 50.5341 242.498 45.6109C239.033 42.7237 235.228 40.2703 231.169 38.3054C219.443 32.7209 207.141 28.4382 194.482 25.534C184.013 23.1927 173.358 21.7755 162.64 21.2989C161.376 21.3512 160.113 21.181 158.908 20.796C158.034 20.399 156.857 19.1682 156.962 18.4535C157.115 17.8927 157.381 17.3689 157.743 16.9139C158.104 16.4588 158.555 16.0821 159.067 15.8066C160.14 15.4683 161.274 15.3733 162.389 15.5286C179.805 15.3566 196.626 18.8373 212.998 24.462C220.978 27.2494 228.798 30.4747 236.423 34.1232C240.476 36.1159 244.202 38.7131 247.474 41.8258C254.342 48.2578 255.745 56.9397 251.841 65.4892C249.793 69.8582 246.736 73.6777 242.921 76.6327C236.224 82.0192 228.522 85.4602 220.502 88.2924C205.017 93.7847 188.964 96.9081 172.738 99.2109C153.442 101.949 133.993 103.478 114.506 103.79C91.1468 104.161 67.9334 102.97 45.1169 97.5831C36.0094 95.5616 27.2626 92.1655 19.1771 87.5116C13.839 84.5746 9.1557 80.5802 5.41318 75.7725C-0.54238 67.7259 -1.13794 59.1763 3.25594 50.2827C5.82447 45.3918 9.29572 41.0315 13.4863 37.4319C24.2989 27.5721 37.0438 20.9681 50.5431 15.7272C68.1451 8.8849 86.4883 5.1395 105.175 2.83669C129.045 0.0992292 153.151 0.134761 177.013 2.94256C197.672 5.23215 218.04 9.01724 237.588 16.3889C240.089 17.3418 242.498 18.5197 244.933 19.6446C246.627 20.4387 247.725 21.6695 246.997 23.615C246.455 25.1105 244.814 25.5605 242.63 24.5811C230.322 18.9961 217.233 16.1904 204.117 13.4376C188.761 10.3438 173.2 8.36665 157.558 7.52174C129.914 5.70776 102.154 8.06792 75.2124 14.5228C60.6177 17.8788 46.5758 23.2977 33.5102 30.6161C26.6595 34.3329 20.4123 39.0673 14.9818 44.658C12.9433 46.8071 11.1336 49.1622 9.58207 51.6855C4.87056 59.5336 5.61172 67.2494 11.9246 73.7608C15.2064 77.0494 18.8775 79.925 22.8564 82.3236C31.6176 87.7101 41.3848 90.5291 51.3902 92.5804C70.6068 96.5773 90.0219 97.7419 112.891 97.7022Z"/></svg>
-                <span class="bento-big">49%</span>
-              </div>
-              <h3>got a higher AI bill than they expected</h3>
-              <p>Of those paying for AI, in a Q3 2026 survey of 1,150 decision-makers at businesses with 5 to 499 staff. 57% in the US.</p>
+          <div class="sec-head rise"><div><span class="eyebrow">The problem</span><h2 class="h2">The invoice shows tokens, not agents.</h2></div></div>
+          <div class="bento rise">
+            <article class="b b-a">
+              <div class="b-vis"><div class="b-gauge"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="g-track"/><circle cx="60" cy="60" r="52" class="g-fill" stroke-dasharray="160.1 326.7" transform="rotate(-90 60 60)"/></svg><span class="b-big">49%</span></div></div>
+              <h3>got a higher AI bill than expected</h3>
+              <p>Of businesses paying for AI, in a Q3 2026 survey of 1,150 businesses with 5 to 499 staff.</p>
             </article>
-
-            <article class="bento-card bento-b">
-              <div class="bento-ring bento-ring-lg">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
-              </div>
-              <h3>You pay for every try</h3>
-              <p>Each time an agent runs, you pay, whether the job got done or not. The bill can't tell you which runs actually worked.</p>
+            <article class="b b-b">
+              <div class="b-vis"><span class="b-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span></div>
+              <h3>Every retry is billed</h3>
+              <p>Failed and cut-off calls cost the same as the ones that worked.</p>
             </article>
-
-            <article class="bento-card bento-c">
-              <div class="bento-chart">
-                <div class="bento-chart-head"><span>Cost of each run, same job</span><span class="bento-chip">illustration</span></div>
+            <article class="b b-c">
+              <div class="b-vis"><div class="b-chart">
+                <div class="b-chart-head"><span>Cost of each run, same job</span><span>illustration</span></div>
                 <svg viewBox="0 0 386 96" preserveAspectRatio="none" aria-hidden="true">
-                  <defs><linearGradient id="bento-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b46c" stop-opacity="0.32"/><stop offset="1" stop-color="#d9b46c" stop-opacity="0"/></linearGradient></defs>
-                  <path fill="url(#bento-fill)" d="M0 96V78L18 80 34 76 50 79 66 77 82 80 98 74 114 78 130 30 146 76 162 79 178 77 194 80 210 75 226 78 242 12 258 74 274 79 290 77 306 80 322 76 338 79 354 50 370 77 386 78V96Z"/>
+                  <defs><linearGradient id="bfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b46c" stop-opacity="0.3"/><stop offset="1" stop-color="#d9b46c" stop-opacity="0"/></linearGradient></defs>
+                  <path fill="url(#bfill)" d="M0 96V78L18 80 34 76 50 79 66 77 82 80 98 74 114 78 130 30 146 76 162 79 178 77 194 80 210 75 226 78 242 12 258 74 274 79 290 77 306 80 322 76 338 79 354 50 370 77 386 78V96Z"/>
                   <path fill="none" stroke="#d9b46c" stroke-width="2" stroke-linejoin="round" d="M0 78L18 80 34 76 50 79 66 77 82 80 98 74 114 78 130 30 146 76 162 79 178 77 194 80 210 75 226 78 242 12 258 74 274 79 290 77 306 80 322 76 338 79 354 50 370 77 386 78"/>
                 </svg>
-              </div>
-              <h3>The same job, very different prices</h3>
-              <p>One run of a job can be cheap and the next can cost many times more. An average hides the expensive ones.</p>
+              </div></div>
+              <h3>Same job, different cost</h3>
+              <p>One run can cost many times another. An average hides it.</p>
             </article>
-
-            <article class="bento-card bento-wide bento-d">
-              <div class="bento-text">
-                <div class="bento-ring">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
-                </div>
-                <div>
-                  <h3>Some costs never show up</h3>
-                  <p>Failed and retried attempts are paid for, then forgotten. So is the time your staff spend checking and fixing AI work. Neither is a line on the bill.</p>
-                </div>
-              </div>
-              <div class="bento-window" aria-hidden="true">
-                <div class="bento-dots"><span></span><span></span><span></span></div>
-                <p class="bento-window-title">Your AI bill</p>
-                <ul class="bento-bill">
-                  <li><span>Tokens used</span><span class="bento-tag on">on the bill</span></li>
-                  <li><span>Failed and retried attempts</span><span class="bento-tag">mixed in, not itemised</span></li>
-                  <li><span>Staff checking and fixing</span><span class="bento-tag off">not on the bill</span></li>
+            <article class="b b-d b-split">
+              <div><h3>Spend per agent isn't on the invoice</h3><p style="margin-top:10px">Providers total usage by model and key, not by the agent that spent it.</p></div>
+              <div class="b-win" aria-hidden="true">
+                <p class="b-win-t">Your AI invoice</p>
+                <ul>
+                  <li><span>Spend per model</span><span class="tagx on">on the invoice</span></li>
+                  <li><span>Failed and retried calls</span><span class="tagx">mixed in</span></li>
+                  <li><span>Spend per agent</span><span class="tagx off">not on the invoice</span></li>
                 </ul>
               </div>
             </article>
-
-            <article class="bento-card bento-wide bento-e">
-              <div class="bento-text">
-                <div class="bento-ring">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                </div>
-                <div>
-                  <p class="bento-stat">55%</p>
-                  <h3>spend 3 or more hours a week checking AI output</h3>
-                  <p>Time that never appears on an AI bill, but is part of what each finished job costs.</p>
-                </div>
-              </div>
-              <div class="bento-steps" aria-hidden="true">
-                <div class="bento-step left"><span class="bento-tag">Re-read the answer</span><i></i></div>
-                <div class="bento-step right"><i></i><span class="bento-tag">Fix what it got wrong</span></div>
-                <div class="bento-step left"><span class="bento-tag">Send it on</span><i></i></div>
-              </div>
+            <article class="b b-e b-split">
+              <div><h3>Loops cost more with every step</h3><p style="margin-top:10px">A looping agent resends a longer context on every call, until someone notices.</p></div>
+              <ol class="b-steps" aria-hidden="true">
+                <li><span>Call 1</span><span>4k tokens</span></li>
+                <li><span>Call 6, context grows</span><span>24k tokens</span></li>
+                <li><span>Call 12, each call costs more</span><span>48k tokens</span></li>
+              </ol>
             </article>
           </div>
-          <p class="small bento-source">
-            Source: Pax8 SMB AI Pulse, Q3 2026, a survey commissioned by Pax8, which sells to small businesses. <a href="https://www.globenewswire.com/news-release/2026/10/12/3378898/0/en/pax8-research-finds-small-businesses-are-building-ai-faster-than-they-can-govern-it.html" rel="noopener">Press release, 12 Oct 2026</a> · <a href="https://thenextweb.com/news/shadow-ai-small-businesses-pax8-survey" rel="noopener">TNW report</a>
-          </p>
+          <p class="small b-source">Source: Pax8 SMB AI Pulse, Q3 2026, commissioned by Pax8. <a href="https://www.globenewswire.com/news-release/2026/10/12/3378898/0/en/pax8-research-finds-small-businesses-are-building-ai-faster-than-they-can-govern-it.html" rel="noopener">Press release</a> · <a href="https://thenextweb.com/news/shadow-ai-small-businesses-pax8-survey" rel="noopener">TNW report</a>. Loop figures are an illustration.</p>
         </div>
       </section>
 
-      <section class="section" id="save">
+      <section class="sec" id="save">
         <div class="wrap">
-          <span class="overline">How it saves money</span>
-          <h2 class="head">Six ways to a smaller AI bill.</h2>
-          <p class="lede">Point your agents at CostGrid (a one-line change for whoever set them up) and it stops just showing the waste and starts cutting it. Nothing changes until you say so.</p>
-          <div class="grid g3 save-grid">
-            <div class="card save-card"><span class="save-big">Half price</span><h3>Work that can wait</h3><p>Overnight reports, bulk summaries, tagging. CostGrid sends them through OpenAI's and Claude's batch services, which charge half the normal price.</p></div>
-            <div class="card save-card"><span class="save-big">A tenth</span><h3>Instructions you send every time</h3><p>Most agents send the same long instructions with every request. CostGrid marks them so Claude charges a tenth of the price for the repeats.</p></div>
-            <div class="card save-card"><span class="save-big">Less thinking</span><h3>Agents that overthink easy jobs</h3><p>You pay for every word an AI thinks. When an agent thinks at length to give a short answer, CostGrid turns it down a notch.</p></div>
-            <div class="card save-card"><span class="save-big">Cheaper model</span><h3>Simple work on an expensive model</h3><p>CostGrid tries a cheaper model on a small share of the work, side by side, and only switches when the answers are just as good.</p></div>
-            <div class="card save-card"><span class="save-big">No runaways</span><h3>Agents stuck in a loop</h3><p>Set a limit per job, per day or per month, and a runaway agent stops before it runs up the bill.</p></div>
-            <div class="card save-card"><span class="save-big">Less waste</span><h3>Money spent on jobs that fail</h3><p>See how much of your bill goes on attempts that never finish, agent by agent, and fix the worst one first.</p></div>
+          <div class="sec-head split rise">
+            <div><span class="eyebrow">How it saves</span><h2 class="h2">Six ways to a smaller bill.</h2></div>
+            <p class="lede">Each applies to requests sent through CostGrid, and all six are free. A new rule starts as a dry run.</p>
           </div>
-          <div class="save-safe">
-            <p><b>Nothing changes until you say so.</b> Each saving starts as a test that only records what it would have done.</p>
-            <p><b>Measured on your own work.</b> You see the cost of a finished job before and after, not a guess.</p>
-            <p><b>Undone if it stops paying.</b> If a change costs more, or fewer jobs get done, CostGrid switches it back and tells you.</p>
+          <div class="sv-grid rise">
+            <svg class="mark" style="left:0;top:0" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" fill="none"/></svg>
+            <svg class="mark" style="left:100%;top:100%" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" fill="none"/></svg>
+            <article class="sv"><span class="sv-fig">Half price</span><h3>Work that can wait</h3><p>Reports and bulk jobs run on the provider's batch API at half the standard rate.</p><code>POST /v1/costgrid/deferred</code></article>
+            <article class="sv"><span class="sv-fig">Cache-read rate</span><h3>Instructions sent every time</h3><p>CostGrid marks system prompts and tools for caching, so Claude bills each repeat at the cache-read rate.</p><code>cache_control on system and tools</code></article>
+            <article class="sv"><span class="sv-fig">Lower effort</span><h3>Long reasoning, short answers</h3><p>When an agent reasons at length to answer briefly, CostGrid lowers its effort to a level the model accepts.</p><code>reasoning effort: high → medium</code></article>
+            <article class="sv"><span class="sv-fig">Smaller model</span><h3>Simple work on a large model</h3><p>A cheaper model is tested on a share of jobs. You approve the switch only if jobs finish as often.</p><code>x-costgrid-routed: claude-opus-5-&gt;claude-haiku-4-5</code></article>
+            <article class="sv"><span class="sv-fig">Hard limits</span><h3>Runaway agents</h3><p>Budgets per agent, team or run are checked before each request. Over budget, a call is refused or moved to a cheaper model.</p><code>403 · refused before it is forwarded</code></article>
+            <article class="sv"><span class="sv-fig">Less waste</span><h3>Jobs that never finish</h3><p>See what each agent spends on failed jobs, and fix the costliest first.</p><code>Results · spent on jobs that didn't finish</code></article>
           </div>
-        </div>
-      </section>
-
-      <section class="section" id="how">
-        <div class="wrap">
-          <span class="overline">How it works</span>
-          <h2 class="head">Up and running in three steps.</h2>
-          <div class="grid g3" style="margin-top: 40px">
-            <div class="card"><span class="step-no">Step 1</span><h3>Connect OpenAI or Claude</h3><p>Add a key, or drop in the usage file you can download from either one. CostGrid brings in your last 90 days and shows what each of your agents costs. Your key stays in your Mac's Keychain.</p></div>
-            <div class="card"><span class="step-no">Step 2</span><h3>See what each finished job costs</h3><p>Point your agents at CostGrid, a one-line change for whoever set them up. It sees which jobs got done and which failed, and adds failed attempts to the cost of the ones that worked.</p></div>
-            <div class="card"><span class="step-no">Step 3</span><h3>Switch on the savings</h3><p>CostGrid suggests ways to save. Each one runs as a test first, so you see the saving before anything changes, and it keeps checking after you switch it on.</p></div>
+          <div class="safe rise">
+            <div><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.5 2.5"/></svg><p><b>Dry run first</b><span>A new rule records what it would have saved and changes nothing.</span></p></div>
+            <div><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 14V8m4 6V4m4 10V9m4 5V6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><p><b>Judged on finished jobs</b><span>Cost per finished job, before and after the change.</span></p></div>
+            <div><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 6.5h7.5a3.5 3.5 0 0 1 0 7H6M4 6.5 6.5 4M4 6.5 6.5 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><p><b>Reverts on its own</b><span>If cost rises or fewer jobs finish, the rule switches back and alerts you.</span></p></div>
           </div>
         </div>
       </section>
 
-      <section class="section" id="example">
+      <section class="sec" id="how">
+        <div class="wrap how">
+          <div class="rise">
+            <span class="eyebrow">How it works</span>
+            <h2 class="h2">Three steps, no code to rewrite.</h2>
+            <ol class="steps">
+              <li class="step"><div><h3>Run CostGrid beside your agents</h3><p>On a Mac, install the app; it accepts connections from that Mac only. On a server, run the gateway with Docker or Node.js.</p></div></li>
+              <li class="step"><div><h3>Point each agent at it</h3><p>Set the OpenAI or Anthropic base URL to CostGrid and give the agent its CostGrid key. The SDK and prompts stay as they are.</p></div></li>
+              <li class="step"><div><h3>Turn on savings</h3><p>CostGrid lists the savings your traffic supports. Start one as a dry run, check the figure, then switch it on.</p></div></li>
+            </ol>
+          </div>
+          <div class="frame code rise">
+            <div class="tabs" role="tablist" aria-label="Where your agents run">
+              <button class="tab" type="button" role="tab" id="t-mac" aria-controls="p-mac" aria-selected="true">Agents on this Mac</button>
+              <button class="tab" type="button" role="tab" id="t-srv" aria-controls="p-srv" aria-selected="false" tabindex="-1">Agents on your servers</button>
+            </div>
+            <div role="tabpanel" id="p-mac" aria-labelledby="t-mac" tabindex="0"><pre><span class="c-k"># your agent's environment</span>
+<span class="c-d" data-copy>ANTHROPIC_BASE_URL=<span class="c-v">http://127.0.0.1:8787</span></span><span class="c-d" data-copy>OPENAI_BASE_URL=<span class="c-v">http://127.0.0.1:8787/v1</span></span>
+<span class="c-k"># the agent's CostGrid key, in place of the provider key</span>
+ANTHROPIC_API_KEY=<span class="c-n">cg_live_…</span>
+OPENAI_API_KEY=<span class="c-n">cg_live_…</span></pre></div>
+            <div role="tabpanel" id="p-srv" aria-labelledby="t-srv" tabindex="0" hidden><pre><span class="c-k"># on the server, from the CostGrid repository</span>
+COSTGRID_HOST=0.0.0.0 npm run gateway
+
+<span class="c-k"># in each agent's environment</span>
+<span class="c-d" data-copy>ANTHROPIC_BASE_URL=<span class="c-v">http://costgrid.internal:8787</span></span><span class="c-d" data-copy>OPENAI_BASE_URL=<span class="c-v">http://costgrid.internal:8787/v1</span></span></pre></div>
+            <div class="code-foot"><span>Same SDK, same prompts. <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Self-hosting guide</a></span><button class="copy" type="button">Copy</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="faq">
+        <div class="wrap faq-grid">
+          <div class="faq-intro rise">
+            <span class="eyebrow">Questions</span>
+            <h2 class="h2">Common questions.</h2>
+            <p class="lede">Anything else: <a href="#start">sign in and ask</a>, or read the <a href="https://github.com/tbuica-droid/costgrid">code on GitHub</a>.</p>
+          </div>
+          <div class="faq rise">
+            <details><summary>Where does CostGrid run?</summary><p>On your Mac as a desktop app, or on your own server with Docker or Node.js. The Mac app accepts connections from that Mac only, so agents on other machines need a gateway you host.</p></details>
+            <details><summary>What changes in my agent?</summary><p>Its base URL, and its API key, which becomes a CostGrid key. Your OpenAI or Anthropic key stays inside CostGrid. The agent keeps the same SDK, streaming and tool calls included. Claude Code works the same way, through <code>ANTHROPIC_BASE_URL</code>.</p></details>
+            <details><summary>How does CostGrid know a job finished?</summary><p>From how each run ends. Handed to a person, an error, cut off or declined: not finished. Ended normally and not asked again within the agent's window: finished. These figures are marked indicative; one call to <code>POST /v1/costgrid/outcome</code> makes them exact.</p></details>
+            <details id="pricing"><summary>What does it cost?</summary><p>The app and all six savings are free. View and control, priced on request, adds two controls for Claude keys: pausing an agent's keys at Anthropic, and a monthly cap that pauses them for you. <a href="#start">Ask for a quote</a>.</p></details>
+            <details id="privacy"><summary>Does CostGrid keep my prompts?</summary><p>No. Requests and answers are read in memory to price them, then discarded, and go only to the provider your agent already uses unless you set a rule. Keys stay encrypted in your Mac's Keychain, or in your server's environment. <a href="./privacy.html">Privacy in full</a>.</p></details>
+            <details><summary>What if the gateway stops?</summary><p>It is kept thin: responses stream through untouched, and a failure to record a cost never breaks a response. If the gateway stops, set the base URL back to OpenAI or Anthropic.</p></details>
+            <details><summary>Will savings make answers worse?</summary><p>A cheaper model is kept only if jobs finish as often. After any change, CostGrid keeps checking, and switches the rule back with an alert if cost rises or fewer jobs finish.</p></details>
+            <details><summary>Which providers does it support?</summary><p>OpenAI and Anthropic, including Claude on Amazon Bedrock and Google Vertex AI.</p></details>
+            <details><summary>Is it open source?</summary><p>The code is public under the Functional Source License (FSL-1.1-ALv2). Each version becomes Apache 2.0 two years after release. <a href="https://github.com/tbuica-droid/costgrid">Read it on GitHub</a>.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="download">
         <div class="wrap">
-          <span class="overline">Example result</span>
-          <h2 class="head">One support ticket, all&#8209;in.</h2>
-          <p class="lede">The AI bill is only part of what a finished job costs. Here is one support ticket, with everything added up. <strong style="color: var(--ink)">Illustrative, from the <a href="./research.html#lcso">LCSO method's worked example</a>.</strong></p>
-          <div class="ex-grid">
-            <figure class="card raised chart" style="margin: 0" aria-labelledby="chart-title">
-              <h3 id="chart-title">Cost of one finished support ticket</h3>
-              <div class="bar-row" title="AI bill only: $0.39">
-                <span class="lbl"><b>AI bill only</b></span>
-                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 0.39 / 8)"></span><span class="bar-val">$0.39</span></div>
+          <div class="dl rise">
+            <div>
+              <span class="eyebrow">Download</span>
+              <h2 class="h2">Download CostGrid.</h2>
+              <p class="lede">Free for Mac, Apple chip or Intel. Windows is not available yet.</p>
+              <div class="cta">
+                <a class="btn btn-gold only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download for Mac</a>
+                <a class="btn btn-ghost only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Intel Mac</a>
+                <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
               </div>
-              <div class="bar-row" title="All-in cost with AI: $1.52">
-                <span class="lbl"><b>All-in cost with AI</b></span>
-                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 1.52 / 8)"></span><span class="bar-val">$1.52</span></div>
-              </div>
-              <div class="bar-row" title="A person doing the same ticket: about $6.75 (estimate)">
-                <span class="lbl"><b>A person doing it</b> · estimate</span>
-                <div class="track"><span class="bar person" style="width: calc((100% - 64px) * 6.75 / 8)"></span><span class="bar-val">~$6.75</span></div>
-              </div>
-              <div class="axis" style="margin-right: 64px" aria-hidden="true">
-                <span style="left: 0">$0</span><span style="left: 25%">$2</span><span style="left: 50%">$4</span><span style="left: 75%">$6</span><span style="left: 100%">$8</span>
-              </div>
-              <figcaption class="small">One shared scale, $0 to $8. The person figure is an estimate: 9 minutes at $45 an hour, from a time study in the worked example. Illustrative numbers, not a customer's.</figcaption>
-            </figure>
-            <div class="card raised receipt">
-              <h3>Where the $1.52 comes from</h3>
-              <dl>
-                <dt class="sub-i">The attempt that worked</dt><dd>$0.24</dd>
-                <dt class="sub-i">Failed and retried attempts</dt><dd>$0.15</dd>
-                <dt class="sum">AI bill</dt><dd class="sum">$0.39</dd>
-                <dt>Staff checking and fixing · estimate</dt><dd>$0.62</dd>
-                <dt>Fixed costs, shared across the month</dt><dd>$0.51</dd>
-                <dt class="sum">Real cost per finished ticket</dt><dd class="sum gold">$1.52</dd>
-              </dl>
-              <p class="small" style="margin-top: 16px">Illustrative, from the LCSO method's worked example. Staff time is an estimate from a time study. Fixed costs cover tools and upkeep, shared out over the month's finished tickets. CostGrid's Results screen shows the AI-bill part for each agent; the all-in figure is the method's full picture.</p>
+              <p class="small dl-help">Not sure which? Apple menu → About This Mac shows Apple or Intel next to Chip.</p>
+              <p class="dl-server">Agents on a server? Run the gateway yourself: <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">self-hosting guide →</a></p>
+            </div>
+            <div class="first" id="first-open">
+              <h3>The first time you open it</h3>
+              <p>CostGrid isn't notarised by Apple yet, so macOS blocks the first launch once:</p>
+              <ol>
+                <li><span>Open <strong>System Settings → Privacy &amp; Security</strong>.</span></li>
+                <li><span>Scroll to the message about CostGrid.</span></li>
+                <li><span>Click <strong>Open Anyway</strong>.</span></li>
+              </ol>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="section" id="pricing">
-        <div class="wrap">
-          <span class="overline">Pricing</span>
-          <h2 class="head">See the waste for free. Cut it when you're ready.</h2>
-          <div class="plans">
-            <div class="plan">
-              <h3>View</h3>
-              <p class="price">Free</p>
-              <p class="muted" style="margin-top: 6px">See where your AI money goes.</p>
-              <ul>
-                <li>What each agent costs</li>
-                <li>What each finished job costs</li>
-                <li>How much goes on attempts that fail</li>
-                <li>How much the same job's cost jumps around</li>
-                <li>How it compares with a person doing it</li>
-                <li>Warnings about risky key setups</li>
-                <li>Budgets, limits and a stop button</li>
-              </ul>
-              <p class="small" style="margin-top: 12px">Failed attempts and the cost of each job need your agents to go through CostGrid. For other agents, you can type in how many jobs got done each month.</p>
-              <a class="btn btn-accent" href="#download">Download free</a>
-            </div>
-            <div class="plan control">
-              <h3>View and control</h3>
-              <p class="price">Pricing on request</p>
-              <p class="muted" style="margin-top: 6px">Everything in View, plus:</p>
-              <ul>
-                <li>All six ways to save: batch work, repeat prompts, less overthinking, cheaper models</li>
-                <li>Cheaper models tried on a small share of work first, and switched only when they pass</li>
-                <li>Open models, and moving work between Claude and OpenAI</li>
-                <li>Pause an agent's Claude keys with one click</li>
-                <li>A monthly cap per agent, with an alert when it's reached</li>
-              </ul>
-              <a class="btn" href="#setup">Contact us for a quote</a>
-            </div>
+      <!-- Optional email sign-in. auth.js and site.js rely on these ids and data-auth hooks. -->
+      <section class="sec" id="setup">
+        <div class="wrap setup">
+          <div id="start" class="rise">
+            <span class="eyebrow">Optional</span>
+            <h2 class="h2">Get a quote or product updates.</h2>
+            <p class="lede">Ask for a View and control quote, or hear when Windows is ready. Signing in also opens the full demo. You don't need an account to use CostGrid.</p>
           </div>
-          <p class="small" style="margin-top: 20px">A monthly cap works from the provider's usage report, which runs a little behind, so spending stops shortly after the cap is passed, not to the cent. Tell us about your setup below and we'll send you a quote.</p>
-        </div>
-      </section>
-
-      <section class="section" id="privacy">
-        <div class="wrap">
-          <span class="overline">Privacy and keys</span>
-          <h2 class="head">Your data stays yours.</h2>
-          <div class="facts">
-            <div class="card"><h3>Your prompts only go where you choose</h3><p>When one of your agents asks AI to do something, CostGrid passes the request to the AI company that agent already uses, OpenAI or Anthropic. It only sends it somewhere else if you've said that's fine for that agent and set up a rule to do it, for example to the other of those two, or to a service running open models that you've connected with your own account. That service then looks after the request under its own terms. Your keys only ever go to the service they belong to. We never see them.</p></div>
-            <div class="card"><h3>We don't keep your prompts or answers</h3><p>CostGrid reads each request and answer as it goes by, to work out what it cost and whether it came back right. Then it lets them go. If you turn on grading, a stronger AI you already use compares two answers on a small sample of test jobs, and all we keep is which one it preferred. If you also turn on spot checks, those two answers wait in the app's memory, never saved to disk, so you can read them yourself. We hold at most 50, for no more than a day, and they're gone as soon as the app restarts or you switch spot checks off.</p></div>
-            <div class="card"><h3>It runs on your Mac</h3><p>CostGrid works out your costs on your own computer, not on our servers.</p></div>
-            <div class="card"><h3>Repeat jobs, spotted without the words</h3><p>To notice when the same job is asked twice, CostGrid keeps a one-way code of the job's first message. It can't be turned back into words, it never leaves your Mac, and you can switch it off.</p></div>
-            <div class="card"><h3>Keys locked in your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them sits in your Mac's Keychain, next to your saved passwords. A copied CostGrid folder is useless on another Mac.</p></div>
-            <div class="card"><h3>One key per agent, with an end date</h3><p>We suggest it. You see each agent's cost on its own, you can switch one off without touching the rest, and a key with an end date stops working by itself.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="faq">
-        <div class="wrap">
-          <span class="overline">Questions</span>
-          <h2 class="head">Straight answers.</h2>
-          <div class="faq">
-            <details><summary>How does it lower my bill?</summary><p>Six ways: half price for work that can wait, a tenth of the price for instructions sent again and again, less thinking for agents that overthink, cheaper models where they do just as well, limits that stop runaway agents, and a clear view of the money spent on jobs that fail. All but the last need your agents to go through CostGrid.</p></details>
-            <details><summary>Will it make my AI worse?</summary><p>It's built not to. Every saving starts as a test that changes nothing, so you see what it would do. A cheaper model is tried on a small share of the work first, side by side, and only used if the answers are just as good. If anything gets worse after a change, CostGrid switches it back on its own and tells you.</p></details>
-            <details><summary>Does it read my data?</summary><p>It looks at each request and answer as it passes, to see what it cost and whether it worked, and doesn't keep either. Your requests go to the AI company your agent already uses, and only go anywhere else if you've said so for that agent. If you turn on spot checks, a few answers are held in memory, never saved, for up to a day so you can read them yourself.</p></details>
-            <details><summary>Do I need to be technical?</summary><p>No. Download the app and connect OpenAI or Claude. If a freelancer or someone else set up your AI, CostGrid writes a message you can send them, saying exactly what it needs.</p></details>
-            <details><summary>What does it work with?</summary><p>OpenAI and Claude, including agents built in tools like n8n, as long as they use your own account. To read your usage directly, CostGrid needs a key made by an admin or owner of that account. Without one, drop in the usage file anyone with billing access can download.</p></details>
-            <details><summary>Does it stop made-up answers?</summary><p>Not directly. CostGrid doesn't check whether an answer is true. It does check whether an answer came back cut off, refused or in the wrong format, counts what failed attempts cost you, and shows which agents waste the most.</p></details>
-            <details><summary>Is there a Windows version?</summary><p>It's on the way. CostGrid is Mac only for now.</p></details>
-            <details><summary>Is it open source?</summary><p>You can read all of the code. It's published under the Functional Source License (FSL-1.1-ALv2), and each version becomes Apache 2.0 open source two years after it's released. The method behind the numbers is free for anyone to use, with credit.</p></details>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="download">
-        <div class="wrap">
-          <span class="overline">Download</span>
-          <h2 class="head">Find out where your AI money goes.</h2>
-          <p class="lede">Free. No sign-up. Your first numbers in minutes.</p>
-          <div class="dl-box">
-            <div class="dl-btns">
-              <a class="btn btn-accent btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download for Mac</a>
-              <a class="btn btn-accent btn-lg only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
-              <a class="btn btn-lg only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Older Intel Mac</a>
-            </div>
-            <p class="small" style="margin-top: 14px">Most Macs from late 2020 on have an Apple chip. Not sure? Apple menu → About This Mac says Apple or Intel next to Chip.</p>
-            <div class="note" id="first-open">
-              <strong>The first time you open it</strong><br /><br />
-              CostGrid isn't registered with Apple yet, so your Mac will say it can't check the app and won't open it.
-              That's expected, and you only do this once: open <strong>System Settings → Privacy &amp; Security</strong>,
-              scroll down to the message about CostGrid, and click <strong>Open Anyway</strong>.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Optional email sign-in. auth.js + site.js rely on these ids and data-auth hooks. -->
-      <section class="section" id="setup">
-        <div class="wrap grid g2">
-          <div id="start" style="scroll-margin-top: 24px">
-            <span class="overline">Optional</span>
-            <h2 class="head">Get a quote or updates by email.</h2>
-            <p class="lede">Ask for a View and control quote, or hear first when it and the Windows app are ready. Signing in also opens the full demo. You don't need this to use CostGrid.</p>
-            <div class="card raised" style="margin-top: 28px">
+          <div class="rise">
+            <div class="card">
               <form id="signinForm" novalidate>
                 <div class="field" id="f-signin">
                   <label for="signinEmail">Email</label>
                   <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" />
                   <p class="err" id="signinErr">Enter a valid email address.</p>
                 </div>
-                <button type="submit" class="btn btn-accent" style="width: 100%" id="signinBtn">Email me a sign-in link</button>
-                <p class="small" style="text-align: center; margin-top: 12px">No password: we email you a one-time link. The account is for this website only.</p>
+                <!-- Honeypot: hidden from people and screen readers, so only bots fill it in. site.js drops any sign-in that does. -->
+                <div class="hp" aria-hidden="true">
+                  <label for="signinWebsite">Website</label>
+                  <input id="signinWebsite" name="website" type="text" tabindex="-1" autocomplete="off" />
+                </div>
+                <button type="submit" class="btn btn-gold btn-block" id="signinBtn">Email me a sign-in link</button>
+                <p class="small center">No password. We email you a one-time link.</p>
               </form>
               <div id="signinSent" hidden>
-                <h3 style="font-size: 22px">Check your inbox.</h3>
-                <p class="muted" style="margin-top: 8px">We sent a sign-in link to <strong id="sentEmail" style="color: var(--ink)"></strong>. Open it on this device and you land back here, signed in. Nothing there? Give it a minute and check spam.</p>
-                <button type="button" class="btn btn-sm" style="margin-top: 18px" id="signinAgain">Use a different email</button>
+                <h3>Check your inbox.</h3>
+                <p class="muted">We sent a sign-in link to <strong id="sentEmail"></strong>. Open it on this device to come back here signed in. Nothing there after a minute? Check spam.</p>
+                <div class="row"><button type="button" class="btn btn-ghost btn-sm" id="signinAgain">Use a different email</button></div>
               </div>
               <div id="signedIn" hidden>
-                <h3 style="font-size: 22px">You're on the list.</h3>
-                <p class="muted" style="margin-top: 8px">Signed in as <strong style="color: var(--ink)" data-user-email></strong>. We'll email you when View and control and Windows are ready.</p>
-                <div style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
-                  <a class="btn btn-sm" href="./demo/">Open the full demo</a>
-                  <button type="button" class="link-btn" id="signOut">Sign out</button>
-                </div>
+                <h3>You're on the list.</h3>
+                <p class="muted">Signed in as <strong data-user-email></strong>. We'll email you when View and control and Windows are ready.</p>
+                <div class="row"><a class="btn btn-ghost btn-sm" href="./demo/">Open the full demo</a><button type="button" class="link-btn" id="signOut">Sign out</button></div>
               </div>
             </div>
-          </div>
-
-          <div class="card raised" data-auth="in" hidden>
-            <form id="profileForm" novalidate>
-              <h3 style="font-size: 20px">About your setup (optional)</h3>
-              <p class="muted" style="margin: 6px 0 20px; font-size: 15px">Three questions, once. I read every answer myself and usually reply the same day, with a quote if you ask for one.</p>
-              <div class="field" id="f-company">
-                <label for="company">Company or team</label>
-                <input id="company" type="text" maxlength="200" placeholder="Northwind Dental" />
-                <p class="err">Tell us the company or team name.</p>
+            <div class="card" data-auth="in" hidden>
+              <form id="profileForm" novalidate>
+                <h3>About your setup (optional)</h3>
+                <p class="muted" style="margin-bottom:20px">Three questions, asked once. A person reads every answer and usually replies the same day.</p>
+                <div class="field" id="f-company">
+                  <label for="company">Company or team</label>
+                  <input id="company" type="text" maxlength="200" placeholder="Northwind Dental" />
+                  <p class="err">Tell us the company or team name.</p>
+                </div>
+                <div class="field" id="f-spend">
+                  <label for="spend">Monthly AI spend</label>
+                  <select id="spend">
+                    <option value="">Select a bracket</option>
+                    <option>Under $1k / month</option>
+                    <option>$1k – $10k / month</option>
+                    <option>$10k – $50k / month</option>
+                    <option>$50k – $250k / month</option>
+                    <option>Over $250k / month</option>
+                  </select>
+                  <p class="err">Pick a monthly spend bracket.</p>
+                </div>
+                <div class="field">
+                  <label for="notes">What do your agents do, and would you like a View and control quote? (optional)</label>
+                  <textarea id="notes" rows="3" maxlength="2000" placeholder="For example: three support agents on our own servers"></textarea>
+                </div>
+                <button type="submit" class="btn btn-gold btn-block" id="profileBtn">Save</button>
+                <p class="err center" id="profileErr"></p>
+                <p class="small center">Saved to your account as <span data-user-email></span>.</p>
+              </form>
+              <div id="profileDone" hidden>
+                <h3>Thanks, saved.</h3>
+                <p class="muted"><span data-profile-summary></span> You can change it any time.</p>
+                <div class="row"><button type="button" class="btn btn-ghost btn-sm" id="profileEdit">Edit answers</button></div>
               </div>
-              <div class="field" id="f-spend">
-                <label for="spend">Current monthly AI spend</label>
-                <select id="spend">
-                  <option value="">Select a bracket</option>
-                  <option>Under $1k / month</option>
-                  <option>$1k – $10k / month</option>
-                  <option>$10k – $50k / month</option>
-                  <option>$50k – $250k / month</option>
-                  <option>Over $250k / month</option>
-                </select>
-                <p class="err">Pick a monthly spend bracket.</p>
-              </div>
-              <div class="field">
-                <label for="notes">What do your AI agents do, and do you want a View and control quote? (optional)</label>
-                <textarea id="notes" rows="3" maxlength="2000" placeholder="For example: a support agent a freelancer built in n8n"></textarea>
-              </div>
-              <button type="submit" class="btn btn-accent" style="width: 100%" id="profileBtn">Save</button>
-              <p class="err" id="profileErr" style="text-align: center; margin-top: 12px"></p>
-              <p class="small" style="text-align: center; margin-top: 12px">Saved to your account as <span data-user-email></span>.</p>
-            </form>
-            <div id="profileDone" hidden>
-              <h3 style="font-size: 22px">Thanks, saved.</h3>
-              <p class="muted" style="margin-top: 8px"><span data-profile-summary></span> You can change it any time.</p>
-              <button type="button" class="btn btn-sm" style="margin-top: 18px" id="profileEdit">Edit answers</button>
             </div>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="site-foot">
+    <footer class="foot">
       <div class="wrap">
-        <div class="foot-facts">
-          <span>Never keeps prompts or answers</span>
-          <span>Keys locked with your Mac's Keychain</span>
-          <span>Source-available under FSL-1.1-ALv2</span>
-        </div>
-        <div class="foot-bot">
-          <span>costgrid.dev · built by Tomas Buica</span>
+        <div class="foot-in">
+          <div>
+            <a class="brand" href="./">CostGrid</a>
+            <div class="foot-facts"><span>Never stores prompts or answers</span><span>Keys encrypted, unlocked by your Mac's Keychain</span><span>Source-available under FSL-1.1-ALv2</span></div>
+          </div>
           <nav aria-label="Footer">
-            <a href="./research.html">Research</a>
-            <a href="./research.html#lcso">The LCSO method</a>
-            <a href="./demo/">Demo (needs a sign-in link)</a>
-            <a href="#download">Download</a>
+            <a href="./privacy.html">Privacy</a><a href="./research.html">Research</a>
+            <a href="./research.html#lcso">Cost-per-outcome method</a><a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Self-hosting guide</a>
+            <a href="./demo/">Demo (needs a sign-in link)</a><a href="https://github.com/tbuica-droid/costgrid">GitHub</a>
           </nav>
         </div>
+        <p class="foot-bot">costgrid.dev · built by Tomas Buica</p>
       </div>
     </footer>
 
+    <script src="hero.js"></script>
     <script src="vendor/supabase-js-2.117.1.js"></script>
     <script src="auth.js"></script>
     <script src="site.js"></script>
+    <script src="home.js"></script>
   </body>
 </html>

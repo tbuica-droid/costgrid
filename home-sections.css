@@ -1,0 +1,117 @@
+/* Home page: savings, how it works, questions, download, sign-in, footer. */
+
+/* Six savings: a hairline grid with survey marks (after Hirael's Feature 08), not boxed cards. */
+.sv-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--rule-2); border-left: 1px solid var(--rule-2); }
+@media (min-width: 700px) { .sv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .sv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.sv {
+  position: relative; display: flex; flex-direction: column; gap: 12px; min-height: 250px;
+  padding: 30px 28px 28px; border-right: 1px solid var(--rule-2); border-bottom: 1px solid var(--rule-2);
+  background: radial-gradient(60% 70% at 20% 0%, rgba(217, 180, 108, 0.045), transparent 70%);
+}
+.sv::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 300ms var(--ease);
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 0%), rgba(217, 180, 108, 0.09), transparent 70%); }
+.sv:hover::after { opacity: 1; }
+.mark { position: absolute; width: 13px; height: 13px; color: var(--ink-3); transform: translate(-50%, -50%); pointer-events: none; }
+.sv-fig { font-size: 30px; line-height: 1; font-weight: 600; letter-spacing: -0.03em; color: var(--gold); }
+.sv h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-top: 8px; }
+.sv p { font-size: 15px; color: var(--ink-2); line-height: 1.55; }
+.sv code {
+  margin-top: auto; align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); padding: 5px 9px; border-radius: 6px;
+  border: 1px solid var(--rule); background: rgba(255, 255, 255, 0.02);
+}
+.safe { display: grid; gap: 1px; margin-top: 40px; border-radius: 14px; overflow: hidden; background: var(--rule); border: 1px solid var(--rule); }
+@media (min-width: 900px) { .safe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.safe > div { display: flex; gap: 14px; padding: 20px 22px; background: var(--bg-2); }
+.safe svg { flex: none; margin-top: 3px; color: var(--gold); }
+.safe b { display: block; font-size: 14.5px; font-weight: 600; }
+.safe span { font-size: 14px; color: var(--ink-2); }
+
+/* How it works: steps left, the code you change right (sticky on desktop). */
+.how { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; }
+@media (min-width: 1000px) { .how { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 72px; align-items: start; } }
+.how .h2 { margin-bottom: 44px; }
+.steps { counter-reset: step; }
+.step { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 18px; padding-bottom: 40px; }
+.step:last-child { padding-bottom: 0; }
+.step::before {
+  counter-increment: step; content: counter(step); position: relative; z-index: 1;
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--gold-line); color: var(--gold); font-size: 13.5px; font-weight: 600; background: var(--bg);
+}
+.step::after { content: ""; position: absolute; left: 16px; top: 34px; bottom: 2px; width: 1px; background: linear-gradient(var(--gold-line), var(--rule)); }
+.step:last-child::after { display: none; }
+.step h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.015em; padding-top: 3px; }
+.step p { margin-top: 8px; font-size: 15.5px; color: var(--ink-2); }
+.how-aside { margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--rule); }
+@media (min-width: 1000px) { .code { position: sticky; top: 100px; } }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid var(--rule); }
+.tab { height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; font-weight: 500; color: var(--ink-3); cursor: pointer; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.code pre { margin: 0; padding: 22px 22px 24px; font-family: var(--mono); font-size: 13px; line-height: 1.85; color: #c9ced8; overflow-x: auto; }
+.code .c-k { color: #858d9c; }
+.code .c-v { color: var(--gold); }
+.code .c-n { color: #9fb7d9; }
+.code .c-d { display: block; margin: 0 -22px; padding: 0 22px; background: rgba(217, 180, 108, 0.07); box-shadow: inset 2px 0 0 var(--gold); }
+.code-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--ink-3); }
+.code-foot a { color: var(--ink-2); }
+.copy { margin-left: auto; height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule-2); background: transparent; color: var(--ink-2); font: inherit; font-size: 12.5px; cursor: pointer; }
+.copy:hover { color: var(--ink); border-color: var(--rule-3); }
+
+/* Questions: heading left, answers right. */
+.faq-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+@media (min-width: 960px) { .faq-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 72px; } .faq-intro { position: sticky; top: 100px; align-self: start; } }
+.faq-intro .lede { margin-top: 20px; font-size: 16.5px; }
+.faq { border-top: 1px solid var(--rule-2); }
+.faq details { border-bottom: 1px solid var(--rule-2); scroll-margin-top: 100px; }
+.faq summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 0; cursor: pointer; list-style: none; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: ""; flex: none; width: 10px; height: 10px; margin-right: 4px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
+  transform: translateY(-3px) rotate(45deg); transition: transform 220ms var(--ease);
+}
+.faq details[open] summary::after { transform: translateY(2px) rotate(225deg); border-color: var(--gold); }
+.faq summary:hover { color: var(--gold-hi); }
+.faq details p { padding: 0 40px 24px 0; font-size: 15.5px; color: var(--ink-2); }
+.faq details p a { color: var(--ink); }
+.faq code { font-family: var(--mono); font-size: 0.86em; color: var(--ink); }
+
+/* Download: one framed panel, the first-open step beside the buttons. */
+.dl { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 48px 40px; border-radius: 20px;
+  border: 1px solid var(--rule-2); background: radial-gradient(70% 120% at 0% 0%, rgba(217, 180, 108, 0.10), transparent 60%), var(--panel); }
+@media (min-width: 960px) { .dl { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 56px; padding: 64px 56px; } }
+@media (max-width: 600px) { .dl { padding: 32px 20px; } }
+.dl .lede { margin-top: 18px; }
+.dl-help { margin-top: 16px; }
+.dl-server { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 15px; color: var(--ink-2); }
+.dl-server a { color: var(--ink); }
+.first { align-self: start; padding: 22px; border-radius: 14px; border: 1px solid var(--rule-2); background: var(--bg-2); font-size: 14.5px; color: var(--ink-2); scroll-margin-top: 120px; }
+.first h3 { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+.first ol { counter-reset: f; display: grid; gap: 10px; margin-top: 14px; }
+.first li { counter-increment: f; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; }
+.first li::before { content: counter(f); display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gold-line); color: var(--gold); font-size: 11.5px; font-weight: 600; margin-top: 2px; }
+.first strong { color: var(--ink); font-weight: 600; }
+
+/* Sign-in and setup questions. */
+.setup { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+@media (min-width: 960px) { .setup { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 72px; align-items: start; } }
+.setup .lede { margin-top: 20px; font-size: 16.5px; }
+.card { padding: 28px; border-radius: 16px; border: 1px solid var(--rule-2); background: var(--panel); }
+.card + .card { margin-top: 16px; }
+.card h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+.card .muted { margin-top: 8px; color: var(--ink-2); font-size: 15px; }
+.card .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 18px; }
+.center { text-align: center; margin-top: 12px; }
+#start { scroll-margin-top: 100px; }
+
+/* Footer */
+.foot { padding: 56px 0 40px; border-top: 1px solid var(--rule); }
+.foot-in { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+@media (min-width: 860px) { .foot-in { grid-template-columns: minmax(0, 1fr) auto; } }
+.foot-facts { display: grid; gap: 6px; margin-top: 16px; font-size: 13.5px; color: var(--ink-3); }
+.foot nav { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 10px 40px; font-size: 14px; }
+.foot nav a { color: var(--ink-2); text-decoration: none; }
+.foot nav a:hover { color: var(--ink); }
+.foot-bot { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--ink-3); }

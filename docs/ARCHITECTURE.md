@@ -968,14 +968,16 @@ billing history is unrecoverable without a backup.
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
 - The website (Vercel, costgrid.dev) is static. `index.html` is the product page
-  and `research.html` the sources and the LCSO method (the old thesis and
-  research-dashboard pages redirect there). Both load only first-party files
+  (styles in `home.css`, `home-product.css`, `home-sections.css`; behaviour in
+  `hero.js`, `home.js`, and `site.js` for the optional sign-in), `research.html`
+  the sources, the LCSO method and its worked example, and `privacy.html` the
+  privacy detail; the last two share `site.css`. The old thesis and
+  research-dashboard pages redirect to research. All load only first-party files
   under a strict Content-Security-Policy in `vercel.json`, with Plus Jakarta Sans
-  self-hosted in `fonts/`. The motion layer (`site-motion.css`, `site-motion.js`)
-  has five parts: a hero whose video grows to full screen as you scroll, native
-  dialogs, a dock, a curtain footer and a liquid-metal button. They are plain
-  CSS and JS ports of React components, and with the script missing or reduced
-  motion set the page is still. `demo/` runs the
+  self-hosted in `fonts/`. The hero's request pane and the savings grid are
+  plain CSS and JS ports of 21st.dev components (Streaming Data Rows, AI Agent
+  Pipeline, Hirael's Feature 08); with reduced motion set the page is still, and
+  the hero video is never fetched for reduced motion or save-data. `demo/` runs the
   *real* dashboard bundle against captured API snapshots — a transport swap in
   `demo/demo-data.js` and nothing else, so the demo cannot drift from the
   product by reimplementing any of its numbers. Refreshing it means re-capturing

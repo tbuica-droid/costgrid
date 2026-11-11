@@ -197,6 +197,40 @@
             </table>
           </div>
           <p style="margin-top: 12px">In this example, model charges are only about a quarter of the all-in cost of each outcome. Failures and people's time are where much of the rest goes.</p>
+          <h4 id="example" style="scroll-margin-top: 24px">One support ticket, all-in</h4>
+          <div class="ex-grid">
+            <figure class="card raised chart" style="margin: 0" aria-labelledby="chart-title">
+              <h3 id="chart-title">Cost of one finished support ticket</h3>
+              <div class="bar-row" title="AI bill only: $0.39">
+                <span class="lbl"><b>AI bill only</b></span>
+                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 0.39 / 8)"></span><span class="bar-val">$0.39</span></div>
+              </div>
+              <div class="bar-row" title="All-in cost with AI: $1.52">
+                <span class="lbl"><b>All-in cost with AI</b></span>
+                <div class="track"><span class="bar" style="width: calc((100% - 64px) * 1.52 / 8)"></span><span class="bar-val">$1.52</span></div>
+              </div>
+              <div class="bar-row" title="A person doing the same ticket: about $6.75 (estimate)">
+                <span class="lbl"><b>A person doing it</b> · estimate</span>
+                <div class="track"><span class="bar person" style="width: calc((100% - 64px) * 6.75 / 8)"></span><span class="bar-val">~$6.75</span></div>
+              </div>
+              <div class="axis" style="margin-right: 64px" aria-hidden="true">
+                <span style="left: 0">$0</span><span style="left: 25%">$2</span><span style="left: 50%">$4</span><span style="left: 75%">$6</span><span style="left: 100%">$8</span>
+              </div>
+              <figcaption class="small">One shared scale, $0 to $8. The person figure is an estimate: 9 minutes at $45 an hour, from a time study in the worked example. Illustrative numbers, not a customer's.</figcaption>
+            </figure>
+            <div class="card raised receipt">
+              <h3>Where the $1.52 comes from</h3>
+              <dl>
+                <dt class="sub-i">The attempt that worked</dt><dd>$0.24</dd>
+                <dt class="sub-i">Failed and retried attempts</dt><dd>$0.15</dd>
+                <dt class="sum">AI bill</dt><dd class="sum">$0.39</dd>
+                <dt>Staff checking and fixing · estimate</dt><dd>$0.62</dd>
+                <dt>Fixed costs, shared across the month</dt><dd>$0.51</dd>
+                <dt class="sum">Real cost per finished ticket</dt><dd class="sum gold">$1.52</dd>
+              </dl>
+              <p class="small" style="margin-top: 16px">Illustrative, from the LCSO method's worked example. Staff time is an estimate from a time study. Fixed costs cover tools and upkeep, shared out over the month's finished tickets. CostGrid's Results screen shows the AI-bill part for each agent; the all-in figure is the method's full picture.</p>
+            </div>
+          </div>
 
           <h4>Limitations of v0.1</h4>
           <ul class="dots">

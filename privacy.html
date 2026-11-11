@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>CostGrid privacy: prompts, answers and keys</title>
+    <meta name="description" content="What CostGrid does with your prompts, answers and API keys: prompts go only where you choose, nothing is stored, and keys are encrypted and unlocked by your Mac's Keychain." />
+    <meta property="og:title" content="CostGrid privacy: prompts, answers and keys" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://costgrid.dev/privacy.html" />
+    <link rel="canonical" href="https://costgrid.dev/privacy.html" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="site-head">
+      <div class="wrap head-in">
+        <a class="brand" href="./" aria-label="CostGrid home">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
+          CostGrid
+        </a>
+        <nav class="site-nav" aria-label="Site">
+          <a href="./#save">Savings</a>
+          <a href="./#how">How it works</a>
+          <a href="./#faq">Questions</a>
+          <a href="./research.html">Research</a>
+        </nav>
+        <a class="btn btn-sm" href="./#download">Download for Mac</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="section" id="privacy" style="border-top: 0">
+        <div class="wrap">
+          <span class="overline">Privacy and keys</span>
+          <h1 class="head" style="font-size: 40px; letter-spacing: -0.02em; margin-top: 12px">Your data stays yours.</h1>
+          <p class="lede">What CostGrid does with your prompts, answers and API keys, whether it runs on your Mac or on a gateway you host.</p>
+          <div class="facts">
+            <div class="card"><h3>Your prompts only go where you choose</h3><p>When one of your agents asks AI to do something, CostGrid passes the request to the AI company that agent already uses, OpenAI or Anthropic. It only sends it somewhere else if you've said that's fine for that agent and set up a rule to do it, for example to the other of those two, or to a service running open models that you've connected with your own account. That service then looks after the request under its own terms. Your keys only ever go to the service they belong to. We never see them.</p></div>
+            <div class="card"><h3>We don't keep your prompts or answers</h3><p>CostGrid reads each request and answer as it goes by, to work out what it cost and whether it came back right. Then it lets them go. If you turn on grading, a stronger AI you already use compares two answers on a small sample of test jobs, and all we keep is which one it preferred. If you also turn on spot checks, those two answers wait in the app's memory, never saved to disk, so you can read them yourself. We hold at most 50, for no more than a day, and they're gone as soon as the app restarts or you switch spot checks off.</p></div>
+            <div class="card"><h3>It runs on your Mac</h3><p>CostGrid works out your costs on your own computer, not on our servers.</p></div>
+            <div class="card"><h3>Repeat jobs, spotted without the words</h3><p>To notice when the same job is asked twice, CostGrid keeps a one-way code of the job's first message. It can't be turned back into words, it never leaves your Mac, and you can switch it off.</p></div>
+            <div class="card"><h3>Keys locked in your Mac's Keychain</h3><p>Your AI keys are stored encrypted, and the key that unlocks them sits in your Mac's Keychain, next to your saved passwords. A copied CostGrid folder is useless on another Mac.</p></div>
+            <div class="card"><h3>One key per agent, with an end date</h3><p>We suggest it. You see each agent's cost on its own, you can switch one off without touching the rest, and a key with an end date stops working by itself.</p></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap">
+        <div class="foot-bot">
+          <span>costgrid.dev · built by Tomas Buica</span>
+          <nav aria-label="Footer"><a href="./">Home</a><a href="./research.html">Research</a><a href="./#download">Download</a><a href="./demo/">Demo</a></nav>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
