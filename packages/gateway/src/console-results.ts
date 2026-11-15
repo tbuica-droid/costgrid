@@ -283,7 +283,7 @@ export function registerResults(app: FastifyInstance, deps: ResultsDeps): void {
         head,
       },
       frameworks: {
-        nistAiRmf: "https://costgrid.dev/research.html#nist",
+        nistAiRmf: "https://costgrid.org/research.html#nist",
       },
     };
 

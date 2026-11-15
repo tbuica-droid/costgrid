@@ -154,7 +154,7 @@ Stated up front, because finding out in week three wastes your time:
 
 ## Getting help during the trial
 
-Email me directly: <tomasbuica@outlook.com>. I read these myself and usually
+Email me directly: <support@costgrid.org>. I read these myself and usually
 reply the same day. Bugs are also welcome as issues:
 <https://github.com/tbuica-droid/costgrid/issues>.
 

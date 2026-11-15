@@ -40,7 +40,7 @@ function viewOnly() {
       <p style="margin:0"><strong>Pause an agent's keys, and spending caps, are part of View and control.</strong></p>
       <p class="kpi-sub">It can turn off an agent's Claude keys at the provider with one click, pause them on its own
         when the agent reaches a monthly cap you set, alert you when it does, and show how long each stop took.
-        It isn't on for this organisation. Pricing is on request at costgrid.dev.</p>
+        It isn't on for this organisation. For pricing, email support@costgrid.org.</p>
     </div>`;
 }
 

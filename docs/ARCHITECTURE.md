@@ -967,9 +967,10 @@ billing history is unrecoverable without a backup.
   have not been run against a live account (see above).
 - OpenAI's Responses API (`/v1/responses`) is parsed but not routed; only
   `/v1/chat/completions` is exposed.
-- The website (Vercel, costgrid.dev) is static. `index.html` is the product page
+- The website (Vercel, costgrid.org) is static. `index.html` is the product page
   (styles in `home.css`, `home-product.css`, `home-sections.css`; behaviour in
-  `hero.js`, `home.js`, and `site.js` for the optional sign-in), `research.html`
+  `hero.js`, `home.js`, and `site.js` for the optional sign-in, whose saved
+  answers `supabase/functions/notify-inquiry` emails to support@costgrid.org), `research.html`
   the sources, the LCSO method and its worked example, and `privacy.html` the
   privacy detail; the last two share `site.css`. The old thesis and
   research-dashboard pages redirect to research. All load only first-party files
