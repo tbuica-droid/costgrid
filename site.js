@@ -124,7 +124,12 @@
     profileBtn.disabled = true;
     profileBtn.textContent = "Saving…";
     CG_AUTH.saveProfile(currentUser, fields).then(
-      function () { showProfile(fields); },
+      function () {
+        showProfile(fields);
+        // The answers are saved either way; the email is how a person sees
+        // them, so a failure here is not shown to the visitor.
+        CG_AUTH.notifyInquiry().catch(function () {});
+      },
       function (err) {
         profileErr.textContent = "Couldn't save: " + (err && err.message ? err.message : "please try again.");
         profileErr.style.display = "block";

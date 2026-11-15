@@ -10,9 +10,9 @@
     <meta property="og:title" content="Reduce your AI costs. Every request, optimised." />
     <meta property="og:description" content="A gateway between your agents and OpenAI or Claude. Prices every request, enforces budgets before money is spent, and sends work the cheaper way. Free, self-hosted." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://costgrid.dev/" />
+    <meta property="og:url" content="https://costgrid.org/" />
     <meta property="og:site_name" content="CostGrid" />
-    <link rel="canonical" href="https://costgrid.dev/" />
+    <link rel="canonical" href="https://costgrid.org/" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='0.75' y='0.75' width='24.5' height='24.5' rx='6' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
     <link rel="preload" href="fonts/plus-jakarta-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="home.css" />
@@ -24,7 +24,7 @@
       "@type": "SoftwareApplication",
       "name": "CostGrid",
       "description": "A gateway between your AI agents and OpenAI or Claude, run on your Mac or your own servers. It prices every request, enforces budgets before money is spent, and applies batch, prompt caching, lower reasoning effort or a smaller model. It never stores prompts or answers.",
-      "url": "https://costgrid.dev/",
+      "url": "https://costgrid.org/",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "macOS, Linux (self-hosted gateway)",
       "offers": [{ "@type": "Offer", "name": "View", "price": "0", "priceCurrency": "USD" }],
@@ -44,7 +44,7 @@
           <a href="#save">Savings</a><a href="#how">How it works</a><a href="#faq">Questions</a><a href="./research.html">Research</a>
         </nav>
         <a class="btn btn-gold btn-sm only-mac" href="#download">Download</a>
-        <a class="btn btn-gold btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email me the link</a>
+        <a class="btn btn-gold btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.org%2F%23download">Email me the link</a>
       </div></div>
     </header>
 
@@ -59,7 +59,7 @@
             <p class="lede">CostGrid is a gateway between your agents and OpenAI or Claude. It prices every request, blocks spend over budget before it is sent, and moves work to the cheaper option: batch, cached prompts, lower effort or a smaller model.</p>
             <div class="cta">
               <a class="btn btn-gold only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8m0 0L4.5 7M8 10.5 11.5 7M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Download for Mac</a>
-              <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
+              <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.org%2F%23download">Email myself the Mac link</a>
               <a class="btn btn-ghost" href="#save">See the six savings</a>
             </div>
             <p class="meta">Runs on your Mac or on servers you control · Free · Never stores prompts<span class="only-mac"> · <a href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Intel Mac</a></span></p>
@@ -256,13 +256,13 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
           <div class="faq-intro rise">
             <span class="eyebrow">Questions</span>
             <h2 class="h2">Common questions.</h2>
-            <p class="lede">Anything else: <a href="#start">sign in and ask</a>, or read the <a href="https://github.com/tbuica-droid/costgrid">code on GitHub</a>.</p>
+            <p class="lede">Anything else: email <a href="mailto:support@costgrid.org">support@costgrid.org</a>, or read the <a href="https://github.com/tbuica-droid/costgrid">code on GitHub</a>.</p>
           </div>
           <div class="faq rise">
             <details><summary>Where does CostGrid run?</summary><p>On your Mac as a desktop app, or on your own server with Docker or Node.js. The Mac app accepts connections from that Mac only, so agents on other machines need a gateway you host.</p></details>
             <details><summary>What changes in my agent?</summary><p>Its base URL, and its API key, which becomes a CostGrid key. Your OpenAI or Anthropic key stays inside CostGrid. The agent keeps the same SDK, streaming and tool calls included. Claude Code works the same way, through <code>ANTHROPIC_BASE_URL</code>.</p></details>
             <details><summary>How does CostGrid know a job finished?</summary><p>From how each run ends. Handed to a person, an error, cut off or declined: not finished. Ended normally and not asked again within the agent's window: finished. These figures are marked indicative; one call to <code>POST /v1/costgrid/outcome</code> makes them exact.</p></details>
-            <details id="pricing"><summary>What does it cost?</summary><p>The app and all six savings are free. View and control, priced on request, adds two controls for Claude keys: pausing an agent's keys at Anthropic, and a monthly cap that pauses them for you. <a href="#start">Ask for a quote</a>.</p></details>
+            <details id="pricing"><summary>What does it cost?</summary><p>The app and all six savings are free. View and control, priced on request, adds two controls for Claude keys: pausing an agent's keys at Anthropic, and a monthly cap that pauses them for you. Email <a href="mailto:support@costgrid.org?subject=View%20and%20control%20quote">support@costgrid.org</a> for a quote.</p></details>
             <details id="privacy"><summary>Does CostGrid keep my prompts?</summary><p>No. Requests and answers are read in memory to price them, then discarded, and go only to the provider your agent already uses unless you set a rule. Keys stay encrypted in your Mac's Keychain, or in your server's environment. <a href="./privacy.html">Privacy in full</a>.</p></details>
             <details><summary>What if the gateway stops?</summary><p>It is kept thin: responses stream through untouched, and a failure to record a cost never breaks a response. If the gateway stops, set the base URL back to OpenAI or Anthropic.</p></details>
             <details><summary>Will savings make answers worse?</summary><p>A cheaper model is kept only if jobs finish as often. After any change, CostGrid keeps checking, and switches the rule back with an alert if cost rises or fewer jobs finish.</p></details>
@@ -282,7 +282,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
               <div class="cta">
                 <a class="btn btn-gold only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-arm64.dmg" data-download>Download for Mac</a>
                 <a class="btn btn-ghost only-mac" href="https://github.com/tbuica-droid/costgrid-releases/releases/latest/download/CostGrid-x64.dmg" data-download>Intel Mac</a>
-                <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.dev%2F%23download">Email myself the Mac link</a>
+                <a class="btn btn-gold only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.org%2F%23download">Email myself the Mac link</a>
               </div>
               <p class="small dl-help">Not sure which? Apple menu → About This Mac shows Apple or Intel next to Chip.</p>
               <p class="dl-server">Agents on a server? Run the gateway yourself: <a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">self-hosting guide →</a></p>
@@ -306,7 +306,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
           <div id="start" class="rise">
             <span class="eyebrow">Optional</span>
             <h2 class="h2">Get a quote or product updates.</h2>
-            <p class="lede">Ask for a View and control quote, or hear when Windows is ready. Signing in also opens the full demo. You don't need an account to use CostGrid.</p>
+            <p class="lede">Ask for a View and control quote, or hear when Windows is ready. Signing in also opens the full demo. You don't need an account to use CostGrid. Prefer email? Write to <a href="mailto:support@costgrid.org">support@costgrid.org</a>.</p>
           </div>
           <div class="rise">
             <div class="card">
@@ -385,10 +385,10 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
           <nav aria-label="Footer">
             <a href="./privacy.html">Privacy</a><a href="./research.html">Research</a>
             <a href="./research.html#lcso">Cost-per-outcome method</a><a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Self-hosting guide</a>
-            <a href="./demo/">Demo (needs a sign-in link)</a><a href="https://github.com/tbuica-droid/costgrid">GitHub</a>
+            <a href="./demo/">Demo (needs a sign-in link)</a><a href="https://github.com/tbuica-droid/costgrid">GitHub</a><a href="mailto:support@costgrid.org">Contact</a>
           </nav>
         </div>
-        <p class="foot-bot">costgrid.dev · built by Tomas Buica</p>
+        <p class="foot-bot">costgrid.org · built by Tomas Buica</p>
       </div>
     </footer>
 

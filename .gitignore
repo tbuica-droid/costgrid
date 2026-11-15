@@ -3,6 +3,7 @@
 .claude-flow/
 CLAUDE.md
 AGENTS.md
+.ua/
 
 # build output
 node_modules/

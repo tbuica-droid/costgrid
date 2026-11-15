@@ -19,7 +19,7 @@ client = Anthropic(base_url="https://costgrid.example.com", api_key="unused")
 read. It takes you from nothing to a real number, assumes nothing, and ends
 with four weeks of what to do next.
 
-**[Try the dashboard](https://costgrid.dev/demo/)** against sample traffic. No
+**[Try the dashboard](https://costgrid.org/demo/)** against sample traffic. No
 install. Then **[docs/QUICKSTART.md](docs/QUICKSTART.md)** takes a clean
 checkout to a real spend report from your own traffic, and
 **[docs/TRIAL.md](docs/TRIAL.md)** covers what a free trial involves and what
@@ -110,9 +110,9 @@ CostGrid_Token_Cost_Model.xlsx   The forecast model, 2023 to 2030.
 npm install && npm run build && npm test
 ```
 
-**Site:** <https://costgrid.dev> ·
-**Dashboard demo:** <https://costgrid.dev/demo/> ·
-**Research and the LCSO method:** <https://costgrid.dev/research.html>
+**Site:** <https://costgrid.org> ·
+**Dashboard demo:** <https://costgrid.org/demo/> ·
+**Research and the LCSO method:** <https://costgrid.org/research.html>
 
 ---
 
@@ -241,7 +241,7 @@ RMF crosswalk, are on the website at `research.html`.
 
 ## Author
 
-Built by Tomas Buica &mdash; <tomasbuica@outlook.com>.
+Built by Tomas Buica &mdash; <support@costgrid.org>.
 
 ## License
 

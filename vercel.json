@@ -4,6 +4,9 @@
   "installCommand": "echo 'no dependencies to install'",
   "outputDirectory": ".",
   "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "costgrid.dev" }], "destination": "https://costgrid.org/:path*", "permanent": true },
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.costgrid.dev" }], "destination": "https://costgrid.org/:path*", "permanent": true },
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.costgrid.org" }], "destination": "https://costgrid.org/:path*", "permanent": true },
     { "source": "/thesis.html", "destination": "/research.html", "permanent": true },
     { "source": "/thesis", "destination": "/research.html", "permanent": true },
     { "source": "/dashboard.html", "destination": "/research.html", "permanent": true },

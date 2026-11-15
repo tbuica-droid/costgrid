@@ -48,6 +48,13 @@ window.CG_AUTH = (function () {
       .then(function (r) { if (r.error) throw r.error; });
   }
 
+  // Emails the saved answers to support@costgrid.org (supabase/functions/
+  // notify-inquiry). It sends at most one email per person every 10 minutes,
+  // and only when the answers changed, so calling it after every save is fine.
+  function notifyInquiry() {
+    return client.functions.invoke("notify-inquiry", { method: "POST" });
+  }
+
   // For pages that are only for signed-in people. The page stays hidden until
   // the check passes; anyone without a session is sent to the sign-in card.
   function requireSession(signInUrl) {
@@ -68,6 +75,7 @@ window.CG_AUTH = (function () {
     signOut: signOut,
     getProfile: getProfile,
     saveProfile: saveProfile,
+    notifyInquiry: notifyInquiry,
     requireSession: requireSession
   };
 })();
