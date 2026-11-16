@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@costgrid/gateway": "3.0.1",
-    "@napi-rs/keyring": "2.1.0"
+    "@napi-rs/keyring": "2.1.2"
   },
   "devDependencies": {
     "electron": "44.9.3",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.18.0"
   }
 }
