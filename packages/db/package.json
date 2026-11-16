@@ -13,6 +13,6 @@
   },
   "dependencies": {
     "@costgrid/core": "3.0.1",
-    "better-sqlite3": "^13.0.3"
+    "better-sqlite3": "^13.1.1"
   }
 }
