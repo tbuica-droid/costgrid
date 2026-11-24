@@ -53,12 +53,11 @@ export function registerSecurityHeaders(app: FastifyInstance, config: GatewayCon
     app.addHook("onRequest", async (request, reply) => {
       if (request.headers["x-forwarded-proto"] === undefined) return;
       if (request.protocol !== "http") return;
-      // The configured address, when there is one, so the target is not
-      // taken from a header a client chose.
-      const base = config.publicUrl?.startsWith("https://")
-        ? config.publicUrl
-        : `https://${request.host}`;
-      return reply.redirect(`${base}${request.url}`, 308);
+      // Only the address the operator configured. request.host is the Host
+      // header, which a client can choose, so building the target from it
+      // is an open redirect when the proxy forwards that header unchanged.
+      if (!config.publicUrl?.startsWith("https://")) return;
+      return reply.redirect(`${config.publicUrl}${request.url}`, 308);
     });
   }
 

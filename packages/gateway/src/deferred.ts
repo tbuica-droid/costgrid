@@ -193,12 +193,15 @@ export function registerDeferred(app: FastifyInstance, deps: DeferredDeps): Defe
             streamed: false,
           };
           if (parsed.response === undefined) {
+            // No model and no usage. priceUsage marks that unpriced, so a
+            // failed line is not stored as a free call on an unknown model.
+            const unpriced = priceUsage("unknown", ZERO_USAGE, {});
             records.push({
               ...base,
               model: "unknown",
               usage: ZERO_USAGE,
-              cost: priceUsage("unknown", ZERO_USAGE, {}).cost,
-              priced: true,
+              cost: unpriced.cost,
+              priced: unpriced.priced,
               outcome: "error",
               errorMessage: `batch request ${parsed.customId}: ${parsed.failure ?? "failed"}`,
             });

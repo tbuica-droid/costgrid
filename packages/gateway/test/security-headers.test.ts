@@ -107,16 +107,15 @@ describe("security headers and https", () => {
     expect(desktop.headers["strict-transport-security"]).toBeUndefined();
   });
 
-  it("redirects plain http to https behind a trusted proxy in hosted mode", async () => {
+  it("does not redirect from the Host header when no public https address is set", async () => {
     const server = build({ ...BASE, trustProxy: true });
     const res = await server.inject({
-      method: "POST",
-      url: "/v1/messages?x=1",
-      headers: { host: "costgrid.example.com", "x-forwarded-proto": "http" },
-      payload: {},
+      method: "GET",
+      url: "/health",
+      headers: { host: "evil.example", "x-forwarded-proto": "http" },
     });
-    expect(res.statusCode).toBe(308);
-    expect(res.headers["location"]).toBe("https://costgrid.example.com/v1/messages?x=1");
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["location"]).toBeUndefined();
 
     // Already https at the proxy, or no proxy in the path at all: served.
     const tls = await server.inject({
@@ -137,6 +136,15 @@ describe("security headers and https", () => {
     });
     expect(res.statusCode).toBe(308);
     expect(res.headers["location"]).toBe("https://cg.example.com/console");
+    await app!.close();
+
+    const plain = await build({ ...BASE, trustProxy: true, publicUrl: "http://cg.example.com" }).inject({
+      method: "GET",
+      url: "/health",
+      headers: { host: "evil.example", "x-forwarded-proto": "http" },
+    });
+    expect(plain.statusCode).toBe(200);
+    expect(plain.headers["location"]).toBeUndefined();
   });
 
   it("ignores a forwarded protocol it was not told to trust, and never redirects self-hosted", async () => {
