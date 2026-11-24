@@ -55,7 +55,7 @@
     <main id="main">
       <!-- Hero: what CostGrid is, where it sits, and the download. The video (media/, hero.js) loads after the page. -->
       <section class="hero" id="top">
-        <div class="hero-bg" aria-hidden="true"><video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
+        <div class="hero-bg" aria-hidden="true"><video class="hero-video" poster="media/hero.webp" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
         <div class="wrap hero-wrap hero-grid">
           <div>
             <span class="eyebrow">For AI agents you run yourself</span>
@@ -446,8 +446,6 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
     </footer>
 
     <script src="hero.js"></script>
-    <script src="vendor/supabase-js-2.117.1.js"></script>
-    <script src="auth.js"></script>
     <script src="site.js"></script>
     <script src="home.js"></script>
   </body>
