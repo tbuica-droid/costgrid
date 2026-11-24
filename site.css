@@ -90,7 +90,7 @@ h2.head { font-size: 30px; line-height: 1.12; letter-spacing: -0.02em; margin-to
 .head-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 16px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px;
   letter-spacing: -0.01em; text-decoration: none; color: var(--ink); }
-.brand svg { flex-shrink: 0; }
+.brand svg, .brand img { flex-shrink: 0; }
 .site-nav { order: 3; flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 15px; }
 .site-nav a { color: var(--ink-2); text-decoration: none; }
 .site-nav a:hover { color: var(--accent); }
