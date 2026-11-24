@@ -17,7 +17,13 @@
   function byId(id) { return document.getElementById(id); }
   function fieldValue(id) { return byId(id).value.trim(); }
   function show(el, on) { el.hidden = !on; }
-  function markInvalid(id, valid) { byId(id).classList.toggle("invalid", !valid); return valid; }
+  function markInvalid(id, valid) {
+    var field = byId(id);
+    field.classList.toggle("invalid", !valid);
+    var control = field.querySelector("input, select, textarea");
+    if (control) control.setAttribute("aria-invalid", valid ? "false" : "true");
+    return valid;
+  }
 
   function renderAuth(user) {
     currentUser = user;
