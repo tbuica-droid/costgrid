@@ -5,8 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CostGrid · dashboard demo</title>
 <meta name="description" content="Demo of the CostGrid dashboard on a frozen snapshot of sample traffic from a six-agent fleet: spend, agents, routing, and policies." />
+<meta property="og:title" content="CostGrid · dashboard demo" />
+<meta property="og:description" content="Demo of the CostGrid dashboard on a frozen snapshot of sample traffic from a six-agent fleet: spend, agents, routing, and policies." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="CostGrid" />
+<meta property="og:image" content="https://costgrid.org/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="CostGrid wordmark with a gold monogram on a dark grid. Self-hosted LLM cost gateway for OpenAI and Anthropic." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="CostGrid · dashboard demo" />
+<meta name="twitter:description" content="Demo of the CostGrid dashboard on a frozen snapshot of sample traffic from a six-agent fleet: spend, agents, routing, and policies." />
+<meta name="twitter:image" content="https://costgrid.org/og-image.png" />
 <link rel="stylesheet" href="./styles.css" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'><rect width='26' height='26' rx='6' fill='%230b0d12'/><rect x='1.75' y='1.75' width='22.5' height='22.5' rx='5' fill='none' stroke='%23d9b46c' stroke-width='1.5'/><rect x='7' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14' y='7' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='7' y='14' width='5' height='5' rx='1' fill='%23d9b46c'/><rect x='14.75' y='14.75' width='3.5' height='3.5' rx='0.5' fill='none' stroke='%23d9b46c' stroke-width='1.2'/></svg>" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" href="/media/costgrid-favicon-32.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="canonical" href="https://costgrid.org/demo/">
 <!-- Signed-in people only. Anyone else is sent to the sign-in card on the front page. -->
 <script src="../vendor/supabase-js-2.117.1.js"></script>
@@ -19,7 +33,7 @@
   <aside class="sidebar">
     <div class="sidebar-inner">
       <div class="brand">
-        <svg class="logo" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="14" y="7" width="5" height="5" rx="1" fill="currentColor"/><rect x="7" y="14" width="5" height="5" rx="1" fill="currentColor"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <img class="logo" src="/media/costgrid-mark-dark.svg" width="26" height="26" alt="" aria-hidden="true" />
         CostGrid
       </div>
       <nav id="nav" class="side-nav" aria-label="Dashboard">
