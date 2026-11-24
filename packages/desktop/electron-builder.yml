@@ -11,6 +11,10 @@
 # notarization with a Developer ID add three environment variables on the Mac
 # that builds it (APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID) plus
 # `notarize: true` under mac below.
+#
+# Icons are named the way electron-builder looks them up under build/:
+# icon.icns (Mac), icon.ico (Windows) and icon.png (Linux). Regenerate them
+# from build/costgrid-app-icon-1024.png with `npm run build:icon`.
 appId: dev.costgrid.desktop
 productName: CostGrid
 copyright: Copyright © 2026 Tomas Buica
@@ -31,6 +35,7 @@ npmRebuild: false
 afterPack: build/after-pack.cjs
 mac:
   category: public.app-category.developer-tools
+  icon: icon.icns
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
@@ -39,8 +44,10 @@ mac:
     - target: dmg
       arch: [arm64, x64]
 win:
+  icon: icon.ico
   target: nsis
 linux:
+  icon: icon.png
   target: AppImage
   category: Utility
 publish:
