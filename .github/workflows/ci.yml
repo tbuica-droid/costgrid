@@ -36,7 +36,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       # tsc --build is incremental; the cache saves recompiling what didn't change.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: packages/*/tsconfig.tsbuildinfo
           key: tsbuild-${{ runner.os }}-${{ github.sha }}
