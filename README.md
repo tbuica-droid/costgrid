@@ -246,6 +246,12 @@ Stripe subscription. Hosted Checkout collects the card, the Customer Portal
 changes or cancels it, and `https://costgrid.org/api/stripe/webhook` is the
 only thing that writes a plan. The success page does not grant access.
 
+`vercel.json` calls `scripts/vercel-install.sh` (the install command itself
+has to stay within 256 characters). That script installs the pinned `stripe`
+and `@supabase/supabase-js` packages. `api/package.json` repeats those versions
+so the function build can install them beside the handlers. The product
+workspaces are not installed on Vercel.
+
 This is not wired to `packages/core/src/billing.ts`. The site's plan ids are
 `free`, `pro` and `team` ($0, $99 and $499). billing.ts calls the $99 plan
 `team` and the $499 plan `business`. Mapping those names is undecided.

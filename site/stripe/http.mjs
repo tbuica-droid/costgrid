@@ -2,6 +2,19 @@ export function json(status, body) {
   return Response.json(body, { status, headers: { "cache-control": "no-store" } });
 }
 
+/** Messages that name a missing setting and contain no secret. */
+export function configErrorMessage(err) {
+  const message = err && err.message ? String(err.message) : "";
+  if (
+    message === "STRIPE_SECRET_KEY is not set." ||
+    message === "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set." ||
+    message === "Webhook is not configured."
+  ) {
+    return message;
+  }
+  return null;
+}
+
 /** A log line that cannot contain a key, a webhook secret, or a JWT. */
 export function safeMessage(err) {
   const message = err && err.message ? String(err.message) : "error";

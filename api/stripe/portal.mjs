@@ -1,6 +1,6 @@
 import { userFromAuthorization } from "../../site/stripe/auth.mjs";
-import { stripeClient, supabaseAdmin } from "../../site/stripe/clients.mjs";
-import { json, safeMessage } from "../../site/stripe/http.mjs";
+import { stripeClient, supabaseAdmin } from "../_lib/clients.mjs";
+import { configErrorMessage, json, safeMessage } from "../../site/stripe/http.mjs";
 import { handlePortal } from "../../site/stripe/routes.mjs";
 import { createBillingStore } from "../../site/stripe/store.mjs";
 
@@ -14,6 +14,6 @@ export async function POST(request) {
     });
   } catch (err) {
     console.error("stripe portal failed", safeMessage(err));
-    return json(500, { error: "Could not open billing." });
+    return json(500, { error: configErrorMessage(err) || "Could not open billing." });
   }
 }
