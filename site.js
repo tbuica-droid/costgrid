@@ -10,8 +10,24 @@
   if (!window.CG_AUTH) return;
 
   var currentUser = null;
+  var checkoutContinued = false;
 
   function byId(id) { return document.getElementById(id); }
+
+  // Checkout returns here. The plan itself is written by the webhook, so this
+  // only says the payment was received. The query is removed so a refresh does
+  // not show it again.
+  var checkoutParams = new URLSearchParams(location.search);
+  if (checkoutParams.get("checkout") === "success") {
+    var notice = byId("checkoutNotice");
+    if (notice) {
+      notice.textContent = "Payment received. Your plan updates once Stripe confirms it, usually within a minute.";
+      notice.hidden = false;
+    }
+    checkoutParams.delete("checkout");
+    var cleaned = location.pathname + (checkoutParams.toString() ? "?" + checkoutParams.toString() : "") + location.hash;
+    history.replaceState(null, "", cleaned);
+  }
   function fieldValue(id) { return byId(id).value.trim(); }
   function show(el, on) { el.hidden = !on; }
   function markInvalid(id, valid) { byId(id).classList.toggle("invalid", !valid); return valid; }
@@ -27,8 +43,117 @@
     show(byId("signinForm"), !user);
     show(byId("signinSent"), false);
     show(byId("signedIn"), !!user);
-    if (user) loadProfile(user);
+    showPaying(false);
+    if (user) {
+      loadProfile(user);
+      loadBilling(user);
+      maybeContinueCheckout();
+    }
   }
+
+  function showPaying(on) {
+    document.querySelectorAll("[data-billing='paying']").forEach(function (el) { el.hidden = !on; });
+  }
+
+  function isPaying(row) {
+    return !!row && (row.plan === "pro" || row.plan === "team") &&
+      (row.plan_status === "active" || row.plan_status === "trialing" || row.plan_status === "past_due");
+  }
+
+  function loadBilling(user) {
+    CG_AUTH.getBilling(user.id).then(function (row) { showPaying(isPaying(row)); }, function () { showPaying(false); });
+  }
+
+  var PENDING_PLAN = "cg-checkout-plan";
+
+  function readPending() {
+    try { return localStorage.getItem(PENDING_PLAN); } catch (err) { return null; }
+  }
+
+  function pendingPlan(value) {
+    try {
+      if (value) localStorage.setItem(PENDING_PLAN, value);
+      else localStorage.removeItem(PENDING_PLAN);
+    } catch (err) {}
+    var note = byId("checkoutPending");
+    if (note) note.hidden = !value;
+  }
+
+  function postBilling(path, body) {
+    return CG_AUTH.session().then(function (s) {
+      if (!s) throw new Error("Sign in required.");
+      return fetch(path, {
+        method: "POST",
+        headers: { authorization: "Bearer " + s.access_token, "content-type": "application/json" },
+        body: JSON.stringify(body || {})
+      });
+    }).then(function (res) {
+      return res.json().then(function (payload) {
+        if (!res.ok || !payload.url) throw new Error(payload && payload.error ? payload.error : "Something went wrong.");
+        location.assign(payload.url);
+      });
+    });
+  }
+
+  function startCheckout(plan) {
+    var err = byId("checkoutErr");
+    if (err) err.hidden = true;
+    var buttons = document.querySelectorAll("[data-checkout]");
+    buttons.forEach(function (btn) { btn.disabled = true; });
+    postBilling("/api/stripe/checkout", { plan: plan }).catch(function (error) {
+      if (err) {
+        err.textContent = error && error.message ? error.message : "Could not start checkout.";
+        err.hidden = false;
+      }
+      buttons.forEach(function (btn) { btn.disabled = false; });
+    });
+  }
+
+  function maybeContinueCheckout() {
+    if (checkoutContinued) return;
+    var plan = readPending();
+    if (plan !== "pro" && plan !== "team") return;
+    checkoutContinued = true;
+    pendingPlan(null);
+    startCheckout(plan);
+  }
+
+  if (readPending()) pendingPlan(readPending());
+
+  document.querySelectorAll("[data-checkout]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var plan = btn.getAttribute("data-checkout");
+      if (plan !== "pro" && plan !== "team") return;
+      var known = currentUser ? Promise.resolve(currentUser) : CG_AUTH.session().then(function (s) { return s && s.user; });
+      known.then(function (user) {
+        if (!user) {
+          pendingPlan(plan);
+          var setup = byId("setup");
+          if (setup) setup.scrollIntoView({ behavior: "smooth" });
+          var email = byId("signinEmail");
+          if (email) email.focus();
+          return;
+        }
+        currentUser = user;
+        pendingPlan(null);
+        startCheckout(plan);
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-portal]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var err = byId("checkoutErr");
+      btn.disabled = true;
+      postBilling("/api/stripe/portal", {}).catch(function (error) {
+        if (err) {
+          err.textContent = error && error.message ? error.message : "Could not open billing.";
+          err.hidden = false;
+        }
+        btn.disabled = false;
+      });
+    });
+  });
 
   var signinForm = byId("signinForm");
   var signinBtn = byId("signinBtn");

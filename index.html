@@ -53,6 +53,7 @@
     </header>
 
     <main id="main">
+      <p class="checkout-notice" id="checkoutNotice" hidden role="status"></p>
       <!-- Hero: what CostGrid is, where it sits, and the download. The video (media/, hero.js) loads after the page. -->
       <section class="hero" id="top">
         <div class="hero-bg" aria-hidden="true"><video class="hero-video" data-src="media/hero.mp4" muted loop playsinline preload="none" tabindex="-1"></video></div>
@@ -262,7 +263,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
               <span class="eyebrow">Pricing</span>
               <h2 class="h2" id="pricing-title">A flat fee. No share of your AI bill.</h2>
             </div>
-            <p class="lede">You run CostGrid on your Mac or your own servers. Pro and Team are the same terms, apart from the request limit. There is no card checkout yet.</p>
+            <p class="lede">You run CostGrid on your Mac or your own servers. Pro and Team are the same terms, apart from the request limit. Pay by card, or ask us first.</p>
           </div>
           <ul class="plans rise">
             <li class="plan">
@@ -284,7 +285,10 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
                 <li>600 requests a minute</li>
                 <li>No share of your AI spend, and a 60-day savings guarantee</li>
               </ul>
-              <a class="btn btn-gold btn-block" href="#start">Ask about Pro</a>
+              <div class="plan-actions">
+                <button type="button" class="btn btn-gold btn-block" data-checkout="pro">Subscribe to Pro</button>
+                <a class="plan-alt" href="#start">Ask about Pro</a>
+              </div>
             </li>
             <li class="plan">
               <h3>Team</h3>
@@ -294,9 +298,14 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
                 <li>6,000 requests a minute</li>
                 <li>No share of your AI spend, and a 60-day savings guarantee</li>
               </ul>
-              <a class="btn btn-ghost btn-block" href="#start">Ask about Team</a>
+              <div class="plan-actions">
+                <button type="button" class="btn btn-ghost btn-block" data-checkout="team">Subscribe to Team</button>
+                <a class="plan-alt" href="#start">Ask about Team</a>
+              </div>
             </li>
           </ul>
+          <p class="checkout-err" id="checkoutErr" hidden role="alert"></p>
+          <p class="plans-manage" data-billing="paying" hidden><button type="button" class="link-btn" data-portal>Manage billing</button></p>
           <div class="plans-note rise">
             <p>The request figure is the gateway's limit for that plan, per minute. It is an abuse guard, not a charge per call. On Pro and Team, if after 60 days the savings report does not show CostGrid saved you more than you paid, the subscription is refunded. The report is produced by the software, and it shows how each figure was worked out.</p>
             <p>View and control is separate from these prices, and still priced on request. It adds two controls for Claude keys: pausing an agent's keys at Anthropic, and a monthly cap that pauses them when a usage report shows the cap has been passed. The report runs behind, so the pause is not instant. OpenAI keys cannot be paused from CostGrid.</p>
@@ -315,7 +324,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
             <details><summary>Where does CostGrid run?</summary><p>On your Mac as a desktop app, or on your own server with Docker or Node.js. The Mac app accepts connections from that Mac only, so agents on other machines need a gateway you host.</p></details>
             <details><summary>What changes in my agent?</summary><p>Its base URL, and its API key, which becomes a CostGrid key. Your OpenAI or Anthropic key stays inside CostGrid. The agent keeps the same SDK, streaming and tool calls included. Claude Code works the same way, through <code>ANTHROPIC_BASE_URL</code>.</p></details>
             <details><summary>How does CostGrid know a job finished?</summary><p>From how each run ends. Handed to a person, an error, cut off or declined: not finished. Ended normally and not asked again within the agent's window: finished. These figures are marked indicative; one call to <code>POST /v1/costgrid/outcome</code> makes them exact.</p></details>
-            <details><summary>What does it cost?</summary><p>Free is $0: the Mac app and all six savings, for 2 seats, at 60 requests a minute. Pro is $99 a month and Team is $499 a month, with unlimited seats, a higher request limit (600 and 6,000 a minute), no share of your AI spend, and a refund if after 60 days the savings report does not show CostGrid saved you more than you paid. There is no card checkout yet. <a href="#pricing">See the plans</a>, or email <a href="mailto:support@costgrid.org?subject=CostGrid%20pricing">support@costgrid.org</a>. View and control, priced on request, adds pausing an agent's Claude keys and a monthly cap that follows a usage report, so it is not instant. OpenAI keys cannot be paused from CostGrid.</p></details>
+            <details><summary>What does it cost?</summary><p>Free is $0: the Mac app and all six savings, for 2 seats, at 60 requests a minute. Pro is $99 a month and Team is $499 a month, with unlimited seats, a higher request limit (600 and 6,000 a minute), no share of your AI spend, and a refund if after 60 days the savings report does not show CostGrid saved you more than you paid. Subscribe from <a href="#pricing">the pricing section</a>. Questions can still go to <a href="mailto:support@costgrid.org?subject=CostGrid%20pricing">support@costgrid.org</a>. View and control, priced on request, adds pausing an agent's Claude keys and a monthly cap that follows a usage report, so it is not instant. OpenAI keys cannot be paused from CostGrid.</p></details>
             <details id="privacy"><summary>Does CostGrid keep my prompts?</summary><p>No. Requests and answers are read in memory to price them, then discarded, and go only to the provider your agent already uses unless you set a rule. Keys stay encrypted in your Mac's Keychain, or in your server's environment. <a href="./privacy.html">Privacy in full</a>.</p></details>
             <details><summary>What if the gateway stops?</summary><p>It is kept thin: responses stream through untouched, and a failure to record a cost never breaks a response. If the gateway stops, set the base URL back to OpenAI or Anthropic.</p></details>
             <details><summary>Will savings make answers worse?</summary><p>A cheaper model is kept only if jobs finish as often. After any change, CostGrid keeps checking, and switches the rule back with an alert if cost rises or fewer jobs finish.</p></details>
@@ -375,6 +384,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
                   <input id="signinWebsite" name="website" type="text" tabindex="-1" autocomplete="off" />
                 </div>
                 <button type="submit" class="btn btn-gold btn-block" id="signinBtn">Email me a sign-in link</button>
+                <p class="small center" id="checkoutPending" hidden>Sign in and we'll continue to checkout.</p>
                 <p class="small center">No password. We email you a one-time link.</p>
               </form>
               <div id="signinSent" hidden>
@@ -385,7 +395,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
               <div id="signedIn" hidden>
                 <h3>You're on the list.</h3>
                 <p class="muted">Signed in as <strong data-user-email></strong>. We'll email you when View and control and Windows are ready.</p>
-                <div class="row"><a class="btn btn-ghost btn-sm" href="./demo/">Open the full demo</a><button type="button" class="link-btn" id="signOut">Sign out</button></div>
+                <div class="row"><a class="btn btn-ghost btn-sm" href="./demo/">Open the full demo</a><button type="button" class="link-btn" data-portal data-billing="paying" hidden>Manage billing</button><button type="button" class="link-btn" id="signOut">Sign out</button></div>
               </div>
             </div>
             <div class="card" data-auth="in" hidden>

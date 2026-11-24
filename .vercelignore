@@ -14,6 +14,9 @@ vitest.config.ts
 package.json
 package-lock.json
 *.db
+# Unit tests are not part of the site. The billing functions import site/stripe,
+# so that directory is deployed and redirected away from the public site.
+test
 # Repository files that are not part of the site. Nothing here is secret, but
 # with the code repository private they should not be reachable by address.
 README.md

@@ -239,6 +239,69 @@ RMF crosswalk, are on the website at `research.html`.
 
 ---
 
+## Website subscriptions
+
+The marketing site (the static pages on Vercel, not the gateway) can start a
+Stripe subscription. Hosted Checkout collects the card, the Customer Portal
+changes or cancels it, and `https://costgrid.org/api/stripe/webhook` is the
+only thing that writes a plan. The success page does not grant access.
+
+This is not wired to `packages/core/src/billing.ts`. The site's plan ids are
+`free`, `pro` and `team` ($0, $99 and $499). billing.ts calls the $99 plan
+`team` and the $499 plan `business`. Mapping those names is undecided.
+
+**Vercel environment variables.** Mark each one sensitive. Use a [restricted
+API key](https://docs.stripe.com/keys.md#manage-your-api-keys) (`rk_`), not a
+secret key, and a separate [sandbox](https://docs.stripe.com/sandboxes.md) for
+anything that is not the live site.
+
+| Name | Purpose |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | Restricted key: Customers write, Checkout Sessions write, Prices read, Subscriptions read, Invoices read, Invoice Payments read, Billing Portal write |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret of the endpoint below |
+| `SUPABASE_URL` | Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only. Writes `billing` and `stripe_events` |
+
+`SUPABASE_ANON_KEY` is not required. The browser already has the publishable
+key in `auth.js`, and the functions check the bearer token with Supabase Auth
+using the service role.
+
+**Stripe, before the first payment.** One Product per plan (Pro and Team are
+not two prices on one product): a $99/month price with lookup key
+`costgrid_pro_monthly`, and a $499/month price with lookup key
+`costgrid_team_monthly`. Turn on the Customer Portal. Register the webhook
+`https://costgrid.org/api/stripe/webhook` for these events only:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `invoice.paid`
+- `invoice.payment_failed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `charge.refunded`
+
+Do not send `invoice.created` to this endpoint. Stripe delays invoice
+finalisation when an endpoint subscribed to that event does not answer it.
+`charge.dispute.created` and `radar.early_fraud_warning.created` are not
+handled yet; a dispute or an early fraud warning will not change the plan
+until that is added.
+
+Apply `supabase/migrations/20261124_billing.sql` in the Supabase SQL editor.
+It is not applied by this repository's deploy.
+
+**Tax.** Checkout does not turn on Stripe Tax. If you charge customers in the
+US or the EU, sales tax or VAT has to be decided first: Stripe collects nothing
+until a registration is active, and enabling automatic tax without one looks
+like tax is on when it is not. See [Collect taxes for recurring payments](https://docs.stripe.com/billing/taxes/collect-taxes.md).
+
+**A card test, in a sandbox.** `4242 4242 4242 4242` pays. `4000 0000 0000 0341`
+attaches and then the charge fails. Any future expiry, any CVC, any postcode.
+Watch the webhook deliveries, then the `billing` row: `plan` becomes `pro` or
+`team` only after `invoice.paid` or an active subscription event. A full refund
+sets the plan back to `free`.
+
 ## Author
 
 Built by Tomas Buica &mdash; <support@costgrid.org>.

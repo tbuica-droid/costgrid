@@ -34,6 +34,15 @@ window.CG_AUTH = (function () {
       .then(function (r) { if (r.error) throw r.error; return r.data; });
   }
 
+  function getBilling(userId) {
+    return client
+      .from("billing")
+      .select("plan, plan_status, stripe_customer_id")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(function (r) { if (r.error) throw r.error; return r.data; });
+  }
+
   function saveProfile(user, fields) {
     return client
       .from("profiles")
@@ -74,6 +83,7 @@ window.CG_AUTH = (function () {
     sendLink: sendLink,
     signOut: signOut,
     getProfile: getProfile,
+    getBilling: getBilling,
     saveProfile: saveProfile,
     notifyInquiry: notifyInquiry,
     requireSession: requireSession

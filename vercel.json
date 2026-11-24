@@ -1,8 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "echo 'static site - nothing to build'",
-  "installCommand": "echo 'no dependencies to install'",
+  "installCommand": "mkdir -p /tmp/cg-fn && npm init -y --prefix /tmp/cg-fn >/dev/null && npm install --prefix /tmp/cg-fn --omit=dev --ignore-scripts --no-audit --no-fund stripe@23.2.0 @supabase/supabase-js@2.117.1 && rm -rf node_modules && mkdir -p node_modules && cp -a /tmp/cg-fn/node_modules/. node_modules/",
   "outputDirectory": ".",
+  "functions": {
+    "api/stripe/*.mjs": {
+      "maxDuration": 30
+    }
+  },
   "redirects": [
     { "source": "/", "has": [{ "type": "host", "value": "costgrid.dev" }], "destination": "https://costgrid.org/", "permanent": true },
     { "source": "/", "has": [{ "type": "host", "value": "www.costgrid.dev" }], "destination": "https://costgrid.org/", "permanent": true },
@@ -12,7 +17,10 @@
     { "source": "/thesis.html", "destination": "/research.html", "permanent": true },
     { "source": "/thesis", "destination": "/research.html", "permanent": true },
     { "source": "/dashboard.html", "destination": "/research.html", "permanent": true },
-    { "source": "/dashboard", "destination": "/research.html", "permanent": true }
+    { "source": "/dashboard", "destination": "/research.html", "permanent": true },
+    { "source": "/site/stripe/:path*", "destination": "/", "permanent": false },
+    { "source": "/package.json", "destination": "/", "permanent": false },
+    { "source": "/package-lock.json", "destination": "/", "permanent": false }
   ],
   "headers": [
     {
