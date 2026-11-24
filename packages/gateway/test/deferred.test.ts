@@ -158,11 +158,11 @@ describe("deferred jobs at the batch rate", () => {
     expect(status).toMatchObject({ status: "ended", succeeded: 1, errored: 1, cost_usd: "1.500000", results_ready: true });
 
     const calls = db
-      .prepare("SELECT agent_id AS agent, outcome, batch, cost_total AS cost FROM calls ORDER BY outcome DESC")
+      .prepare("SELECT agent_id AS agent, outcome, batch, cost_total AS cost, priced FROM calls ORDER BY outcome DESC")
       .all();
     expect(calls).toEqual([
-      { agent: "nightly", outcome: "ok", batch: 1, cost: 1_500_000_000 },
-      { agent: "nightly", outcome: "error", batch: 0, cost: 0 },
+      { agent: "nightly", outcome: "ok", batch: 1, cost: 1_500_000_000, priced: 1 },
+      { agent: "nightly", outcome: "error", batch: 0, cost: 0, priced: 0 },
     ]);
     // A second sweep prices nothing twice.
     await deferredOf(app)!.sweep(Date.now() + 240_000);
