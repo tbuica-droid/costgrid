@@ -84,12 +84,18 @@
   letter-spacing: -0.04em; color: var(--gold);
 }
 .plan .price .per { margin-left: 4px; font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
-.plan > ul { display: grid; gap: 12px; margin-top: 22px; flex: 1; }
+.plan > ul { display: grid; gap: 12px; margin-top: 22px; flex: 1; align-content: start; }
 .plan > ul li { display: flex; gap: 10px; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
 .plan > ul li::before {
   content: ""; flex: none; width: 7px; height: 7px; margin-top: 8px; border-radius: 2px; background: var(--gold);
 }
 .plan .btn { margin-top: 28px; }
+.plan-actions { margin-top: 28px; }
+.plan-actions .btn { margin-top: 0; }
+.plan-alt { display: block; margin-top: 12px; text-align: center; font-size: 14px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.checkout-notice { margin: 0; padding: 14px 20px; text-align: center; background: var(--gold-wash); color: var(--ink); border-bottom: 1px solid var(--gold-line); }
+.checkout-err { margin-top: 16px; color: var(--bad); }
+.plans-manage { margin-top: 16px; }
 #pricing { scroll-margin-top: 96px; }
 .plans-note { display: grid; gap: 12px; margin-top: 28px; max-width: 78ch; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
 

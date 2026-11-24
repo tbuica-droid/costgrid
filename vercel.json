@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "echo 'static site - nothing to build'",
-  "installCommand": "echo 'no dependencies to install'",
+  "installCommand": "sh scripts/vercel-install.sh",
   "outputDirectory": ".",
   "redirects": [
     { "source": "/", "has": [{ "type": "host", "value": "costgrid.dev" }], "destination": "https://costgrid.org/", "permanent": true },
@@ -12,7 +12,14 @@
     { "source": "/thesis.html", "destination": "/research.html", "permanent": true },
     { "source": "/thesis", "destination": "/research.html", "permanent": true },
     { "source": "/dashboard.html", "destination": "/research.html", "permanent": true },
-    { "source": "/dashboard", "destination": "/research.html", "permanent": true }
+    { "source": "/dashboard", "destination": "/research.html", "permanent": true },
+    { "source": "/site/stripe/:path*", "destination": "/", "permanent": false },
+    { "source": "/api/package.json", "destination": "/", "permanent": false },
+    { "source": "/api/package-lock.json", "destination": "/", "permanent": false },
+    { "source": "/api/_lib/:path*", "destination": "/", "permanent": false },
+    { "source": "/scripts/vercel-install.sh", "destination": "/", "permanent": false },
+    { "source": "/package.json", "destination": "/", "permanent": false },
+    { "source": "/package-lock.json", "destination": "/", "permanent": false }
   ],
   "headers": [
     {

@@ -3,7 +3,10 @@
 # expect to read it, rather than being served from costgrid.org.
 node_modules
 packages
-scripts
+# The product scripts stay off the site. The install helper is the exception:
+# vercel.json can only point at it, because installCommand is capped at 256 characters.
+scripts/**
+!scripts/vercel-install.sh
 docs
 Dockerfile
 .dockerignore
@@ -11,9 +14,13 @@ Dockerfile
 tsconfig.json
 tsconfig.base.json
 vitest.config.ts
-package.json
-package-lock.json
+# Only the product package files. api/package.json is the function install.
+/package.json
+/package-lock.json
 *.db
+# Unit tests are not part of the site. The billing functions import site/stripe,
+# so that directory is deployed and redirected away from the public site.
+test
 # Repository files that are not part of the site. Nothing here is secret, but
 # with the code repository private they should not be reachable by address.
 README.md
