@@ -344,7 +344,7 @@ next thing being worked on.
 
 ## Getting help
 
-Email **tomasbuica@outlook.com**. It goes to a person, not a ticket queue,
+Email **support@costgrid.org**. It goes to a person, not a ticket queue,
 and is usually answered the same day.
 
 If something is broken, the most useful thing you can send is the output of:

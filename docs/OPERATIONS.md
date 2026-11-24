@@ -206,3 +206,42 @@ What limited the damage, so it is kept.
 
 Keep them in `docs/postmortems/`. An action without an owner and a date will
 not happen.
+
+## The website: domain, sign-in and inquiries
+
+The site is served by Vercel at **costgrid.org**. `vercel.json` sends
+costgrid.dev, www.costgrid.dev and www.costgrid.org there with a permanent
+redirect, so every domain must stay attached to the same Vercel project.
+Questions and quote requests go to **support@costgrid.org** (Google Workspace):
+directly by email from the site's links, or as answers saved after signing in,
+which `supabase/functions/notify-inquiry` emails to that inbox with Reply-To
+set to the visitor.
+
+Going live, once, in this order:
+
+1. **Domain.** In Vercel, add `costgrid.org` and `www.costgrid.org` to the
+   project and enter the records Vercel shows in Squarespace Domains → DNS.
+   Leave Google's MX records alone. Click the ICANN verification email within
+   15 days of purchase, or the domain and its email are suspended.
+2. **Email that arrives.** Google Admin → Apps → Gmail → Authenticate email:
+   turn on DKIM. In DNS, keep an SPF record `v=spf1 include:_spf.google.com ~all`
+   and add `_dmarc` `v=DMARC1; p=none; rua=mailto:support@costgrid.org`.
+3. **Supabase Auth → URL Configuration.** Site URL `https://costgrid.org`;
+   redirect URLs `https://costgrid.org/**`. Without it the sign-in link sends
+   people to the old domain.
+4. **Supabase Auth → SMTP.** Turn on custom SMTP: `smtp.gmail.com`, port 465,
+   user and sender `support@costgrid.org`, password a Google app password
+   (needs 2-Step Verification on that account). Supabase's own mailer only
+   delivers to members of the Supabase team and a few an hour, so customers
+   would never get their link. Then raise Auth → Rate Limits → emails.
+5. **Database.** Run `supabase/migrations/20261114_inquiry_notify.sql` in the
+   SQL editor.
+6. **Function.**
+   `supabase functions deploy notify-inquiry --no-verify-jwt --project-ref wuxrdpsuykzsfdfpbnmi`,
+   then `supabase secrets set SMTP_USER=support@costgrid.org SMTP_PASS=<app password>`.
+7. **Check it.** From a private window, sign in on costgrid.org with an address
+   outside the team, save the three questions, and confirm the email lands in
+   support@costgrid.org and that replying reaches the visitor.
+
+Paying customers: there is no payment processor. Send an invoice, and once it is
+paid turn on View and control on their install with `costgrid tier control`.
