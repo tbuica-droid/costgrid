@@ -4,10 +4,13 @@
  * the browser: it asks for a sign-in link, notices when the link brings the
  * person back, and shows or hides the [data-auth] parts to match.
  * Kept in its own file so the site's Content-Security-Policy can forbid
- * inline scripts.
+ * inline scripts. The Supabase bundle is injected from here the first time
+ * someone reaches or uses the sign-in form, or comes back from a magic link.
  */
 (function () {
-  if (!window.CG_AUTH) return;
+  function boot() {
+  if (boot.done || !window.CG_AUTH) return;
+  boot.done = true;
 
   var currentUser = null;
 
@@ -153,6 +156,114 @@
     renderAuth(user);
     if (event === "SIGNED_IN" && user) byId("setup").scrollIntoView({ behavior: "smooth" });
   });
+  }
+
+  var SUPABASE_SRC = "vendor/supabase-js-2.117.1.js";
+  var AUTH_SRC = "auth.js";
+  var pending = null;
+
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var el = document.createElement("script");
+      el.src = src;
+      el.async = false;
+      el.onload = function () { resolve(); };
+      el.onerror = function () { reject(new Error(src)); };
+      document.head.appendChild(el);
+    });
+  }
+
+  function ensureAuth() {
+    if (window.CG_AUTH) {
+      boot();
+      return Promise.resolve();
+    }
+    if (!pending) {
+      pending = loadScript(SUPABASE_SRC).then(function () {
+        return loadScript(AUTH_SRC);
+      }).then(function () {
+        if (!window.supabase || !window.CG_AUTH) throw new Error("sign-in failed to start");
+        boot();
+      }).catch(function (err) {
+        pending = null;
+        throw err;
+      });
+    }
+    return pending;
+  }
+
+  // A magic-link return, or a link that lands on the form, has to start the
+  // client immediately: the session is read from the URL as the client loads.
+  function cameBackSignedIn() {
+    var hash = location.hash || "";
+    var search = location.search || "";
+    if (hash === "#start" || hash === "#setup") return true;
+    if (/access_token=|refresh_token=|error_description=|token_hash=|type=(magiclink|signup|recovery|invite|email_change)/.test(hash)) return true;
+    if (/[?&](code|error|error_description|token_hash)=/.test(search)) return true;
+    return false;
+  }
+
+  function holdSubmit(form) {
+    if (!form) return;
+    form.addEventListener("submit", function (event) {
+      if (boot.done) return;
+      event.preventDefault();
+      event.stopPropagation();
+      var submitter = event.submitter;
+      ensureAuth().then(function () {
+        if (typeof form.requestSubmit === "function") {
+          if (submitter) form.requestSubmit(submitter);
+          else form.requestSubmit();
+        } else {
+          form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        }
+      }).catch(function () {
+        var err = form.querySelector(".err");
+        if (err) err.textContent = "Couldn't load sign-in. Check your connection and try again.";
+        var field = form.querySelector(".field");
+        if (field) field.classList.add("invalid");
+      });
+    }, true);
+  }
+
+  function poke() { ensureAuth().catch(function () {}); }
+
+  var zone = document.getElementById("setup");
+  var start = document.getElementById("start");
+  holdSubmit(document.getElementById("signinForm"));
+  holdSubmit(document.getElementById("profileForm"));
+
+  if (cameBackSignedIn()) poke();
+
+  if (zone && "IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      if (entries.some(function (entry) { return entry.isIntersecting; })) {
+        io.disconnect();
+        poke();
+      }
+    }, { rootMargin: "480px 0px" });
+    io.observe(zone);
+    if (start) io.observe(start);
+  } else if (zone) {
+    poke();
+  }
+
+  function insideForm(node) {
+    return !!(zone && node && zone.contains(node));
+  }
+
+  document.addEventListener("focusin", function (event) {
+    if (insideForm(event.target)) poke();
+  });
+  document.addEventListener("pointerdown", function (event) {
+    var target = event.target;
+    if (target && target.nodeType !== 1) target = target.parentElement;
+    if (insideForm(target)) poke();
+    var link = target && target.closest ? target.closest("a[href]") : null;
+    if (!link) return;
+    var href = link.getAttribute("href") || "";
+    if (href === "#start" || href === "#setup" || href.slice(-6) === "#start" || href.slice(-6) === "#setup") poke();
+  }, true);
 })();
 
 /*
