@@ -1,6 +1,6 @@
 /*
  * Home page behaviour: the request feed in the hero, the savings spotlight,
- * the code tabs, old #pricing / #privacy links, and sections rising in.
+ * the code tabs, the mobile menu, old #pricing / #privacy links, and sections rising in.
  * Every moving part checks first whether the visitor asked for less motion.
  */
 (function () {
@@ -135,5 +135,33 @@
     document.querySelectorAll(".rise").forEach(function (el) {
       if (el.getBoundingClientRect().top > window.innerHeight) { el.classList.add("pre"); io.observe(el); }
     });
+  }
+
+  // Below 900px the header links are hidden. The button shows them.
+  var navToggle = document.querySelector(".nav-toggle");
+  var siteNav = document.getElementById("site-nav");
+  if (navToggle && siteNav) {
+    var header = navToggle.closest(".top");
+    var desktopNav = window.matchMedia("(min-width: 900px)");
+    var setNavOpen = function (open) {
+      if (desktopNav.matches) open = false;
+      header.classList.toggle("is-open", open);
+      navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      navToggle.setAttribute("aria-label", open ? "Close menu" : "Menu");
+    };
+    navToggle.addEventListener("click", function () {
+      setNavOpen(navToggle.getAttribute("aria-expanded") !== "true");
+    });
+    siteNav.addEventListener("click", function (e) {
+      if (e.target.closest("a")) setNavOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape" || navToggle.getAttribute("aria-expanded") !== "true") return;
+      setNavOpen(false);
+      navToggle.focus();
+    });
+    var closeOnDesktop = function () { if (desktopNav.matches) setNavOpen(false); };
+    if (desktopNav.addEventListener) desktopNav.addEventListener("change", closeOnDesktop);
+    else if (desktopNav.addListener) desktopNav.addListener(closeOnDesktop);
   }
 })();

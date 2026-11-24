@@ -44,8 +44,12 @@
           <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><rect x="0.75" y="0.75" width="24.5" height="24.5" rx="6" fill="none" stroke="#d9b46c" stroke-width="1.5"/><rect x="7" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14" y="7" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="7" y="14" width="5" height="5" rx="1" fill="#d9b46c"/><rect x="14.75" y="14.75" width="3.5" height="3.5" rx="0.5" fill="none" stroke="#d9b46c" stroke-width="1.2"/></svg>
           CostGrid
         </a>
-        <nav class="nav" aria-label="Site">
-          <a href="#save">Savings</a><a href="#how">How it works</a><a href="#faq">Questions</a><a href="./research.html">Research</a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+          <svg class="nav-toggle-bars" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 5h11M3.5 9h11M3.5 13h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <svg class="nav-toggle-x" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 5l8 8M13 5l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <nav class="nav" id="site-nav" aria-label="Site">
+          <a href="#save">Savings</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">Questions</a><a href="./research.html">Research</a>
         </nav>
         <a class="btn btn-gold btn-sm only-mac" href="#download">Download</a>
         <a class="btn btn-gold btn-sm only-phone" href="mailto:?subject=CostGrid%20for%20my%20Mac&amp;body=Download%20CostGrid%20on%20my%20Mac%3A%20https%3A%2F%2Fcostgrid.org%2F%23download">Email me the link</a>
@@ -437,7 +441,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
           </div>
           <nav aria-label="Footer">
             <a href="./privacy.html">Privacy</a><a href="./research.html">Research</a>
-            <a href="./research.html#lcso">Cost-per-outcome method</a><a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Self-hosting guide</a>
+            <a href="#pricing">Pricing</a><a href="./research.html#lcso">Cost-per-outcome method</a><a href="https://github.com/tbuica-droid/costgrid/blob/main/docs/QUICKSTART.md">Self-hosting guide</a>
             <a href="./demo/">Demo (needs a sign-in link)</a><a href="https://github.com/tbuica-droid/costgrid">GitHub</a><a href="mailto:support@costgrid.org">Contact</a>
           </nav>
         </div>
