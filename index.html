@@ -112,12 +112,14 @@
               <div class="feed-head" role="row"><span role="columnheader">Agent</span><span class="hm" role="columnheader">Model</span><span role="columnheader">Applied</span><span role="columnheader">Cost</span></div>
               <div class="feed-body" role="rowgroup"></div>
             </div>
-            <dl class="gw-foot">
-              <div><dt>Requests</dt><dd data-n>0</dd></div>
-              <div><dt>Saved on these</dt><dd class="g" data-s>$0</dd></div>
-              <div><dt>Blocked</dt><dd data-b>0</dd></div>
+            <div class="gw-foot">
+              <dl>
+                <div><dt>Requests</dt><dd data-n>0</dd></div>
+                <div><dt>Saved on these</dt><dd class="g" data-s>$0</dd></div>
+                <div><dt>Blocked</dt><dd data-b>0</dd></div>
+              </dl>
               <p>Costs at OpenAI's and Anthropic's published rates.</p>
-            </dl>
+            </div>
           </figure>
         </div>
       </section>
@@ -169,8 +171,8 @@
           <div class="sec-head rise"><div><span class="eyebrow">The problem</span><h2 class="h2">The invoice shows tokens, not agents.</h2></div></div>
           <div class="bento rise">
             <article class="b b-a">
-              <div class="b-vis"><div class="b-gauge"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="g-track"/><circle cx="60" cy="60" r="52" class="g-fill" stroke-dasharray="160.1 326.7" transform="rotate(-90 60 60)"/></svg><span class="b-big">49%</span></div></div>
-              <h3>got a higher AI bill than expected</h3>
+              <div class="b-vis"><div class="b-gauge"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="g-track"/><circle cx="60" cy="60" r="52" class="g-fill" stroke-dasharray="160.1 326.7" transform="rotate(-90 60 60)"/></svg><span class="b-big" aria-hidden="true">49%</span></div></div>
+              <h3><span class="sr-only">49% </span>got a higher AI bill than expected</h3>
               <p>Of businesses paying for AI, in a Q3 2026 survey of 1,150 businesses with 5 to 499 staff.</p>
             </article>
             <article class="b b-b">
@@ -380,7 +382,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
               <form id="signinForm" novalidate>
                 <div class="field" id="f-signin">
                   <label for="signinEmail">Email</label>
-                  <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" />
+                  <input id="signinEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@company.com" aria-describedby="signinErr" />
                   <p class="err" id="signinErr">Enter a valid email address.</p>
                 </div>
                 <!-- Honeypot: hidden from people and screen readers, so only bots fill it in. site.js drops any sign-in that does. -->
@@ -408,12 +410,12 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
                 <p class="muted" style="margin-bottom:20px">Three questions, asked once. A person reads every answer and usually replies the same day.</p>
                 <div class="field" id="f-company">
                   <label for="company">Company or team</label>
-                  <input id="company" type="text" maxlength="200" placeholder="Northwind Dental" />
-                  <p class="err">Tell us the company or team name.</p>
+                  <input id="company" type="text" maxlength="200" placeholder="Northwind Dental" aria-describedby="companyErr" />
+                  <p class="err" id="companyErr">Tell us the company or team name.</p>
                 </div>
                 <div class="field" id="f-spend">
                   <label for="spend">Monthly AI spend</label>
-                  <select id="spend">
+                  <select id="spend" aria-describedby="spendErr">
                     <option value="">Select a bracket</option>
                     <option>Under $1k / month</option>
                     <option>$1k – $10k / month</option>
@@ -421,7 +423,7 @@ COSTGRID_HOST=0.0.0.0 npm run gateway
                     <option>$50k – $250k / month</option>
                     <option>Over $250k / month</option>
                   </select>
-                  <p class="err">Pick a monthly spend bracket.</p>
+                  <p class="err" id="spendErr">Pick a monthly spend bracket.</p>
                 </div>
                 <div class="field">
                   <label for="notes">What do your agents do, and would you like a View and control quote? (optional)</label>

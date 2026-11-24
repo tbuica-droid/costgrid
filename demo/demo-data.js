@@ -8,9 +8,14 @@
  * that reimplemented the numbers would prove nothing about the product.
  *
  * Snapshots are frozen, so query parameters (`days`, `limit`) are ignored,
- * except `month`, which selects between the two captured statements.
+ * except `month`, which selects between the two captured statements. A policy
+ * switch is remembered in the browser until reload; the snapshot file is not.
  */
 (() => {
+  // Policy switches have no server in the static demo. Remember them here so
+  // the Policies view can show the change until the page is reloaded.
+  const policyEnabled = new Map();
+
   const SNAPSHOTS = {
     overview: "overview",
     "spend/daily": "spend-daily",
@@ -49,6 +54,28 @@
       file = month === "2026-08" ? "statement-2026-08" : "statement";
     }
 
+    if ((init?.method ?? "GET") === "PATCH" && route.startsWith("policies/")) {
+      const id = decodeURIComponent(route.slice("policies/".length));
+      let enabled;
+      try {
+        const body = JSON.parse(init?.body ?? "{}");
+        if (typeof body.enabled === "boolean") enabled = body.enabled;
+      } catch {
+        enabled = undefined;
+      }
+      if (enabled === undefined) {
+        return new Response(JSON.stringify({ error: "enabled must be true or false" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      policyEnabled.set(id, enabled);
+      return new Response(JSON.stringify({ ok: true, id, enabled }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
     if (file === undefined) {
       return new Response(JSON.stringify({ error: `not in this demo: ${route}` }), {
         status: 404,
@@ -56,7 +83,16 @@
       });
     }
 
-    return realFetch(`./api/${file}.json`, { cache: "no-cache" });
+    const response = await realFetch(`./api/${file}.json`, { cache: "no-cache" });
+    if (route !== "policies" || policyEnabled.size === 0) return response;
+    const policies = await response.json();
+    if (!Array.isArray(policies)) return response;
+    return new Response(
+      JSON.stringify(policies.map((policy) => (
+        policyEnabled.has(policy.id) ? { ...policy, enabled: policyEnabled.get(policy.id) } : policy
+      ))),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
   };
 
   /*

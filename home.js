@@ -107,14 +107,27 @@
 
   // Copy the highlighted lines of the visible code panel.
   document.querySelectorAll(".copy").forEach(function (b) {
+    var status = document.createElement("span");
+    status.className = "sr-only";
+    status.setAttribute("aria-live", "polite");
+    b.insertAdjacentElement("afterend", status);
     b.addEventListener("click", function () {
       var panel = b.closest(".code").querySelector("[role=tabpanel]:not([hidden])");
       var text = [].map.call(panel.querySelectorAll("[data-copy]"), function (x) { return x.textContent; }).join("\n");
-      if (!navigator.clipboard) return;
+      if (!navigator.clipboard) {
+        status.textContent = "Copy isn't available in this browser.";
+        return;
+      }
       navigator.clipboard.writeText(text).then(function () {
         b.textContent = "Copied";
-        setTimeout(function () { b.textContent = "Copy"; }, 1600);
-      }, function () {});
+        status.textContent = "Environment variables copied.";
+        setTimeout(function () {
+          b.textContent = "Copy";
+          status.textContent = "";
+        }, 1600);
+      }, function () {
+        status.textContent = "Couldn't copy. Select the lines and copy them yourself.";
+      });
     });
   });
 

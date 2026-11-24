@@ -19,3 +19,15 @@ package-lock.json
 README.md
 design-system
 supabase
+# Not part of the site. The archive homepage is the only thing that links
+# these, and docs/ is already unpublished.
+.github
+.gitignore
+.node-version
+costgrid-ui.css
+topology.js
+CostGrid_Token_Cost_Model.xlsx
+fonts/manrope-latin-400-normal.woff2
+fonts/manrope-latin-500-normal.woff2
+fonts/manrope-latin-600-normal.woff2
+fonts/manrope-latin-700-normal.woff2
